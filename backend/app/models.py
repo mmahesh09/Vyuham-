@@ -8,7 +8,7 @@ reads them, so they have no ORM models here — see app/security.py.
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app import auth_tables  # noqa: F401  (Better Auth tables referenced below)
@@ -310,3 +310,26 @@ class Notification(Base):
     kind: Mapped[str] = mapped_column(String(16), default="alert")  # alert | digest
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class JobRun(Base):
+    """One scheduled run of a background job, claimed before it is queued.
+
+    The unique (kind, target_id, scheduled_for) row is the lock: two scheduler passes, or a pass
+    that runs while the previous run is still queued, can't send the same alert or digest twice.
+    `scheduled_for` vs `started_at` is the schedule lag shown in monitoring.
+    """
+
+    __tablename__ = "job_runs"
+    __table_args__ = (UniqueConstraint("kind", "target_id", "scheduled_for", name="uq_job_runs_slot"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    kind: Mapped[str] = mapped_column(String(16))  # alert | automation
+    target_id: Mapped[str] = mapped_column(String(32), index=True)
+    scheduled_for: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(10), default="queued")  # queued | running | retry | done | failed
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -17,7 +17,11 @@ class Settings(BaseSettings):
     # Uploads (beta limits; the browser checks the same size before sending).
     max_upload_bytes: int = 10 * 1024 * 1024
     max_upload_rows: int = 1_000_000
-    # Background checks for alerts and automations (off in tests; run in one process only).
+    # Background jobs (alerts, automations, reports) run on a Celery worker fed by Redis.
+    # Without REDIS_URL (local dev), the API runs them in a thread instead: one process only.
+    redis_url: str = ""
+    worker_concurrency: int = 2
+    # The in-process fallback; off in tests and ignored when REDIS_URL is set.
     scheduler_enabled: bool = True
     # Email through Resend; without a key, emails are only logged (local dev).
     resend_api_key: str = ""

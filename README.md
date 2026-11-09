@@ -43,6 +43,12 @@ Start Docker Desktop, then:
 ```bash
 docker compose up --build
 ```
+This starts Postgres, Redis, the API, the frontend, and the background job services:
+- `worker` runs jobs: alert checks and digests now, reports later.
+- `beat` queues a `tick` every minute. Run exactly one beat.
+- `flower` is the job queue dashboard at http://localhost:5555. Its login is set by `FLOWER_BASIC_AUTH` (default `admin:admin`, local only).
+
+Health checks: `GET /health/live` (the process is up) and `GET /health/ready` (database, Redis and the data folder all work; returns 503 otherwise).
 
 ## Tests
 ```bash
@@ -71,6 +77,9 @@ cd frontend && npm run lint && npm run build
 - `app/query.py` — DuckDB sandbox + chart-spec → SQL compiler (bound parameters only)
 - `app/insights.py` — plain-English insights from computed numbers, starter dashboards
 - `app/ask.py` — rule-based question parser; `app/templates.py` — dashboard templates
-- `app/alerts.py` + `app/scheduler.py` — alert checks and digests, run every minute in-process (`SCHEDULER_ENABLED=false` to turn off; run it in one process only)
+- `app/alerts.py` — alert checks and digests
+- `app/jobs.py` — background jobs: find what's due, claim it with a unique `job_runs` row (so nothing is sent twice), run it, record the outcome
+- `app/worker.py` — the Celery app and tasks (`tick` every minute from beat, `run_job` with retries, a daily `prune`)
+- `app/scheduler.py` — fallback for local dev without Redis: runs `jobs.tick` in a thread (`SCHEDULER_ENABLED=false` to turn off)
 - `app/notify.py` — delivery: in-app, email (logged until a provider is set), webhooks (https only; private/internal addresses blocked)
 - `app/routers/` — `sql_lab`, `alerts`, `datasets`, `dashboards` (+ public share), `ask`, `templates`, `team` (invites, members, tasks, leave calendar), `profile`, `presence`

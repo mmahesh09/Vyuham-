@@ -3,13 +3,15 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.config import get_settings
-from app.routers import account, alerts, ask, dashboards, datasets, me, presence, profile, sql_lab, team, templates
+from app.routers import account, alerts, ask, dashboards, datasets, health, me, presence, profile, sql_lab, team, templates
 from app.scheduler import Scheduler
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    scheduler = Scheduler() if get_settings().scheduler_enabled else None
+    settings = get_settings()
+    # With Redis, the Celery worker and beat run jobs; the thread is only for local dev without it.
+    scheduler = Scheduler() if settings.scheduler_enabled and not settings.redis_url else None
     if scheduler:
         scheduler.start()
     yield
@@ -33,8 +35,4 @@ app.include_router(team.router)
 app.include_router(sql_lab.router)
 app.include_router(alerts.router)
 app.include_router(account.router)
-
-
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+app.include_router(health.router)
