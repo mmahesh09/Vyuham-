@@ -1,0 +1,21 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+backend/*.db
+backend/data/
+# Node
+node_modules/
+.next/
+out/
+# Env
+.env
+.env*.local
+!.env.example
+# OS / editors / tooling
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
+coverage/
+.vercel/

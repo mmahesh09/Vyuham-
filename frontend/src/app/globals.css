@@ -1,0 +1,564 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+/* Base UI marks orientation with data-orientation; shadcn base-nova styles target these names. */
+@custom-variant data-horizontal (&[data-orientation="horizontal"]);
+@custom-variant data-vertical (&[data-orientation="vertical"]);
+
+/* Brand palette — black ground with four violet tones. */
+:root {
+  --bg: #05040a; /* near-black with a violet cast; never flat #000 */
+  --bg-alt: #0a0913; /* alternating section tone, violet-tinted */
+  --surface: #110e22;
+  --surface-2: #17132e;
+  --line: #221c4a; /* borders, selected states, AI panels */
+  --primary: #705cbb; /* main buttons, chart bars */
+  --accent: #cb72d0; /* attention: values going down, highlights */
+  --highlight: #cea3f5; /* values going up, chart lines, links */
+  --text: #f5f2ff;
+  --muted: #b3a9d6;
+  --faint: #8f86b3;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --destructive-foreground: var(--color-red-800);
+  --success: var(--color-emerald-500);
+  --success-foreground: var(--color-emerald-900);
+  --info: var(--color-violet-500);
+  --info-foreground: var(--color-violet-900);
+  --warning: var(--color-yellow-500);
+  --warning-foreground: var(--color-yellow-900);
+  --invert: var(--color-zinc-900);
+  --invert-foreground: var(--color-zinc-50);
+}
+
+/*
+ * shadcn / ReUI tokens, mapped onto the brand palette. Vendored components (components/ui,
+ * components/reui) use these names. Brand --muted / --accent are TEXT colours here, so the
+ * vendored files had bg-muted / bg-accent rewritten to bg-surface-2 when installed.
+ */
+:root {
+  --radius: 0.625rem;
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface);
+  --popover-foreground: var(--text);
+  --primary-foreground: var(--text);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted-foreground: var(--muted);
+  --accent-foreground: var(--text);
+  --destructive: #f0597a;
+  --border: var(--line);
+  --input: #2e2660;
+  --ring: var(--highlight);
+  --chart-1: var(--primary);
+  --chart-2: var(--highlight);
+  --chart-3: var(--accent);
+  --chart-4: #8b7fe0;
+  --chart-5: #5b4a9e;
+  --sidebar: var(--bg);
+  --sidebar-foreground: var(--text);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--text);
+  --sidebar-accent: var(--surface-2);
+  --sidebar-accent-foreground: var(--text);
+  --sidebar-border: var(--line);
+  --sidebar-ring: var(--highlight);
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-invert-foreground: var(--invert-foreground);
+  --color-invert: var(--invert);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning: var(--warning);
+  --color-info-foreground: var(--info-foreground);
+  --color-info: var(--info);
+  --color-success-foreground: var(--success-foreground);
+  --color-success: var(--success);
+  --color-destructive-foreground: var(--destructive-foreground);
+}
+
+@layer base {
+  /* shadcn's border default: a plain `border` gets the brand line colour, not currentColor. */
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-alt: var(--bg-alt);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-primary: var(--primary);
+  --color-accent: var(--accent);
+  --color-highlight: var(--highlight);
+  --color-text: var(--text);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  /* One typeface everywhere: Outfit. "serif" is kept as an alias so older classes still resolve. */
+  --font-sans: var(--font-outfit), system-ui, sans-serif;
+  --font-display: var(--font-outfit), system-ui, sans-serif;
+  --font-serif: var(--font-outfit), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* No pure white anywhere: "white" is the brand's violet-tinted off-white. */
+  --color-white: var(--text);
+  --color-invert-foreground: var(--invert-foreground);
+  --color-invert: var(--invert);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning: var(--warning);
+  --color-info-foreground: var(--info-foreground);
+  --color-info: var(--info);
+  --color-success-foreground: var(--success-foreground);
+  --color-success: var(--success);
+  --color-destructive-foreground: var(--destructive-foreground);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-outfit), system-ui, sans-serif;
+}
+
+/* Every heading uses Outfit. The vendored Finance Bento sets its own (also Outfit). */
+@layer base {
+  /* Reference the next/font variable directly: it is defined on <body>, not :root. */
+  :where(h1, h2, h3, h4, h5, h6):not(.fpb *) {
+    font-family: var(--font-outfit), system-ui, sans-serif;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 3px;
+}
+
+/* Pill buttons with a calm lift on hover. */
+.btn-lift {
+  transition:
+    transform 200ms var(--ease-out-quart),
+    box-shadow 200ms var(--ease-out-quart),
+    background-color 200ms var(--ease-out-quart);
+}
+.btn-lift:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 8px 24px rgba(112, 92, 187, 0.35),
+    0 2px 6px rgba(112, 92, 187, 0.25);
+}
+.btn-lift:active {
+  transform: translateY(0) scale(0.98);
+  transition-duration: 100ms;
+}
+
+/* Scroll reveal: only hides content once JS has marked the page ready. */
+.reveal-ready [data-animate] {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 600ms var(--ease-out-expo),
+    transform 600ms var(--ease-out-expo);
+  transition-delay: var(--delay, 0ms);
+}
+.reveal-ready [data-animate].is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal-ready [data-animate] {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .btn-lift,
+  .btn-lift:hover {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ---------- Hero: glowing panel, rays, arch ---------- */
+.hero-panel {
+  background:
+    radial-gradient(55% 50% at 34% 0%, rgba(206, 163, 245, 0.34), transparent 72%),
+    radial-gradient(70% 55% at 50% 100%, rgba(203, 114, 208, 0.2), transparent 70%),
+    radial-gradient(95% 85% at 50% 38%, #2a0f33 0%, #13061b 58%, #07030b 100%);
+}
+
+.ray {
+  position: absolute;
+  top: -25%;
+  height: 100%;
+  transform: rotate(25deg);
+  transform-origin: top center;
+  background: linear-gradient(to bottom, rgba(250, 215, 252, 0.8), rgba(220, 140, 220, 0.28) 50%, transparent 82%);
+  filter: blur(16px);
+  mix-blend-mode: screen;
+  animation: ray-pulse 7s ease-in-out infinite alternate;
+}
+@keyframes ray-pulse {
+  from { opacity: 0.6; }
+  to { opacity: 1; }
+}
+
+.arch-wrap {
+  aspect-ratio: 1180 / 500;
+}
+/* Fades the arch into the dark at the bottom of the panel, without clipping its glow. */
+.hero-fade {
+  background: linear-gradient(to bottom, transparent, rgba(7, 3, 11, 0.85) 75%, #07030b);
+}
+.arch-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 9999px;
+}
+.arch-ring--main {
+  background: radial-gradient(
+    circle closest-side,
+    transparent 0 73.5%,
+    #3b1046 74%,
+    #7d2a7e 78%,
+    #c661c4 83%,
+    #f4bff2 86.5%,
+    #dc7bd6 88.5%,
+    #8f3590 93.5%,
+    #4a1550 97.5%,
+    transparent 99.5%
+  );
+  filter: drop-shadow(0 -10px 60px rgba(203, 114, 208, 0.45));
+}
+.arch-ring--inner {
+  background: radial-gradient(
+    circle closest-side,
+    transparent 0 60%,
+    #2a0c35 60.5%,
+    #5b1f62 64%,
+    #a2479f 67.5%,
+    #451650 71%,
+    transparent 72.5%
+  );
+  opacity: 0.85;
+}
+.arch-ring--outer {
+  left: -6%;
+  top: -6%;
+  width: 112%;
+  border: 1px solid rgba(206, 163, 245, 0.22);
+}
+.arch-glow {
+  position: absolute;
+  inset: -25% 5% 30%;
+  background: radial-gradient(50% 60% at 50% 30%, rgba(203, 114, 208, 0.4), transparent 70%);
+  filter: blur(40px);
+}
+
+.float {
+  animation: float 7s ease-in-out infinite alternate;
+}
+@keyframes float {
+  from { transform: translateY(0); }
+  to { transform: translateY(-12px); }
+}
+
+.caret {
+  animation: caret 1s steps(1) infinite;
+}
+@keyframes caret {
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ray,
+  .float,
+  .caret {
+    animation: none;
+  }
+}
+
+/* ---------- Glass surfaces & section glows ---------- */
+.glass {
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+}
+.glass-strong {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 40px 120px -40px rgba(203, 114, 208, 0.45);
+}
+
+/* A soft colored light source behind a section's content. */
+.glow {
+  position: absolute;
+  z-index: -1;
+  border-radius: 9999px;
+  filter: blur(90px);
+  pointer-events: none;
+}
+.glow--pink { background: rgba(203, 114, 208, 0.28); }
+.glow--violet { background: rgba(112, 92, 187, 0.32); }
+.glow--lilac { background: rgba(206, 163, 245, 0.18); }
+
+.live-ping {
+  animation: live-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+@keyframes live-ping {
+  75%, 100% { transform: scale(2.2); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-ping { animation: none; }
+}
+
+/* ---------- Section rhythm ---------- */
+/* A tinted band that alternates with the black sections; translucent so particles still show. */
+.band {
+  background: rgba(14, 10, 28, 0.72);
+  border-block: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Map hot-spot pulse (CSS, so it honours reduced motion — unlike SMIL). */
+.map-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: map-pulse 2.2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+@keyframes map-pulse {
+  from { transform: scale(1); opacity: 0.9; }
+  to { transform: scale(3.2); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .map-pulse { animation: none; opacity: 0; }
+}
+
+/* ---------- react-day-picker, dark brand ---------- */
+.rdp-brand .rdp-root {
+  --rdp-accent-color: #cb72d0;
+  --rdp-accent-background-color: rgba(203, 114, 208, 0.16);
+  --rdp-range_middle-background-color: rgba(112, 92, 187, 0.28);
+  --rdp-range_middle-color: #f5f2ff;
+  --rdp-range_start-date-background-color: #cb72d0;
+  --rdp-range_end-date-background-color: #cb72d0;
+  --rdp-range_start-color: #14051b;
+  --rdp-range_end-color: #14051b;
+  --rdp-today-color: #cea3f5;
+  --rdp-day-height: 40px;
+  --rdp-day-width: 40px;
+  --rdp-day_button-height: 38px;
+  --rdp-day_button-width: 38px;
+  color: #f5f2ff;
+  font-size: 14px;
+}
+.rdp-brand .rdp-weekday { color: rgba(255, 255, 255, 0.45); font-size: 12px; }
+.rdp-brand .rdp-disabled { opacity: 0.3; }
+.rdp-brand .rdp-chevron { fill: #cea3f5; }
+
+/* Gentle drift for floating infographic cards (auth panel). */
+.float-slow {
+  animation: float-slow 9s ease-in-out infinite;
+  animation-delay: var(--float-delay, 0s);
+}
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .float-slow { animation: none; }
+}
+
+/* ---------- Premium type & actions (landing) ---------- */
+/* Numbered section label: the shared accent thread down the page. */
+.eyebrow {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--highlight);
+}
+.eyebrow::before {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--accent), transparent);
+}
+.eyebrow b {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+/* Headline lit from above: off-white fading into the brand lilac. */
+.text-lit {
+  background: linear-gradient(180deg, var(--text) 30%, var(--highlight) 130%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* The one primary action: brand violet, lifts with a violet (not black) shadow. */
+.btn-primary {
+  background: linear-gradient(180deg, #7f6acb, var(--primary));
+  color: var(--text);
+  box-shadow:
+    inset 0 1px 0 rgba(245, 242, 255, 0.22),
+    0 1px 2px rgba(20, 5, 27, 0.4),
+    0 8px 24px -10px rgba(112, 92, 187, 0.7);
+  transition:
+    transform 200ms var(--ease-out-quart),
+    box-shadow 200ms var(--ease-out-quart);
+}
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    inset 0 1px 0 rgba(245, 242, 255, 0.22),
+    0 2px 4px rgba(20, 5, 27, 0.4),
+    0 16px 36px -12px rgba(112, 92, 187, 0.85);
+}
+.btn-primary:active {
+  transform: translateY(0) scale(0.98);
+  transition-duration: 100ms;
+}
+.btn-ghost {
+  border: 1px solid rgba(206, 163, 245, 0.22);
+  color: var(--text);
+  transition:
+    background-color 200ms var(--ease-out-quart),
+    border-color 200ms var(--ease-out-quart);
+}
+.btn-ghost:hover {
+  background: rgba(206, 163, 245, 0.06);
+  border-color: rgba(206, 163, 245, 0.4);
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary,
+  .btn-primary:hover {
+    transform: none;
+    transition: none;
+  }
+}
+
+/* ---------- Highlighter: marker swipe ---------- */
+/* A translucent violet-pink band behind the lower part of a key phrase, slightly slanted
+   with soft ends. It sweeps in left to right when its [data-animate] ancestor is revealed. */
+mark.mark {
+  --mark-a: rgba(203, 114, 208, 0.5);
+  --mark-b: rgba(206, 163, 245, 0.38);
+  color: inherit;
+  background-color: transparent;
+  background-image: linear-gradient(100deg, transparent 0.3em, var(--mark-a) 0.45em, var(--mark-b) calc(100% - 0.45em), transparent calc(100% - 0.3em));
+  background-repeat: no-repeat;
+  background-size: 100% 0.62em;
+  background-position: 0 88%;
+  padding: 0 0.3em;
+  margin: 0 -0.3em;
+  border-radius: 0.35em 0.15em 0.4em 0.2em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+mark.mark[data-tone="violet"] {
+  --mark-a: rgba(112, 92, 187, 0.62);
+  --mark-b: rgba(141, 120, 224, 0.45);
+}
+/* With JS on, marks inside an animated block start empty and sweep in once it is visible. */
+.reveal-ready [data-animate] mark.mark {
+  background-size: 0% 0.62em;
+  transition: background-size 900ms var(--ease-out-expo);
+  transition-delay: calc(var(--delay, 0ms) + 350ms);
+}
+.reveal-ready [data-animate].is-visible mark.mark {
+  background-size: 100% 0.62em;
+}
+/* Above the fold: sweep in once on load. */
+mark.mark--load {
+  animation: mark-sweep 1000ms var(--ease-out-expo) 700ms both;
+}
+@keyframes mark-sweep {
+  from { background-size: 0% 0.62em; }
+  to { background-size: 100% 0.62em; }
+}
+@media (prefers-reduced-motion: reduce) {
+  mark.mark--load { animation: none; }
+  .reveal-ready [data-animate] mark.mark {
+    background-size: 100% 0.62em;
+    transition: none;
+  }
+}
+/* FAQ answers: the mark sweeps in when the question is opened. */
+details:not([open]) mark.mark,
+.reveal-ready [data-animate] details:not([open]) mark.mark {
+  background-size: 0% 0.62em;
+}
+details[open] mark.mark {
+  transition: background-size 800ms var(--ease-out-expo) 150ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  details[open] mark.mark { transition: none; }
+}
+
+.dark {
+  --destructive-foreground: var(--color-red-600);
+  --success: var(--color-emerald-500);
+  --success-foreground: var(--color-emerald-600);
+  --info: var(--color-violet-500);
+  --info-foreground: var(--color-violet-600);
+  --warning: var(--color-yellow-500);
+  --warning-foreground: var(--color-yellow-600);
+  --invert: var(--color-zinc-700);
+  --invert-foreground: var(--color-zinc-50);
+}
