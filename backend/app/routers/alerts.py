@@ -15,7 +15,7 @@ from app.notify import WebhookError, check_webhook_url
 from app.query import QueryError
 from app.routers.datasets import CAN_UPLOAD
 from app.schemas import SpecFilter, SpecMetric, UtcDatetime
-from app.security import current_membership
+from app.security import AuthUser, current_membership, current_user, require_verified_email
 
 router = APIRouter(tags=["alerts"])
 EMAIL = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
@@ -43,7 +43,9 @@ class Channels(BaseModel):
         return out
 
 
-def _check_channels(c: Channels) -> dict:
+def _check_channels(c: Channels, user: AuthUser | None = None) -> dict:
+    if (c.emails or c.webhook) and user is not None:
+        require_verified_email(user)
     if c.webhook:
         try:
             check_webhook_url(c.webhook)
@@ -93,7 +95,7 @@ class AlertOut(BaseModel):
     created_at: UtcDatetime
 
 
-def _validate_alert(db: Session, member: WorkspaceMember, body: AlertIn) -> dict:
+def _validate_alert(db: Session, member: WorkspaceMember, body: AlertIn, user: AuthUser | None = None) -> dict:
     ds = db.get(Dataset, body.dataset_id)
     if ds is None or ds.workspace_id != member.workspace_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dataset not found")
@@ -108,7 +110,7 @@ def _validate_alert(db: Session, member: WorkspaceMember, body: AlertIn) -> dict
     if body.condition.startswith("change") and not (body.date_field and body.window_days):
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A change alert needs a date column and a time window to compare.")
     data = body.model_dump()
-    data["channels"] = _check_channels(body.channels)
+    data["channels"] = _check_channels(body.channels, user)
     data["metric"] = m.model_dump()
     data["filters"] = [f.model_dump() for f in body.filters]
     return data
@@ -127,9 +129,9 @@ def list_alerts(member: WorkspaceMember = Depends(current_membership), db: Sessi
 
 
 @router.post("/alerts", response_model=AlertOut, status_code=status.HTTP_201_CREATED)
-def create_alert(body: AlertIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+def create_alert(body: AlertIn, member: WorkspaceMember = Depends(current_membership), user: AuthUser = Depends(current_user), db: Session = Depends(get_db)):
     _editor(member)
-    a = Alert(workspace_id=member.workspace_id, created_by=member.user_id, **_validate_alert(db, member, body))
+    a = Alert(workspace_id=member.workspace_id, created_by=member.user_id, **_validate_alert(db, member, body, user))
     db.add(a)
     db.commit()
     db.refresh(a)
@@ -137,10 +139,10 @@ def create_alert(body: AlertIn, member: WorkspaceMember = Depends(current_member
 
 
 @router.put("/alerts/{aid}", response_model=AlertOut)
-def update_alert(aid: str, body: AlertIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+def update_alert(aid: str, body: AlertIn, member: WorkspaceMember = Depends(current_membership), user: AuthUser = Depends(current_user), db: Session = Depends(get_db)):
     _editor(member)
     a = _alert(db, member, aid)
-    for k, v in _validate_alert(db, member, body).items():
+    for k, v in _validate_alert(db, member, body, user).items():
         setattr(a, k, v)
     a.state, a.last_error = "ok", None  # a changed rule starts fresh
     db.commit()
@@ -218,12 +220,12 @@ def _automation(db: Session, member: WorkspaceMember, aid: str) -> Automation:
     return a
 
 
-def _validate_automation(db: Session, member: WorkspaceMember, body: AutomationIn) -> dict:
+def _validate_automation(db: Session, member: WorkspaceMember, body: AutomationIn, user: AuthUser | None = None) -> dict:
     d = db.get(Dashboard, body.dashboard_id)
     if d is None or d.workspace_id != member.workspace_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dashboard not found")
     data = body.model_dump()
-    data["channels"] = _check_channels(body.channels)
+    data["channels"] = _check_channels(body.channels, user)
     return data
 
 
@@ -233,9 +235,9 @@ def list_automations(member: WorkspaceMember = Depends(current_membership), db: 
 
 
 @router.post("/automations", response_model=AutomationOut, status_code=status.HTTP_201_CREATED)
-def create_automation(body: AutomationIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+def create_automation(body: AutomationIn, member: WorkspaceMember = Depends(current_membership), user: AuthUser = Depends(current_user), db: Session = Depends(get_db)):
     _editor(member)
-    a = Automation(workspace_id=member.workspace_id, created_by=member.user_id, **_validate_automation(db, member, body))
+    a = Automation(workspace_id=member.workspace_id, created_by=member.user_id, **_validate_automation(db, member, body, user))
     db.add(a)
     db.commit()
     db.refresh(a)
@@ -243,10 +245,10 @@ def create_automation(body: AutomationIn, member: WorkspaceMember = Depends(curr
 
 
 @router.put("/automations/{aid}", response_model=AutomationOut)
-def update_automation(aid: str, body: AutomationIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+def update_automation(aid: str, body: AutomationIn, member: WorkspaceMember = Depends(current_membership), user: AuthUser = Depends(current_user), db: Session = Depends(get_db)):
     _editor(member)
     a = _automation(db, member, aid)
-    for k, v in _validate_automation(db, member, body).items():
+    for k, v in _validate_automation(db, member, body, user).items():
         setattr(a, k, v)
     db.commit()
     db.refresh(a)

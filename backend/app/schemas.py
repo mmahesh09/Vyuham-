@@ -19,6 +19,7 @@ class UserOut(BaseModel):
     name: str
     role: str
     job_role: str | None = None
+    email_verified: bool = False
     workspace: WorkspaceOut
 
 

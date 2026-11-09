@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.config import get_settings
-from app.routers import alerts, ask, dashboards, datasets, me, presence, profile, sql_lab, team, templates
+from app.routers import account, alerts, ask, dashboards, datasets, me, presence, profile, sql_lab, team, templates
 from app.scheduler import Scheduler
 
 
@@ -32,6 +32,7 @@ app.include_router(templates.router)
 app.include_router(team.router)
 app.include_router(sql_lab.router)
 app.include_router(alerts.router)
+app.include_router(account.router)
 
 
 @app.get("/health")

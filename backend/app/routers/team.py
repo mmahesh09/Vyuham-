@@ -14,7 +14,7 @@ from app.auth_tables import user_table
 from app.db import get_db
 from app.models import Dashboard, Dataset, Invite, LeaveRecord, Task, Workspace, WorkspaceMember
 from app.schemas import UtcDatetime
-from app.security import AuthUser, current_membership, current_user
+from app.security import AuthUser, current_membership, current_user, require_verified_email
 
 router = APIRouter(tags=["team"])
 log = logging.getLogger("app.team")
@@ -73,16 +73,30 @@ def _invite_problem(inv: Invite | None) -> str | None:
 
 
 @router.post("/workspace/invites", response_model=InviteOut, status_code=status.HTTP_201_CREATED)
-def create_invite(body: InviteIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+def create_invite(
+    body: InviteIn,
+    member: WorkspaceMember = Depends(current_membership),
+    user: AuthUser = Depends(current_user),
+    db: Session = Depends(get_db),
+):
     _owner(member)
+    require_verified_email(user)
     inv = Invite(
         token=secrets.token_urlsafe(24), workspace_id=member.workspace_id, role=body.role, email=body.email,
         created_by=member.user_id, expires_at=_now() + timedelta(days=INVITE_DAYS),
     )
     db.add(inv)
     db.commit()
-    if body.email:  # TODO: send through an email provider; printed until one is wired up (like password reset)
-        log.warning("[invite] %s invited as %s: /invite/%s", body.email, body.role, inv.token)
+    if body.email:
+        from app.email import app_link, render, send
+
+        ws = db.get(Workspace, member.workspace_id)
+        ws_name = ws.name if ws else "their workspace"
+        inviter = db.execute(select(user_table.c.name).where(user_table.c.id == member.user_id)).scalar() or "A teammate"
+        url = app_link(f"/invite/{inv.token}")
+        subject = f"{inviter} invited you to {ws_name} on Vyuham"
+        text = f"{inviter} invited you to join {ws_name} as {body.role}. The link works once and expires in {INVITE_DAYS} days."
+        send(body.email, subject, render(subject, [text], ("Accept invite", url)), f"{text}\n\n{url}")
     return inv
 
 

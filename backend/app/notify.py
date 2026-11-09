@@ -67,11 +67,18 @@ def send_webhook(url: str, payload: dict) -> str:
         return f"failed: {type(e).__name__}"
 
 
-def send_email(to: list[str], subject: str, body: str) -> int:
-    # TODO: send through an email provider (Resend, Postmark…). Logged until one is configured.
-    for addr in to:
-        log.warning("[email] to=%s subject=%s\n%s", addr, subject, body)
-    return len(to)
+def send_email(to: list[str], subject: str, body: str, link: str | None = None) -> int:
+    """Alerts and digests by email (Resend; logged when no key is set)."""
+    from app.email import app_link, render, send
+
+    url = app_link(link) if link else None
+    html_body = render(
+        subject,
+        [body],
+        ("Open in Vyuham", url) if url else None,
+        "You're getting this because someone in your workspace added you to an alert or automation.",
+    )
+    return send(to, subject, html_body, body + (f"\n\nOpen: {url}" if url else ""))
 
 
 def deliver(db: Session, workspace_id: str, channels: dict, title: str, body: str, link: str | None, kind: str) -> dict:
@@ -84,7 +91,7 @@ def deliver(db: Session, workspace_id: str, channels: dict, title: str, body: st
         result["inapp"] = len(members)
     emails = [e for e in channels.get("emails") or [] if e]
     if emails:
-        result["email"] = send_email(emails, title, body + (f"\n\nOpen: {link}" if link else ""))
+        result["email"] = send_email(emails, title, body, link)
     if channels.get("webhook"):
         result["webhook"] = send_webhook(channels["webhook"], {"title": title, "body": body, "link": link, "kind": kind})
     return result

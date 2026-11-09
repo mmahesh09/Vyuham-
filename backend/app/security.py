@@ -21,7 +21,7 @@ from app.models import Workspace, WorkspaceMember
 SESSION_COOKIES = ("__Secure-better-auth.session_token", "better-auth.session_token")
 
 _SESSION_QUERY = text(
-    'SELECT u.id, u.email, u.name, u.company, s."expiresAt" '
+    'SELECT u.id, u.email, u.name, u.company, u."emailVerified", s."expiresAt" '
     'FROM "session" s JOIN "user" u ON u.id = s."userId" '
     'WHERE s.token = :token'
 )
@@ -33,6 +33,7 @@ class AuthUser:
     email: str
     name: str
     company: str | None
+    email_verified: bool = False
 
 
 def _as_utc(value: object) -> datetime | None:
@@ -65,7 +66,15 @@ def current_user(request: Request, db: Session = Depends(get_db)) -> AuthUser:
     expires = _as_utc(row.expiresAt) if row else None
     if row is None or expires is None or expires <= datetime.now(timezone.utc):
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not signed in")
-    return AuthUser(id=row.id, email=row.email, name=row.name, company=row.company)
+    return AuthUser(id=row.id, email=row.email, name=row.name, company=row.company, email_verified=bool(row.emailVerified))
+
+
+def require_verified_email(user: AuthUser) -> None:
+    """In production, actions that email other people need a confirmed address (stops spam from throwaway sign-ups)."""
+    from app.config import get_settings
+
+    if get_settings().environment == "production" and not user.email_verified:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Confirm your email address first. We sent you a link when you signed up.")
 
 
 def current_membership(user: AuthUser = Depends(current_user), db: Session = Depends(get_db)) -> WorkspaceMember:

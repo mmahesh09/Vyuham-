@@ -23,6 +23,7 @@ import { StatusMenu } from "@/features/presence/status-menu";
 import type { User } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
+import { AccountPanel } from "./account-panel";
 import { ActivityTimeline } from "./activity-timeline";
 import { useActivity, useMembers, useProfile, useSaveProfile, type Profile } from "./api";
 import { FeedbackCard } from "./feedback-card";
@@ -433,6 +434,16 @@ function ProfileEditor({ user, profile }: { user: User; profile: Profile }) {
                 ) : (
                   <div className="h-24 animate-pulse rounded-lg bg-line/40" />
                 )}
+              </CardContent>
+            </Card>
+
+            <Card id="account" className="scroll-mt-6">
+              <CardHeader>
+                <CardTitle>Account</CardTitle>
+                <CardDescription>Password, your data, and leaving or deleting.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <AccountPanel user={user} />
               </CardContent>
             </Card>
 

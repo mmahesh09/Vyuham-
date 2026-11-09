@@ -3,6 +3,8 @@ import "server-only";
 import path from "node:path";
 
 import { betterAuth } from "better-auth";
+
+import { renderEmail, sendEmail } from "@/lib/email";
 import { nextCookies } from "better-auth/next-js";
 
 /**
@@ -48,8 +50,30 @@ async function createAuth() {
       maxPasswordLength: 72,
       autoSignIn: true,
       sendResetPassword: async ({ user, url }) => {
-        // TODO: send through an email provider (Resend, Postmark…) before launch.
-        console.info(`[auth] Password reset link for ${user.email}: ${url}`);
+        const text = "Someone asked to reset the password for your Vyuham account. The link works for 1 hour.";
+        await sendEmail(user.email, "Reset your Vyuham password", renderEmail("Reset your password", [text], { label: "Choose a new password", url }), `${text}\n\n${url}`);
+      },
+    },
+    // Confirm the address at sign-up. People can sign in before confirming; inviting teammates and
+    // emailing alerts need a confirmed address (enforced by the backend in production).
+    emailVerification: {
+      sendOnSignUp: true,
+      autoSignInAfterVerification: true,
+      sendVerificationEmail: async ({ user, url }) => {
+        const text = `Hi ${user.name.split(" ")[0] || "there"}, confirm this is your email so we can send you invites, alerts and password resets.`;
+        await sendEmail(user.email, "Confirm your email for Vyuham", renderEmail("Confirm your email", [text], { label: "Confirm email", url }), `${text}\n\n${url}`);
+      },
+    },
+    // Slow down password guessing and sign-up spam (Better Auth's built-in limiter).
+    rateLimit: {
+      enabled: true,
+      window: 60,
+      max: 100,
+      customRules: {
+        "/sign-in/email": { window: 60, max: 5 },
+        "/sign-up/email": { window: 60, max: 3 },
+        "/request-password-reset": { window: 60, max: 3 },
+        "/send-verification-email": { window: 60, max: 3 },
       },
     },
     socialProviders: {

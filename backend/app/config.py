@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     max_upload_rows: int = 1_000_000
     # Background checks for alerts and automations (off in tests; run in one process only).
     scheduler_enabled: bool = True
+    # Email through Resend; without a key, emails are only logged (local dev).
+    resend_api_key: str = ""
+    email_from: str = "Vyuham <onboarding@resend.dev>"
+    # Public URL of the web app, for links in emails.
+    app_url: str = "http://localhost:3000"
 
     @model_validator(mode="after")
     def _production_is_safe(self):

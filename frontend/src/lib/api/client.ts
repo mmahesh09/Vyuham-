@@ -7,6 +7,8 @@ export type User = {
   role: Role;
   /** What the person does; null until they save their profile. */
   job_role: string | null;
+  /** Confirmed their email address (Better Auth verification). */
+  email_verified: boolean;
   workspace: Workspace;
 };
 

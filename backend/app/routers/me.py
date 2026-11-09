@@ -22,5 +22,6 @@ def me(
         name=user.name,
         role=member.role,
         job_role=profile.job_role if profile else None,
+        email_verified=user.email_verified,
         workspace=WorkspaceOut.model_validate(member.workspace),
     )
