@@ -50,6 +50,15 @@ This starts Postgres, Redis, the API, the frontend, and the background job servi
 
 Health checks: `GET /health/live` (the process is up) and `GET /health/ready` (database, Redis and the data folder all work; returns 503 otherwise).
 
+## Decks (open-slide)
+`my-deck/` is an [open-slide](https://github.com/open-slide/open-slide) workspace: slides are React files under `my-deck/slides/<id>/index.tsx`. Ask Claude Code inside `my-deck/` to "make slides about X" and it uses the bundled `create-slide` skill.
+```bash
+cd my-deck && npm install
+npm run dev         # write slides: http://localhost:5173/decks/
+npm run build:app   # build into frontend/public/decks; the app serves it at /decks
+```
+The sidebar's **Decks** link opens `/decks`. The Docker frontend image builds the decks itself, using the `decks` build context in docker-compose. `frontend/public/decks/` is build output and isn't committed.
+
 ## Tests
 ```bash
 cd backend && .venv/Scripts/python -m pytest -q

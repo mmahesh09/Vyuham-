@@ -1,6 +1,6 @@
 "use client";
 
-import { BellRing, Code2, Command, Compass, Database, House, LayoutDashboard, LayoutGrid, LayoutTemplate, LogOut, UserRound, Users } from "lucide-react";
+import { BellRing, Code2, Command, Compass, Database, House, LayoutDashboard, LayoutGrid, LayoutTemplate, LogOut, Presentation, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -21,6 +21,8 @@ const NAV = [
   { href: "/sql", label: "SQL Lab", icon: Code2 },
   { href: "/lab", label: "Dashboard Lab", icon: LayoutGrid },
   { href: "/alerts", label: "Alerts", icon: BellRing },
+  // The open-slide deck app (my-deck/): a separate static app, so a full page load, not <Link>.
+  { href: "/decks", label: "Decks", icon: Presentation, external: true },
   { href: "/team", label: "Team", icon: Users },
   { href: "/profile", label: "Profile", icon: UserRound },
 ];
@@ -38,21 +40,28 @@ export function Sidebar({ workspaceName, userName }: { workspaceName: string; us
     >
       <Logo href="/home" />
       <ul className="flex flex-col gap-1 max-md:flex-row max-md:flex-wrap">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {NAV.map(({ href, label, icon: Icon, external }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
+          const className = `flex min-h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] ${
+            active ? "bg-line font-semibold text-text" : "font-medium text-muted hover:text-text"
+          }`;
+          const content = (
+            <>
+              <Icon className={`size-[18px] ${active ? "text-highlight" : ""}`} strokeWidth={1.8} aria-hidden />
+              {label}
+            </>
+          );
           return (
             <li key={href}>
-              <Link
-                href={href}
-                data-tour={`nav-${href}`}
-                aria-current={active ? "page" : undefined}
-                className={`flex min-h-11 items-center gap-3 rounded-[10px] px-3 text-[15px] ${
-                  active ? "bg-line font-semibold text-text" : "font-medium text-muted hover:text-text"
-                }`}
-              >
-                <Icon className={`size-[18px] ${active ? "text-highlight" : ""}`} strokeWidth={1.8} aria-hidden />
-                {label}
-              </Link>
+              {external ? (
+                <a href={href} data-tour={`nav-${href}`} className={className}>
+                  {content}
+                </a>
+              ) : (
+                <Link href={href} data-tour={`nav-${href}`} aria-current={active ? "page" : undefined} className={className}>
+                  {content}
+                </Link>
+              )}
             </li>
           );
         })}

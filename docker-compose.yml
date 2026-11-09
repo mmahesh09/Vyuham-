@@ -72,7 +72,10 @@ services:
       redis: { condition: service_healthy }
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      additional_contexts:
+        decks: ./my-deck  # open-slide decks, served at /decks
     environment:
       BACKEND_URL: http://backend:8000
       DATABASE_URL: postgresql://app:app@db:5432/app

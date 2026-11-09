@@ -19,3 +19,5 @@ Thumbs.db
 *.tsbuildinfo
 coverage/
 .vercel/
+# Built decks (my-deck: npm run build:app)
+frontend/public/decks/
