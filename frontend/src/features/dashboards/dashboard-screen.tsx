@@ -21,6 +21,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { ChartBuilder } from "@/features/charts/chart-builder";
 import { TaskDialog } from "@/features/team/task-dialog";
+import { ExportMenu } from "@/features/reports/export-menu";
 import { cn } from "@/lib/utils";
 
 import { privateSource, publicSource, type ChartKind, type ChartRecord, type Dashboard, type DashboardSource } from "./api";
@@ -75,7 +76,8 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
   const canEdit = mode === "private" && dashboard.can_edit;
   const [filters] = useDashboardFilters();
   const chartIds = dashboard.charts.map((c) => c.id).join(",");
-  const view = useDashboardView(source, toViewQuery(filters), chartIds);
+  const viewQuery = toViewQuery(filters);
+  const view = useDashboardView(source, viewQuery, chartIds);
   const views = useMemo(() => new Map((view.data?.charts ?? []).map((c) => [c.id, c])), [view.data]);
   const m = useDashboardMutations(dashboard.id);
   const duplicate = useDuplicateDashboard();
@@ -145,6 +147,9 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
               ))}
             </div>
           )}
+        {mode === "private" && dashboard.charts.length > 0 && (
+          <ExportMenu source="dashboard" sourceId={dashboard.id} options={{ date_from: viewQuery.from, date_to: viewQuery.to, filters: viewQuery.f }} />
+        )}
         {canEdit && (
           <>
             <Button onClick={() => setBuilder({ open: true, chart: null, kind: "card" })}>

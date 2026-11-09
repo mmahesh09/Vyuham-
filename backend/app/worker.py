@@ -18,6 +18,8 @@ from sqlalchemy.exc import DBAPIError, OperationalError
 from app import jobs
 from app.config import get_settings
 from app.db import SessionLocal
+from app.reports import runner
+from app.reports.pdf import RenderError
 
 log = logging.getLogger("app.worker")
 settings = get_settings()
@@ -35,12 +37,13 @@ celery_app.conf.update(
     beat_schedule={
         "tick": {"task": "vyuham.tick", "schedule": 60.0, "options": {"expires": 55}},
         "prune": {"task": "vyuham.prune", "schedule": 24 * 3600.0},
+        "prune-reports": {"task": "vyuham.prune_reports", "schedule": 24 * 3600.0},
     },
 )
 
 # Database and network trouble is worth retrying; a broken alert definition is not (run_job
 # records that as a failed run instead of raising).
-TRANSIENT = (OperationalError, DBAPIError, ConnectionError, TimeoutError, OSError)
+TRANSIENT = (OperationalError, DBAPIError, ConnectionError, TimeoutError, OSError, RenderError)
 
 
 class JobTask(Task):
@@ -87,5 +90,41 @@ def prune() -> int:
     db = SessionLocal()
     try:
         return jobs.prune(db)
+    finally:
+        db.close()
+
+
+class ReportTask(Task):
+    def on_failure(self, exc, task_id, args, kwargs, einfo):
+        log.error("report run %s failed: %s", args[0], exc)
+        db = SessionLocal()
+        try:
+            runner.mark_failed(db, args[0], exc)
+        finally:
+            db.close()
+
+
+@celery_app.task(
+    name="vyuham.run_report",
+    base=ReportTask,
+    autoretry_for=TRANSIENT,
+    max_retries=2,
+    retry_backoff=15,
+    soft_time_limit=600,  # big exports and PDFs of long dashboards
+    time_limit=660,
+)
+def run_report(run_id: str) -> None:
+    db = SessionLocal()
+    try:
+        runner.generate(db, run_id)
+    finally:
+        db.close()
+
+
+@celery_app.task(name="vyuham.prune_reports", ignore_result=True)
+def prune_reports() -> int:
+    db = SessionLocal()
+    try:
+        return runner.prune(db, settings.report_retention_days)
     finally:
         db.close()

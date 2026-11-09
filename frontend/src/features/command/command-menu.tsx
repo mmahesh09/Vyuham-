@@ -1,7 +1,7 @@
 "use client";
 
 import { Command } from "cmdk";
-import { BellRing, Code2, Database, FileSpreadsheet, House, LayoutDashboard, LayoutGrid, LayoutTemplate, Sparkle, UserRound, Users, type LucideIcon } from "lucide-react";
+import { BellRing, Code2, Database, FileSpreadsheet, FileText, House, LayoutDashboard, LayoutGrid, LayoutTemplate, Sparkle, UserRound, Users, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -17,6 +17,7 @@ const PAGES: { label: string; href: string; icon: LucideIcon }[] = [
   { label: "SQL Lab", href: "/sql", icon: Code2 },
   { label: "Dashboard Lab", href: "/lab", icon: LayoutGrid },
   { label: "Alerts & automations", href: "/alerts", icon: BellRing },
+  { label: "Reports", href: "/reports", icon: FileText },
   { label: "Team", href: "/team", icon: Users },
   { label: "Profile", href: "/profile", icon: UserRound },
 ];

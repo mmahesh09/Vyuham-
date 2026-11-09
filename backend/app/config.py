@@ -4,6 +4,8 @@ from typing import Literal
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+DEV_SIGNING_SECRET = "dev-only-signing-secret-change-me-0123456789"
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
@@ -29,6 +31,22 @@ class Settings(BaseSettings):
     # Public URL of the web app, for links in emails.
     app_url: str = "http://localhost:3000"
 
+    # Signs short-lived links: the print page a PDF report is rendered from, report downloads.
+    signing_secret: str = DEV_SIGNING_SECRET
+    # Where the report worker's headless browser opens the print page (in Docker: the frontend
+    # container, which proxies /api to the backend).
+    print_base_url: str = "http://localhost:3000"
+    # Generated report files: "local" (under DATA_DIR/reports) or "s3" (any S3-compatible store,
+    # e.g. MinIO; needs `pip install boto3`).
+    report_storage: Literal["local", "s3"] = "local"
+    s3_bucket: str = ""
+    s3_endpoint_url: str = ""
+    s3_region: str = "us-east-1"
+    s3_access_key: str = ""
+    s3_secret_key: str = ""
+    report_retention_days: int = 30
+    report_max_rows: int = 1_000_000
+
     @model_validator(mode="after")
     def _production_is_safe(self):
         """Fail at startup rather than run production on development defaults."""
@@ -37,6 +55,8 @@ class Settings(BaseSettings):
                 raise ValueError("ENVIRONMENT=production needs DATABASE_URL pointing at Postgres, not SQLite")
             if self.data_dir in ("./data", "data"):
                 raise ValueError("ENVIRONMENT=production needs DATA_DIR set to a persistent volume path")
+            if self.signing_secret == DEV_SIGNING_SECRET or len(self.signing_secret) < 32:
+                raise ValueError("ENVIRONMENT=production needs SIGNING_SECRET set to a random string of 32+ characters")
         return self
 
 

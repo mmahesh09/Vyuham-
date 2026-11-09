@@ -10,6 +10,7 @@ import type { ChartSpec, ChartType } from "@/features/charts/chart-spec";
 import { SaveToDashboard } from "@/features/command/save-to-dashboard";
 import { ChartBody } from "@/features/dashboards/insight-card";
 import { useMe } from "@/features/auth/hooks";
+import { ExportMenu } from "@/features/reports/export-menu";
 import { api } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -186,6 +187,8 @@ export function SqlLabScreen() {
                 <Button variant="outline" size="sm" onClick={() => save.mutate()} disabled={save.isPending || !text.trim()}>
                   <Save /> {current ? "Update" : "Save"}
                 </Button>
+                {/* Exports run the saved query, so save edits first. */}
+                {current && <ExportMenu source="saved_query" sourceId={current.id} disabled={current.sql !== text} />}
               </div>
             </div>
           </div>

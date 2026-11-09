@@ -331,6 +331,45 @@ def run_sql(con: duckdb.DuckDBPyConnection, sql: str) -> list[dict]:
         raise QueryError(f"The query failed: {str(e).splitlines()[0][:200]}") from e
 
 
+def stream_rows(
+    con: duckdb.DuckDBPyConnection, sql: str, params: list[Any] | None = None, *, max_rows: int, timeout: float = 120.0, batch: int = 10_000
+):
+    """(column names, iterator of row-tuple batches) for exports: no MAX_ROWS cap, a longer timeout.
+
+    Stops with QueryError past `max_rows` rather than silently cutting the file short. The caller
+    must finish (or abandon) the iterator before closing the connection.
+    """
+    timer = threading.Timer(timeout, con.interrupt)
+    timer.start()
+    try:
+        cur = con.execute(sql, params or [])
+    except duckdb.InterruptException as e:
+        timer.cancel()
+        raise QueryError("The export took too long.") from e
+    except duckdb.Error as e:
+        timer.cancel()
+        raise QueryError(f"The query failed: {str(e).splitlines()[0][:200]}") from e
+    names = [d[0] for d in cur.description]
+
+    def batches():
+        seen = 0
+        try:
+            while True:
+                rows = cur.fetchmany(batch)
+                if not rows:
+                    return
+                seen += len(rows)
+                if seen > max_rows:
+                    raise QueryError(f"That's more than {max_rows:,} rows. Add a filter or split the export.")
+                yield rows
+        except duckdb.InterruptException as e:
+            raise QueryError("The export took too long.") from e
+        finally:
+            timer.cancel()
+
+    return names, batches()
+
+
 def validate_select(sql: str) -> None:
     try:
         statements = sqlglot.parse(sql, read="duckdb")

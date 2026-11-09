@@ -48,6 +48,8 @@ export type ChartView = { id: string; rows: ResultRow[]; insight: Insight | null
 export type DashboardView = {
   charts: ChartView[];
   period: { date_from: string; date_to: string; prev_from: string; prev_to: string } | null;
+  /** Print page only: the report's period in words ("Jan 01, 2026 – Jan 31, 2026" or "All time"). */
+  label?: string;
 };
 
 /** Filters as sent to the server: dates as "yyyy-MM-dd" (or null = all time) and column equals-filters. */
@@ -86,6 +88,14 @@ export const publicSource = (token: string): DashboardSource => ({
   get: () => api<Dashboard>(`/public/dashboards/${token}`),
   view: (q) => api<DashboardView>(`/public/dashboards/${token}/view${viewParams(q)}`),
   values: (c) => api<string[]>(`/public/dashboards/${token}/filter-values/${encodeURIComponent(c)}`),
+});
+
+/** The print page a PDF report is rendered from: a short-lived signed token fixes the period and filters. */
+export const printSource = (token: string): DashboardSource => ({
+  key: ["print-dashboard", token],
+  get: () => api<Dashboard>(`/print/dashboards/${encodeURIComponent(token)}`),
+  view: () => api<DashboardView>(`/print/dashboards/${encodeURIComponent(token)}/view`),
+  values: async () => [],
 });
 
 export const dashboardsApi = {

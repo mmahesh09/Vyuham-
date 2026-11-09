@@ -333,3 +333,52 @@ class JobRun(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Report(Base):
+    """A report definition: what to export (a dashboard, saved query or dataset) and in which format."""
+
+    __tablename__ = "reports"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    source: Mapped[str] = mapped_column(String(16))  # dashboard | saved_query | dataset
+    source_id: Mapped[str] = mapped_column(String(32))
+    format: Mapped[str] = mapped_column(String(8))  # pdf | csv | xlsx
+    # {period_days, filters: {col: value}, orientation: portrait|landscape, page_size: A4|Letter}
+    options: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class ReportRun(Base):
+    """One generated file (or an attempt at one).
+
+    It keeps its own copy of what to export, so a quick "Export" from a dashboard needs no saved
+    Report, and editing or deleting a report doesn't change the history of files already made.
+    """
+
+    __tablename__ = "report_runs"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    report_id: Mapped[str | None] = mapped_column(ForeignKey("reports.id", ondelete="SET NULL"), index=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    source: Mapped[str] = mapped_column(String(16))
+    source_id: Mapped[str] = mapped_column(String(32))
+    format: Mapped[str] = mapped_column(String(8))
+    options: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(10), default="queued")  # queued | running | retry | done | failed
+    trigger: Mapped[str] = mapped_column(String(10), default="manual")  # manual | schedule
+    automation_id: Mapped[str | None] = mapped_column(ForeignKey("automations.id", ondelete="SET NULL"))
+    file_key: Mapped[str | None] = mapped_column(String(300))
+    file_name: Mapped[str | None] = mapped_column(String(255))
+    size_bytes: Mapped[int | None] = mapped_column(Integer)
+    rows: Mapped[int | None] = mapped_column(Integer)
+    error: Mapped[str | None] = mapped_column(String(500))
+    requested_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

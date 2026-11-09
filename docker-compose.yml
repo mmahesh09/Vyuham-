@@ -5,6 +5,10 @@ x-backend-env: &backend-env
   WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
   APP_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
   RESEND_API_KEY: ${RESEND_API_KEY:-}
+  # Signs print-page and download links; must be the same for the API and the worker.
+  SIGNING_SECRET: ${SIGNING_SECRET:-dev-only-signing-secret-change-me-0123456789}
+  # The worker's browser opens the print page through the frontend container.
+  PRINT_BASE_URL: http://frontend:3000
 
 services:
   db:
@@ -30,7 +34,7 @@ services:
       retries: 20
 
   backend:
-    build: ./backend
+    build: { context: ./backend, target: api }
     environment: *backend-env
     volumes: [appdata:/data]
     ports: ["8000:8000"]
@@ -43,18 +47,19 @@ services:
       start_period: 20s
       retries: 6
 
-  # Runs background jobs. Waits for the backend so migrations have been applied.
+  # Runs background jobs and renders reports. Waits for the backend so migrations have been
+  # applied; PDF reports also need the frontend (the print page).
   worker:
-    build: ./backend
-    command: ["celery", "-A", "app.worker", "worker", "--loglevel=info"]
+    build: { context: ./backend, target: worker }
     environment: *backend-env
     volumes: [appdata:/data]
     depends_on:
       backend: { condition: service_healthy }
+      frontend: { condition: service_started }
 
   # Queues a scheduler tick every minute. Exactly one beat, however many workers.
   beat:
-    build: ./backend
+    build: { context: ./backend, target: api }
     command: ["celery", "-A", "app.worker", "beat", "--loglevel=info", "--schedule", "/tmp/celerybeat-schedule"]
     environment: *backend-env
     depends_on:
@@ -62,7 +67,7 @@ services:
 
   # Job queue dashboard; bound to localhost only.
   flower:
-    build: ./backend
+    build: { context: ./backend, target: api }
     command: ["celery", "-A", "app.worker", "flower", "--port=5555"]
     environment:
       <<: *backend-env

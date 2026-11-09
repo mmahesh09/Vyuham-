@@ -1,6 +1,6 @@
 "use client";
 
-import { BellRing, Code2, Command, Compass, Database, House, LayoutDashboard, LayoutGrid, LayoutTemplate, LogOut, Presentation, UserRound, Users } from "lucide-react";
+import { BellRing, Code2, Command, Compass, Database, FileText, House, LayoutDashboard, LayoutGrid, LayoutTemplate, LogOut, Presentation, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -21,6 +21,7 @@ const NAV = [
   { href: "/sql", label: "SQL Lab", icon: Code2 },
   { href: "/lab", label: "Dashboard Lab", icon: LayoutGrid },
   { href: "/alerts", label: "Alerts", icon: BellRing },
+  { href: "/reports", label: "Reports", icon: FileText },
   // The open-slide deck app (my-deck/): a separate static app, so a full page load, not <Link>.
   { href: "/decks", label: "Decks", icon: Presentation, external: true },
   { href: "/team", label: "Team", icon: Users },
