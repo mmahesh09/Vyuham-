@@ -7,6 +7,12 @@
       "skillPath": "SKILL.md",
       "computedHash": "caa92230c2edcd38913e783290823567c461e9459eb1f97022a32e15344aed06"
     },
+    "analytics-dashboard": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/analytics-dashboard/SKILL.md",
+      "computedHash": "194a82c6dc41ce2c759c739e048755206e06d32820e014e5759b1bb78be35e3b"
+    },
     "api-design-principles": {
       "source": "wshobson/agents",
       "sourceType": "github",
@@ -25,6 +31,12 @@
       "skillPath": ".claude/skills/backend-development/SKILL.md",
       "computedHash": ""
     },
+    "content-matrix": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/content-matrix/SKILL.md",
+      "computedHash": "45423d4893f32ae55d35061ee76671bab07031516781dd1f277c8491dc7abd22"
+    },
     "diagram-design": {
       "source": "cathrynlavery/diagram-design",
       "sourceType": "github",
@@ -37,11 +49,35 @@
       "skillPath": "skills/drawio-skill/SKILL.md",
       "computedHash": "c67563a1b84cec8d0b905f7385a30ff96d7185a15d6fe570e6e4d2cf743916cc"
     },
+    "gemini-carousel": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-carousel/SKILL.md",
+      "computedHash": "028f1598ebfe17e4ccd791b703dcf64bd6a24d395d32fd7698835554f5ba727b"
+    },
+    "gemini-infographic": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gemini-infographic/SKILL.md",
+      "computedHash": "ea9a11733836f697e7ef3a81a33ef7326646059a4cd4db01f34e0e505d2f1688"
+    },
+    "graphic-designer": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/graphic-designer/SKILL.md",
+      "computedHash": "f2c09405144d0ff472031679d5b310c850fd35bb537862c4f9b261b7543fcd40"
+    },
     "hallmark": {
       "source": "Nutlope/hallmark",
       "sourceType": "github",
       "skillPath": "skills/hallmark/SKILL.md",
       "computedHash": "e5d4ee5cf0af2dcc81a23ef49b587fbfd71236ff9f9df9da12d3bf347e26e572"
+    },
+    "hook-generator": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/hook-generator/SKILL.md",
+      "computedHash": "2e61e0a5fbc95574536ed2b5c8b63a050aaa5d27049b6b71756d274970233019"
     },
     "ip-as-logo": {
       "source": "s1dashu/ip-as-logo-skill",
@@ -49,11 +85,65 @@
       "skillPath": "SKILL.md",
       "computedHash": "8c5b3f57e6b89650def1134b2995f766b19bae63c7670329fa972a0049403c4f"
     },
+    "newsletter-voice": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/newsletter-voice/SKILL.md",
+      "computedHash": "89d8d0902494741256604347462db189613aedff4f5f0c10d0b320ed0a5c96ca"
+    },
+    "niche-research": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/niche-research/SKILL.md",
+      "computedHash": "dc5ddab5c9396441fc7e3be070a10437979f917a659b52968319aad3b20c5032"
+    },
+    "pinned-comment": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/pinned-comment/SKILL.md",
+      "computedHash": "efee1d8b6cbc8bfe62f7334005db9933157da74f92b71fc9dc3b5984422eb1ca"
+    },
+    "post-formatter": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/post-formatter/SKILL.md",
+      "computedHash": "383d674a4df4e5984f05dff4178bf3701ce51a421f170f8d04a07629ed72f88a"
+    },
+    "post-scorer": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/post-scorer/SKILL.md",
+      "computedHash": "09f3d289eeb0cc4251cddd42f943428785decb9eefb42ee28e0fe7753a426717"
+    },
+    "post-writer": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/post-writer/SKILL.md",
+      "computedHash": "ced6080d085e7a13ecd09d4edd3e5d2cc7ce5a61244b63142842552e02811306"
+    },
     "premium-web-design": {
       "source": "Lucxar/premium-web-design-skill",
       "sourceType": "github",
       "skillPath": "SKILL.md",
       "computedHash": ""
+    },
+    "profile-optimizer": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/profile-optimizer/SKILL.md",
+      "computedHash": "177431393f31c5e383948bbed1ccdb5c4ba2102e022a1222d1962b3750d474a4"
+    },
+    "quote-post": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/quote-post/SKILL.md",
+      "computedHash": "49f4706395fa36d28700c0fe99610cc517c2475fcf8496f6ea2b8d981a5bd0b6"
+    },
+    "reels-scripting": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/reels-scripting/SKILL.md",
+      "computedHash": "505b43b642bb9db16f58eef928794e08234b192909ee12b39e05558cb7fcfdb8"
     },
     "security-audit": {
       "source": "cloudflare/security-audit-skill",
@@ -84,6 +174,24 @@
       "sourceType": "github",
       "skillPath": "startup-positioning/SKILL.md",
       "computedHash": "437d134173e2d33693a2b946558ba70a62c337e74fa15140c9324cb58446a44f"
+    },
+    "stop-slop": {
+      "source": "hardikpandya/stop-slop",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "02a5b429945020ed8a5ed4024d57384258c2596f09ab42c3e7498a8a43ec1c36"
+    },
+    "voice-builder": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/voice-builder/SKILL.md",
+      "computedHash": "ff374f3d1fa08711a0a24bd4e4b61efafaaa16ff938568c7b865328dcd760997"
+    },
+    "youtube-thumbnail": {
+      "source": "charlie947/social-media-skills",
+      "sourceType": "github",
+      "skillPath": "skills/youtube-thumbnail/SKILL.md",
+      "computedHash": "c411148680dbe6c600562ccfad5fb504a82300b95a8aebed54aedf6b11b4e82d"
     }
   }
 }
