@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     email_from: str = "Vyuham <onboarding@resend.dev>"
     # Public URL of the web app, for links in emails.
     app_url: str = "http://localhost:3000"
+    # Optional: check invite addresses with a self-hosted Reacher (app/email_check.py). Off when empty.
+    reacher_url: str = ""
+    reacher_secret: str = ""
 
     # Signs short-lived links: the print page a PDF report is rendered from, report downloads.
     signing_secret: str = DEV_SIGNING_SECRET
