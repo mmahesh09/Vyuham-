@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.rate_limit import per_share_link, per_user
 from app.db import get_db
 from app.insights import chart_insight, previous_period, starter_specs
 from app.models import Chart, Dashboard, Dataset, UserProfile, WorkspaceMember
@@ -35,7 +36,7 @@ from app.schemas import (
 from app.security import current_membership
 
 router = APIRouter(tags=["dashboards"])
-public = APIRouter(prefix="/public", tags=["public"])
+public = APIRouter(prefix="/public", tags=["public"], dependencies=[Depends(per_share_link())])
 
 MAX_CHARTS = 40
 
@@ -222,7 +223,7 @@ def delete_dashboard(dashboard_id: str, member: WorkspaceMember = Depends(curren
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.post("/dashboards/{dashboard_id}/duplicate", response_model=DashboardOut, status_code=status.HTTP_201_CREATED)
+@router.post("/dashboards/{dashboard_id}/duplicate", response_model=DashboardOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(per_user("build"))])
 def duplicate_dashboard(dashboard_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     _editor(member)
     src = _dashboard(db, member, dashboard_id)
@@ -245,7 +246,7 @@ def duplicate_dashboard(dashboard_id: str, member: WorkspaceMember = Depends(cur
     return _out(db, copy, member)
 
 
-@router.get("/dashboards/{dashboard_id}/view", response_model=DashboardViewOut)
+@router.get("/dashboards/{dashboard_id}/view", response_model=DashboardViewOut, dependencies=[Depends(per_user("view"))])
 def dashboard_view(
     dashboard_id: str,
     date_from: date | None = Query(None, alias="from"),
@@ -347,7 +348,7 @@ def reorder(dashboard_id: str, body: OrderIn, member: WorkspaceMember = Depends(
     return [ChartOut.model_validate(c) for c in ordered]
 
 
-@router.post("/charts/preview", response_model=PreviewOut)
+@router.post("/charts/preview", response_model=PreviewOut, dependencies=[Depends(per_user("preview"))])
 def preview(body: PreviewIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     """Live result for the chart builder, before anything is saved."""
     spec = body.spec.model_dump(exclude_none=True)
@@ -364,7 +365,7 @@ def preview(body: PreviewIn, member: WorkspaceMember = Depends(current_membershi
     return PreviewOut(rows=rows, insight=InsightOut(**insight.__dict__))
 
 
-@router.post("/datasets/{dataset_id}/starter-dashboard", response_model=DashboardOut, status_code=status.HTTP_201_CREATED)
+@router.post("/datasets/{dataset_id}/starter-dashboard", response_model=DashboardOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(per_user("build"))])
 def starter_dashboard(dataset_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     """Build a first dashboard from the dataset's column types (rules only; AI comes later)."""
     _editor(member)

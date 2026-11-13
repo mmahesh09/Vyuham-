@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.rate_limit import per_user
 from app.ask import parse_question, suggestions
 from app.db import get_db
 from app.insights import chart_insight
@@ -44,7 +45,7 @@ def ask_suggestions(member: WorkspaceMember = Depends(current_membership), db: S
     return suggestions(_datasets(db, member))
 
 
-@router.post("", response_model=AskOut)
+@router.post("", response_model=AskOut, dependencies=[Depends(per_user("ask"))])
 def ask(body: AskIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     question = body.question.strip()
     datasets = _datasets(db, member)

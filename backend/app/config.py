@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     # Background jobs (alerts, automations, reports) run on a Celery worker fed by Redis.
     # Without REDIS_URL (local dev), the API runs them in a thread instead: one process only.
     redis_url: str = ""
+    # Per-user limits on expensive endpoints (app/rate_limit.py); counted in Redis when REDIS_URL is set.
+    rate_limits_enabled: bool = True
     worker_concurrency: int = 2
     # The in-process fallback; off in tests and ignored when REDIS_URL is set.
     scheduler_enabled: bool = True

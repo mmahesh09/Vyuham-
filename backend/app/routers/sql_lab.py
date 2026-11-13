@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.rate_limit import per_user
 from app.db import get_db
 from app.models import Dataset, SavedQuery, WorkspaceMember
 from app.query import MAX_ROWS, QueryError, connect, explain_sql, run_sql, table_names
@@ -76,7 +77,7 @@ def schema(member: WorkspaceMember = Depends(current_membership), db: Session = 
     return [TableOut(table=names[d.id], dataset_id=d.id, dataset_name=d.name, row_count=d.row_count, columns=d.columns) for d in datasets]
 
 
-@router.post("/run", response_model=RunOut)
+@router.post("/run", response_model=RunOut, dependencies=[Depends(per_user("sql"))])
 def run(body: RunIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     _editor(member)
     con = connect(member.workspace_id, _datasets(db, member))
@@ -92,7 +93,7 @@ def run(body: RunIn, member: WorkspaceMember = Depends(current_membership), db: 
                   elapsed_ms=int((time.perf_counter() - started) * 1000))
 
 
-@router.post("/explain", response_model=ExplainOut)
+@router.post("/explain", response_model=ExplainOut, dependencies=[Depends(per_user("sql"))])
 def explain(body: RunIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     """DuckDB's query plan, without running the query."""
     _editor(member)

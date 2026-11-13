@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
+from app.rate_limit import per_user
 from app.auth_tables import user_table
 from app.db import get_db
 from app.models import Dashboard, Dataset, Invite, LeaveRecord, Task, Workspace, WorkspaceMember
@@ -72,7 +73,7 @@ def _invite_problem(inv: Invite | None) -> str | None:
     return None
 
 
-@router.post("/workspace/invites", response_model=InviteOut, status_code=status.HTTP_201_CREATED)
+@router.post("/workspace/invites", response_model=InviteOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(per_user("invite"))])
 def create_invite(
     body: InviteIn,
     member: WorkspaceMember = Depends(current_membership),
