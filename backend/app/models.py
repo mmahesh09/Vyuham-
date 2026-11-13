@@ -223,6 +223,8 @@ class SavedQuery(Base):
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(200))
     sql: Mapped[str] = mapped_column(Text)
+    # Values for the query's {{name}} placeholders: [{"name", "type", "value"}] (app/sql_params.py).
+    params: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)

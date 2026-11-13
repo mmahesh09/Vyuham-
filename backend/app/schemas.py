@@ -203,6 +203,14 @@ class SpecMetric(BaseModel):
     agg: Agg
 
 
+class SqlParam(BaseModel):
+    """A value for one {{name}} placeholder in SQL Lab SQL (app/sql_params.py)."""
+
+    name: str = Field(pattern=r"^[A-Za-z_][A-Za-z0-9_]{0,39}$")
+    type: Literal["text", "number", "date"] = "text"
+    value: str = Field(default="", max_length=1_000)
+
+
 class SpecFilter(BaseModel):
     field: str = Field(min_length=1, max_length=255)
     op: Literal["eq", "neq", "gt", "gte", "lt", "lte", "between", "in", "contains", "empty", "not_empty"]
@@ -228,6 +236,8 @@ class ChartSpecIn(BaseModel):
     target: float | None = None
     # Charts saved from SQL Lab: the query is the definition; metrics/groupBy name its result columns.
     sql: str | None = Field(default=None, max_length=10_000)
+    # Values for the query's {{name}} placeholders, fixed when the chart was saved.
+    params: list[SqlParam] | None = Field(default=None, max_length=20)
 
 
 class ChartIn(BaseModel):

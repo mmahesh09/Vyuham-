@@ -13,6 +13,7 @@ from app.insights import chart_insight, previous_period, starter_specs
 from app.models import Chart, Dashboard, Dataset, UserProfile, WorkspaceMember
 from app.query import Filters, QueryError, connect, distinct_values, validate_select
 from app.routers.datasets import CAN_UPLOAD, owned_dataset
+from app.sql_params import Param, bind
 from app.schemas import (
     ChartIn,
     ChartOut,
@@ -136,7 +137,8 @@ def _check_spec_dataset(db: Session, member: WorkspaceMember, spec: dict) -> Dat
     if spec.get("sql"):
         # Columns are the query's own; check it's a single read-only SELECT now, not on first view.
         try:
-            validate_select(spec["sql"])
+            sql, _ = bind(spec["sql"], [Param(**p) for p in spec.get("params") or []])
+            validate_select(sql)
         except QueryError as e:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
         return ds

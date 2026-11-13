@@ -9,10 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Dataset, SavedQuery, WorkspaceMember
-from app.query import MAX_ROWS, QueryError, connect, run_sql, table_names
+from app.query import MAX_ROWS, QueryError, connect, explain_sql, run_sql, table_names
 from app.routers.datasets import CAN_UPLOAD
-from app.schemas import ColumnOut, UtcDatetime
+from app.schemas import ColumnOut, SqlParam, UtcDatetime
 from app.security import current_membership
+from app.sql_params import bind
 
 router = APIRouter(prefix="/sql", tags=["sql"])
 
@@ -36,6 +37,7 @@ class TableOut(BaseModel):
 
 class RunIn(BaseModel):
     sql: str = Field(min_length=1, max_length=10_000)
+    params: list[SqlParam] = Field(default_factory=list, max_length=20)
 
 
 class RunOut(BaseModel):
@@ -46,9 +48,14 @@ class RunOut(BaseModel):
     elapsed_ms: int
 
 
+class ExplainOut(BaseModel):
+    plan: str
+
+
 class SavedIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     sql: str = Field(min_length=1, max_length=10_000)
+    params: list[SqlParam] = Field(default_factory=list, max_length=20)
 
 
 class SavedOut(BaseModel):
@@ -56,6 +63,7 @@ class SavedOut(BaseModel):
     id: str
     name: str
     sql: str
+    params: list[SqlParam]
     created_at: UtcDatetime
     updated_at: UtcDatetime
 
@@ -74,7 +82,7 @@ def run(body: RunIn, member: WorkspaceMember = Depends(current_membership), db: 
     con = connect(member.workspace_id, _datasets(db, member))
     started = time.perf_counter()
     try:
-        rows = run_sql(con, body.sql)
+        rows = run_sql(con, *bind(body.sql, body.params))
     except QueryError as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
     finally:
@@ -82,6 +90,19 @@ def run(body: RunIn, member: WorkspaceMember = Depends(current_membership), db: 
     columns = list(rows[0].keys()) if rows else []
     return RunOut(columns=columns, rows=rows, row_count=len(rows), truncated=len(rows) >= MAX_ROWS,
                   elapsed_ms=int((time.perf_counter() - started) * 1000))
+
+
+@router.post("/explain", response_model=ExplainOut)
+def explain(body: RunIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+    """DuckDB's query plan, without running the query."""
+    _editor(member)
+    con = connect(member.workspace_id, _datasets(db, member))
+    try:
+        return ExplainOut(plan=explain_sql(con, *bind(body.sql, body.params)))
+    except QueryError as e:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+    finally:
+        con.close()
 
 
 @router.get("/saved", response_model=list[SavedOut])
@@ -93,11 +114,19 @@ def list_saved(member: WorkspaceMember = Depends(current_membership), db: Sessio
 @router.post("/saved", response_model=SavedOut, status_code=status.HTTP_201_CREATED)
 def save(body: SavedIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     _editor(member)
-    q = SavedQuery(workspace_id=member.workspace_id, name=body.name.strip(), sql=body.sql, created_by=member.user_id)
+    q = SavedQuery(workspace_id=member.workspace_id, name=body.name.strip(), sql=body.sql, params=_params(body), created_by=member.user_id)
     db.add(q)
     db.commit()
     db.refresh(q)
     return q
+
+
+def _params(body: SavedIn) -> list[dict]:
+    """Keep values only for placeholders the SQL still uses."""
+    from app.sql_params import param_names
+
+    used = set(param_names(body.sql))
+    return [p.model_dump() for p in body.params if p.name in used]
 
 
 def _saved(db: Session, member: WorkspaceMember, qid: str) -> SavedQuery:
@@ -111,7 +140,7 @@ def _saved(db: Session, member: WorkspaceMember, qid: str) -> SavedQuery:
 def update_saved(qid: str, body: SavedIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     _editor(member)
     q = _saved(db, member, qid)
-    q.name, q.sql = body.name.strip(), body.sql
+    q.name, q.sql, q.params = body.name.strip(), body.sql, _params(body)
     db.commit()
     db.refresh(q)
     return q

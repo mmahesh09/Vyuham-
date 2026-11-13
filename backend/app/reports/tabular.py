@@ -172,8 +172,8 @@ def _excel_value(v):
     return to_json(v)  # Decimal -> float, anything else -> text
 
 
-def _query_source(db: Session, source: str, source_id: str, workspace_id: str) -> tuple[str, list[Dataset], str]:
-    """(sql, datasets to expose, name) for a saved query or dataset in this workspace."""
+def _query_source(db: Session, source: str, source_id: str, workspace_id: str) -> tuple[str, list, list[Dataset], str]:
+    """(sql, bound parameters, datasets to expose, name) for a saved query or dataset in this workspace."""
     from sqlalchemy import select
 
     datasets = list(db.scalars(select(Dataset).where(Dataset.workspace_id == workspace_id)))
@@ -181,25 +181,29 @@ def _query_source(db: Session, source: str, source_id: str, workspace_id: str) -
         q = db.get(SavedQuery, source_id)
         if q is None or q.workspace_id != workspace_id:
             raise QueryError("The saved query behind this report was deleted.")
-        validate_select(q.sql)
-        return q.sql, datasets, q.name
+        from app.schemas import SqlParam
+        from app.sql_params import bind
+
+        sql, params = bind(q.sql, [SqlParam(**p) for p in q.params or []])
+        validate_select(sql)
+        return sql, params, datasets, q.name
     ds = next((d for d in datasets if d.id == source_id), None)
     if ds is None:
         raise QueryError("The dataset behind this report was deleted.")
-    return f"SELECT * FROM {view_name(ds.id)}", [ds], ds.name
+    return f"SELECT * FROM {view_name(ds.id)}", [], [ds], ds.name
 
 
 def query_export(db: Session, source: str, source_id: str, workspace_id: str, fmt: str, out_dir: str, name: str | None = None) -> Built:
-    sql, datasets, default_name = _query_source(db, source, source_id, workspace_id)
+    sql, params, datasets, default_name = _query_source(db, source, source_id, workspace_id)
     base = safe_name(name or default_name)
     cap = get_settings().report_max_rows
     con = connect(workspace_id, datasets)
     try:
         if fmt == "csv":
-            columns, batches = stream_rows(con, sql, max_rows=cap)
+            columns, batches = stream_rows(con, sql, params, max_rows=cap)
             path = os.path.join(out_dir, f"{base}.csv")
             return Built(path, f"{base}.csv", _write_csv(path, columns, batches))
-        columns, batches = stream_rows(con, sql, max_rows=min(cap, XLSX_MAX_ROWS))
+        columns, batches = stream_rows(con, sql, params, max_rows=min(cap, XLSX_MAX_ROWS))
         wb = Workbook(write_only=True)
         ws = wb.create_sheet(_sheet_title(default_name, set()))
         ws.append(_bold_row(ws, columns))
