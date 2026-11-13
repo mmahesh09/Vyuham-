@@ -33,7 +33,7 @@ export function Hero() {
         <circle cx="700" cy="760" r="700" stroke="#ffb37a" strokeOpacity="0.09" />
       </svg>
 
-      <div className="hero-panel relative isolate mx-auto min-h-[min(100svh,980px)] max-w-[1440px] overflow-hidden rounded-[28px] border border-white/[0.06] sm:rounded-[36px]">
+      <div className="theme-dark dark hero-panel relative isolate mx-auto min-h-[min(100svh,980px)] max-w-[1440px] overflow-hidden rounded-[28px] border border-white/[0.06] sm:rounded-[36px]">
         {/* Light rays from the top left */}
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
           <div className="ray left-[22%] w-[70px] [animation-delay:0s]" />

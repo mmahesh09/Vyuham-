@@ -75,7 +75,7 @@ export function AuthVisual({ className = "" }: { className?: string }) {
   return (
     <aside
       aria-hidden
-      className={`relative isolate flex-col items-center overflow-hidden border-line bg-[#0b0806] lg:border-l ${className}`}
+      className={`theme-dark dark relative isolate flex-col items-center overflow-hidden border-line bg-[#0b0806] lg:border-l ${className}`}
     >
       <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_45%_at_50%_100%,rgba(240,122,43,0.22),transparent_70%),radial-gradient(40%_30%_at_50%_0%,rgba(255,179,122,0.08),transparent_70%)]" />
 

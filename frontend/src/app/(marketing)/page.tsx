@@ -649,7 +649,7 @@ export default function LandingPage() {
 
         {/* 12 · Final CTA — bookends the hero */}
         <section className="px-2 pb-2 sm:px-3 sm:pb-3">
-          <div className="hero-panel relative isolate mx-auto flex min-h-[560px] max-w-[1440px] flex-col items-center overflow-hidden rounded-[28px] border border-white/[0.06] px-5 pt-[clamp(72px,10vw,120px)] text-center sm:rounded-[36px]">
+          <div className="theme-dark dark hero-panel relative isolate mx-auto flex min-h-[560px] max-w-[1440px] flex-col items-center overflow-hidden rounded-[28px] border border-white/[0.06] px-5 pt-[clamp(72px,10vw,120px)] text-center sm:rounded-[36px]">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
               <div className="ray left-[30%] w-[90px]" />
               <div className="ray left-[40%] w-[60px] [animation-delay:-3s]" />

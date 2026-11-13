@@ -6,8 +6,10 @@
 @custom-variant data-horizontal (&[data-orientation="horizontal"]);
 @custom-variant data-vertical (&[data-orientation="vertical"]);
 
-/* Brand palette: warm near-black ground, amber-orange accents. */
-:root {
+/* Brand palette: warm near-black ground, amber-orange accents. Dark is the default theme;
+ * .theme-dark re-applies it to an island (product art, the hero) inside a light page. */
+:root,
+.theme-dark {
   --bg: #070504; /* near-black with a warm cast; never flat #000 */
   --bg-alt: #0d0907; /* alternating section tone, warm-tinted */
   --surface: #15100c;
@@ -32,6 +34,57 @@
   --warning-foreground: var(--color-yellow-900);
   --invert: var(--color-zinc-900);
   --invert-foreground: var(--color-zinc-50);
+
+  /* Marketing surfaces (glass cards, tinted bands, glows, date picker). */
+  --glass-bg: rgba(255, 255, 255, 0.035);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-strong-from: rgba(255, 255, 255, 0.07);
+  --glass-strong-to: rgba(255, 255, 255, 0.025);
+  --glass-strong-border: rgba(255, 255, 255, 0.1);
+  --glass-strong-inset: rgba(255, 255, 255, 0.08);
+  --glass-strong-glow: rgba(242, 84, 91, 0.45);
+  --band-bg: rgba(25, 18, 13, 0.72);
+  --band-border: rgba(255, 255, 255, 0.05);
+  --glow-strength: 1;
+  color-scheme: dark;
+}
+
+/* Light theme (next-themes puts .light on <html>): warm paper ground, deeper orange for text and
+ * lines so every text colour passes WCAG AA on bg, surface and surface-2. */
+:root.light {
+  --bg: #faf6f1;
+  --bg-alt: #f3ece4;
+  --surface: #ffffff;
+  --surface-2: #f5eee7;
+  --line: #e7dbcf;
+  --line-strong: #d3c2b1;
+  --primary: #e8691c; /* buttons keep dark text: 5.8:1 */
+  --accent: #c2303c; /* down / attention: 5.2:1 on bg */
+  --highlight: #b14e0c; /* up, links, focus: 4.9:1 on bg */
+  --text: #1e150f;
+  --muted: #5b4b3f;
+  --faint: #6f5f53;
+  --input: #d3c2b1;
+  --destructive: #c2303c;
+  --chart-4: #8a7768;
+  --chart-5: #a5531f;
+
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(30, 21, 15, 0.08);
+  --glass-strong-from: rgba(255, 255, 255, 0.92);
+  --glass-strong-to: rgba(255, 255, 255, 0.74);
+  --glass-strong-border: rgba(30, 21, 15, 0.1);
+  --glass-strong-inset: rgba(255, 255, 255, 0.7);
+  --glass-strong-glow: rgba(232, 105, 28, 0.22);
+  --band-bg: rgba(243, 236, 228, 0.78);
+  --band-border: rgba(30, 21, 15, 0.06);
+  --glow-strength: 0.5;
+  color-scheme: light;
+}
+
+/* An island keeps its own text colour (body's is the light theme's dark text). */
+.theme-dark {
+  color: var(--text);
 }
 
 /*
@@ -39,7 +92,8 @@
  * components/reui) use these names. Brand --muted / --accent are TEXT colours here, so the
  * vendored files had bg-muted / bg-accent rewritten to bg-surface-2 when installed.
  */
-:root {
+:root,
+.theme-dark {
   --radius: 0.625rem;
   --background: var(--bg);
   --foreground: var(--text);
@@ -156,10 +210,6 @@
   --color-success-foreground: var(--success-foreground);
   --color-success: var(--success);
   --color-destructive-foreground: var(--destructive-foreground);
-}
-
-html {
-  color-scheme: dark;
 }
 
 body {
@@ -330,19 +380,19 @@ body {
 
 /* ---------- Glass surfaces & section glows ---------- */
 .glass {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
 }
 .glass-strong {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, var(--glass-strong-from), var(--glass-strong-to));
+  border: 1px solid var(--glass-strong-border);
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 40px 120px -40px rgba(242, 84, 91, 0.45);
+    inset 0 1px 0 var(--glass-strong-inset),
+    0 40px 120px -40px var(--glass-strong-glow);
 }
 
 /* A soft colored light source behind a section's content. */
@@ -352,6 +402,7 @@ body {
   border-radius: 9999px;
   filter: blur(90px);
   pointer-events: none;
+  opacity: var(--glow-strength);
 }
 .glow--pink { background: rgba(242, 84, 91, 0.28); }
 .glow--violet { background: rgba(240, 122, 43, 0.32); }
@@ -371,8 +422,8 @@ body {
 /* ---------- Section rhythm ---------- */
 /* A tinted band that alternates with the black sections; translucent so particles still show. */
 .band {
-  background: rgba(25, 18, 13, 0.72);
-  border-block: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--band-bg);
+  border-block: 1px solid var(--band-border);
 }
 
 /* Map hot-spot pulse (CSS, so it honours reduced motion — unlike SMIL). */
@@ -389,27 +440,27 @@ body {
   .map-pulse { animation: none; opacity: 0; }
 }
 
-/* ---------- react-day-picker, dark brand ---------- */
+/* ---------- react-day-picker, brand colours (follows the theme) ---------- */
 .rdp-brand .rdp-root {
   --rdp-accent-color: #f2545b;
   --rdp-accent-background-color: rgba(242, 84, 91, 0.16);
   --rdp-range_middle-background-color: rgba(240, 122, 43, 0.28);
-  --rdp-range_middle-color: #fbf6f1;
+  --rdp-range_middle-color: var(--text);
   --rdp-range_start-date-background-color: #f2545b;
   --rdp-range_end-date-background-color: #f2545b;
   --rdp-range_start-color: #160f0a;
   --rdp-range_end-color: #160f0a;
-  --rdp-today-color: #ffb37a;
+  --rdp-today-color: var(--highlight);
   --rdp-day-height: 40px;
   --rdp-day-width: 40px;
   --rdp-day_button-height: 38px;
   --rdp-day_button-width: 38px;
-  color: #fbf6f1;
+  color: var(--text);
   font-size: 14px;
 }
-.rdp-brand .rdp-weekday { color: rgba(255, 255, 255, 0.45); font-size: 12px; }
+.rdp-brand .rdp-weekday { color: var(--faint); font-size: 12px; }
 .rdp-brand .rdp-disabled { opacity: 0.3; }
-.rdp-brand .rdp-chevron { fill: #ffb37a; }
+.rdp-brand .rdp-chevron { fill: var(--highlight); }
 
 /* Gentle drift for floating infographic cards (auth panel). */
 .float-slow {
@@ -561,7 +612,7 @@ details[open] mark.mark {
   --success: var(--color-emerald-500);
   --success-foreground: var(--color-emerald-600);
   --info: var(--color-sky-500);
-  --info-foreground: var(--color-violet-600);
+  --info-foreground: var(--color-sky-600);
   --warning: var(--color-yellow-500);
   --warning-foreground: var(--color-yellow-600);
   --invert: var(--color-zinc-700);
