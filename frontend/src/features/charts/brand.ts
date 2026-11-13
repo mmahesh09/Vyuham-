@@ -5,24 +5,24 @@
  */
 
 export const BRAND = {
-  primary: "#705cbb",
-  accent: "#cb72d0",
-  highlight: "#cea3f5",
-  line: "#221c4a",
-  text: "#f5f2ff",
-  muted: "#b3a9d6",
-  faint: "#8f86b3",
+  primary: "#f07a2b",
+  accent: "#f2545b",
+  highlight: "#ffb37a",
+  line: "#2a1e16",
+  text: "#fbf6f1",
+  muted: "#d1c2b4",
+  faint: "#a8978a",
 };
 
 /** Same order as --chart-1..5 in globals.css. */
-export const SERIES_COLORS = [BRAND.highlight, BRAND.primary, BRAND.accent, "#8f86b3", "#4b3f8f"];
+export const SERIES_COLORS = [BRAND.highlight, BRAND.primary, BRAND.accent, "#a8978a", "#8a4a24"];
 
 export function brandTheme(fontFamily: string) {
   const axis = {
     axisLine: { show: false },
     axisTick: { show: false },
     axisLabel: { color: BRAND.faint, fontSize: 11 },
-    splitLine: { lineStyle: { color: "rgba(206,163,245,0.08)" } }, // --highlight at 8%: reads as a hairline on --surface
+    splitLine: { lineStyle: { color: "rgba(255,179,122,0.08)" } }, // --highlight at 8%: reads as a hairline on --surface
   };
   return {
     color: SERIES_COLORS,
@@ -31,8 +31,8 @@ export function brandTheme(fontFamily: string) {
     categoryAxis: axis,
     valueAxis: axis,
     tooltip: {
-      backgroundColor: "rgba(23, 19, 46, 0.96)", // --surface-2
-      borderColor: "#2e2660", // --line-strong
+      backgroundColor: "rgba(28, 21, 16, 0.96)", // --surface-2
+      borderColor: "#3a2a1e", // --line-strong
       textStyle: { color: BRAND.text, fontSize: 12 },
     },
     legend: { textStyle: { color: BRAND.muted } },

@@ -277,7 +277,7 @@ export default function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD).replace(/</g, "\\u003c") }}
       />
       <Reveal />
-      <ParticlesBackground className="fixed inset-0 -z-10" quantity={45} color="#cea3f5" size={0.5} staticity={40} ease={70} />
+      <ParticlesBackground className="fixed inset-0 -z-10" quantity={45} color="#ffb37a" size={0.5} staticity={40} ease={70} />
 
       <main className="overflow-x-clip">
         <Hero />
@@ -536,20 +536,20 @@ export default function LandingPage() {
                 </div>
                 <FilterDemo />
               </div>
-              <div data-animate className="flex flex-col justify-between gap-8 rounded-[16px] bg-accent p-8 text-[#14051b] md:col-span-2 md:flex-row md:items-end md:p-10">
+              <div data-animate className="flex flex-col justify-between gap-8 rounded-[16px] bg-accent p-8 text-[#160f0a] md:col-span-2 md:flex-row md:items-end md:p-10">
                 <div>
                   <h3 className="text-[clamp(24px,2.6vw,32px)] font-semibold leading-[1.1] tracking-[-0.025em]">
                     Send the board update as a link, <span className="font-light">not a 30-slide deck.</span>
                   </h3>
-                  <p className="mt-3 max-w-[56ch] text-base leading-relaxed text-[#14051b]/75">
+                  <p className="mt-3 max-w-[56ch] text-base leading-relaxed text-[#160f0a]/75">
                     Investors, clients and your team see the live numbers, and filters still work for them. You decide
                     what’s shared, and you can switch a link off any time.
                   </p>
                 </div>
-                <div className="flex w-full max-w-[380px] items-center gap-2 rounded-full bg-[#14051b] py-1.5 pl-4 pr-1.5 text-[13px] text-white/80">
+                <div className="flex w-full max-w-[380px] items-center gap-2 rounded-full bg-[#160f0a] py-1.5 pl-4 pr-1.5 text-[13px] text-white/80">
                   <Globe className="size-4 shrink-0 text-highlight" aria-hidden />
                   <span className="min-w-0 flex-1 truncate">yourapp.com/s/october-board-update</span>
-                  <span className="flex size-8 items-center justify-center rounded-full bg-accent text-[#14051b]">
+                  <span className="flex size-8 items-center justify-center rounded-full bg-accent text-[#160f0a]">
                     <Copy className="size-3.5" strokeWidth={2.2} aria-hidden />
                   </span>
                 </div>

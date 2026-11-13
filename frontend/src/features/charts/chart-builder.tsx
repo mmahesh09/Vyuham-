@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { AGG_LABEL, ROW_FIELD, type Aggregation, type ChartSpec, type ChartType, type DateBucket } from "./chart-spec";
 
 const STEPS = ["Data", "Measure", "Group", "Type", "Style"] as const;
-const SWATCHES = ["#cea3f5", "#705cbb", "#cb72d0", "#8b7fe0", "#5b8def", "#3fbf9b", "#f2b544", "#f0597a"];
+const SWATCHES = ["#ffb37a", "#f07a2b", "#f2545b", "#8b7fe0", "#5b8def", "#3fbf9b", "#f2b544", "#f0597a"];
 type Icon = ComponentType<{ className?: string }>;
 const CHART_TYPES: { value: Exclude<ChartType, "kpi" | "gauge">; label: string; icon: Icon; dates: boolean; categories: boolean }[] = [
   { value: "line", label: "Line", icon: LineChart, dates: true, categories: false },

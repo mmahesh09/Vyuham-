@@ -62,7 +62,7 @@ export function CommandMenu() {
       onOpenChange={setCommandOpen}
       label="Command menu"
       overlayClassName="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-      contentClassName="fixed left-1/2 top-[14vh] z-50 w-[min(600px,calc(100vw-32px))] -translate-x-1/2 overflow-hidden rounded-[16px] border border-line bg-[#110e22] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]"
+      contentClassName="fixed left-1/2 top-[14vh] z-50 w-[min(600px,calc(100vw-32px))] -translate-x-1/2 overflow-hidden rounded-[16px] border border-line bg-[#15100c] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]"
     >
       <Command.Input
         value={search}

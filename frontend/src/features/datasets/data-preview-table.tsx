@@ -54,7 +54,7 @@ export function DataPreviewTable({ columns, rows }: { columns: ColumnProfile[]; 
       className="h-[min(560px,65vh)] overflow-auto overscroll-contain rounded-[12px] border border-line bg-black/40 font-mono text-[12.5px] focus-visible:outline-highlight"
     >
       <table className="grid border-collapse" style={{ width }}>
-        <thead className="sticky top-0 z-10 grid bg-[#17132e]">
+        <thead className="sticky top-0 z-10 grid bg-[#1c1510]">
           {table.getHeaderGroups().map((group) => (
             <tr key={group.id} className="flex">
               <th className="flex shrink-0 items-center justify-end px-3 text-white/35" style={{ width: INDEX_WIDTH, height: 40 }}>

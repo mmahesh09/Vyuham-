@@ -15,7 +15,7 @@ type AuthFieldProps = InputHTMLAttributes<HTMLInputElement> & {
 };
 
 const inputClass =
-  "h-11 w-full rounded-[10px] border border-line bg-transparent px-3.5 text-[15px] text-text placeholder:text-faint transition-colors hover:border-[#3a3170] focus:border-primary focus:outline-none";
+  "h-11 w-full rounded-[10px] border border-line bg-transparent px-3.5 text-[15px] text-text placeholder:text-faint transition-colors hover:border-[#704a31] focus:border-primary focus:outline-none";
 
 export function AuthField({ id, label, error, aside, type, className, ...props }: AuthFieldProps) {
   const [shown, setShown] = useState(false);
@@ -86,7 +86,7 @@ export function SubmitButton({ ready, pending, children }: { ready: boolean; pen
       className={cn(
         "mt-2 h-11 w-full rounded-[10px] text-[15px] font-semibold transition-[background-color,color,box-shadow] duration-200 disabled:cursor-not-allowed",
         ready
-          ? "bg-primary text-white hover:shadow-[0_8px_24px_rgba(112,92,187,0.35)] disabled:opacity-70"
+          ? "bg-primary text-primary-foreground hover:shadow-[0_8px_24px_rgba(240,122,43,0.35)] disabled:opacity-70"
           : "bg-surface text-faint hover:bg-surface-2 hover:text-muted",
       )}
     >

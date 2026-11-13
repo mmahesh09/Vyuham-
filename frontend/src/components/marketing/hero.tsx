@@ -29,8 +29,8 @@ export function Hero() {
         fill="none"
         aria-hidden
       >
-        <circle cx="700" cy="760" r="620" stroke="#cb72d0" strokeOpacity="0.16" />
-        <circle cx="700" cy="760" r="700" stroke="#cea3f5" strokeOpacity="0.09" />
+        <circle cx="700" cy="760" r="620" stroke="#f2545b" strokeOpacity="0.16" />
+        <circle cx="700" cy="760" r="700" stroke="#ffb37a" strokeOpacity="0.09" />
       </svg>
 
       <div className="hero-panel relative isolate mx-auto min-h-[min(100svh,980px)] max-w-[1440px] overflow-hidden rounded-[28px] border border-white/[0.06] sm:rounded-[36px]">
@@ -82,7 +82,7 @@ export function Hero() {
         {/* Headline: left-aligned, heavy/light contrast, the question in a lighter weight */}
         <div className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-start px-[clamp(20px,5vw,64px)] pt-[clamp(48px,8vw,104px)]">
           {/* Soft scrim so the copy stays legible where the arch passes behind it */}
-          <div className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10 bg-[radial-gradient(closest-side,rgba(5,4,10,0.6),transparent)]" aria-hidden />
+          <div className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10 bg-[radial-gradient(closest-side,rgba(7,5,4,0.6),transparent)]" aria-hidden />
           <p className="eyebrow">
             Free during the beta <b>· No card</b>
           </p>
@@ -159,12 +159,12 @@ export function Hero() {
             </div>
             <svg viewBox="0 0 200 56" className="mt-2 h-14 w-full">
               {[22, 30, 18, 34, 26, 40, 31, 46, 38, 52].map((h, i) => (
-                <rect key={i} x={i * 20 + 4} y={56 - h} width="10" height={h} rx="3" fill={i === 9 ? "#cb72d0" : "#705cbb"} fillOpacity={i === 9 ? 0.9 : 0.55} />
+                <rect key={i} x={i * 20 + 4} y={56 - h} width="10" height={h} rx="3" fill={i === 9 ? "#f2545b" : "#f07a2b"} fillOpacity={i === 9 ? 0.9 : 0.55} />
               ))}
               <polyline
                 points="9,40 29,30 49,42 69,26 89,34 109,20 129,28 149,14 169,22 189,8"
                 fill="none"
-                stroke="#cea3f5"
+                stroke="#ffb37a"
                 strokeWidth="1.5"
                 strokeOpacity="0.7"
               />

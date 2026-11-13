@@ -21,7 +21,7 @@ import {
 
 /* Sample data that moves like a live business. All figures are illustrative. */
 
-const C = { line: "#cea3f5", bar: "#705cbb", hot: "#cb72d0", grid: "rgba(255,255,255,0.06)", axis: "#8f86b3" };
+const C = { line: "#ffb37a", bar: "#f07a2b", hot: "#f2545b", grid: "rgba(255,255,255,0.06)", axis: "#a8978a" };
 
 // Seeded random so server and first client render match.
 function seeded(seed: number) {
@@ -70,7 +70,7 @@ const usd = (v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFix
 function GlassTooltip({ active, payload, label }: TooltipContentProps<number, string>) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="rounded-[10px] border border-white/10 bg-[#14081d]/90 px-3 py-2 text-xs shadow-xl backdrop-blur-md">
+    <div className="rounded-[10px] border border-white/10 bg-[#19110c]/90 px-3 py-2 text-xs shadow-xl backdrop-blur-md">
       {label !== undefined && <p className="text-white/55">{label}</p>}
       {payload.map((p) => (
         <p key={String(p.dataKey)} className="font-semibold text-white">
@@ -217,7 +217,7 @@ export function LiveDashboard() {
             <Fit>
               <BarChart data={channels} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
                 <XAxis type="number" hide />
-                <YAxis type="category" dataKey="name" tick={{ fill: "#d9d2f2", fontSize: 12 }} tickLine={false} axisLine={false} width={64} />
+                <YAxis type="category" dataKey="name" tick={{ fill: "#f2ded2", fontSize: 12 }} tickLine={false} axisLine={false} width={64} />
                 <Bar dataKey="v" radius={[0, 8, 8, 0]} barSize={18} isAnimationActive animationDuration={500}>
                   {channels.map((c, i) => (
                     <Cell key={c.name} fill={i === 0 ? C.hot : C.bar} />

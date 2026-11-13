@@ -175,7 +175,7 @@ export function GuidedTour() {
             {rect && <rect x={rect.left} y={rect.top} width={rect.width} height={rect.height} rx={14} fill="black" className="transition-all duration-300" />}
           </mask>
         </defs>
-        <rect width="100%" height="100%" fill="rgba(5,4,10,0.72)" mask="url(#tour-hole)" />
+        <rect width="100%" height="100%" fill="rgba(7,5,4,0.72)" mask="url(#tour-hole)" />
       </svg>
       {rect && (
         <div

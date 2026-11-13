@@ -7,7 +7,7 @@
 import * as React from "react";
 
 /* ------------------------------------------------------------------ */
-/*  Colors retuned to the Vyuham palette (violet / plum / lilac).
+/*  Colors retuned to the Vyuham palette (amber / orange / coral).
 /*  Finance Bento: a pro personal-finance dashboard for fiat, stocks  */
 /*  and crypto. Net-worth stream, allocation gauge, KPI tiles, cash   */
 /*  flow, crypto candles and weekly stocks. Responsive, dark.         */
@@ -42,8 +42,8 @@ const CSS = `.fpb{font-family:Outfit,ui-sans-serif,system-ui,-apple-system,sans-
 .fpb *{box-sizing:border-box}
 .fpb .fpb-c{border-radius:28px}
 .fpb .vbrow{display:flex;justify-content:flex-end;margin-top:16px}
-.fpb{--acc:#CEA3F5;--t1:#fff;--t2:rgba(255,255,255,.56);--t3:rgba(255,255,255,.38);--hair:rgba(255,255,255,.14);--ease:cubic-bezier(.32,.72,0,1);
-    --fiat:#F5F2FF;--stocks:#9C88E6;--crypto:#CB72D0}
+.fpb{--acc:#ffb37a;--t1:#fff;--t2:rgba(255,255,255,.56);--t3:rgba(255,255,255,.38);--hair:rgba(255,255,255,.14);--ease:cubic-bezier(.32,.72,0,1);
+    --fiat:#fbf6f1;--stocks:#e6ad88;--crypto:#f2545b}
 .fpb *{box-sizing:border-box}
 .fpb .fpb-c{position:relative;padding:20px 22px 22px;background:#000;color:#fff}
 .fpb .top{display:flex;align-items:center;gap:14px;height:44px;margin-bottom:16px}
@@ -116,7 +116,7 @@ const CSS = `.fpb{font-family:Outfit,ui-sans-serif,system-ui,-apple-system,sans-
 .fpb .tip .r span{display:inline-flex;align-items:center;gap:6px;color:var(--t2)}
 .fpb .tip i{width:7px;height:7px;border-radius:50%}
 .fpb .tip b{font:500 12px "Geist Mono",monospace}
-.fpb .vb-badge{--vb-on:#6a5cff;display:inline-flex;align-items:center;gap:9px;height:34px;padding:0 12px 0 11px;border-radius:17px;background:#111113;border:1px solid rgba(255,255,255,.1);color:#fff;text-decoration:none;font:500 13px/1 Outfit,sans-serif;letter-spacing:-.02em;box-shadow:0 8px 24px -14px rgba(0,0,0,.25);transition:border-color .25s}
+.fpb .vb-badge{--vb-on:#f79d64;display:inline-flex;align-items:center;gap:9px;height:34px;padding:0 12px 0 11px;border-radius:17px;background:#111113;border:1px solid rgba(255,255,255,.1);color:#fff;text-decoration:none;font:500 13px/1 Outfit,sans-serif;letter-spacing:-.02em;box-shadow:0 8px 24px -14px rgba(0,0,0,.25);transition:border-color .25s}
 .fpb .vb-badge:hover{border-color:color-mix(in oklab,var(--vb-on) 45%,transparent)}
 .fpb .vb-mark{display:grid;grid-template-columns:repeat(5,3px);grid-template-rows:repeat(3,3px);gap:2px}
 .fpb .vb-mark i{width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.16);transition:background .3s}
@@ -163,8 +163,8 @@ function mount(root, data) {
   const $id = (id) => root.querySelector("#" + id);
 
 const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const ACC='#CEA3F5',T2='rgba(255,255,255,.56)',T3='rgba(255,255,255,.38)',HAIR='rgba(255,255,255,.14)';
-const COL={fiat:'#F5F2FF',stocks:'#9C88E6',crypto:'#CB72D0'};
+const ACC='#ffb37a',T2='rgba(255,255,255,.56)',T3='rgba(255,255,255,.38)',HAIR='rgba(255,255,255,.14)';
+const COL={fiat:'#fbf6f1',stocks:'#e6ad88',crypto:'#f2545b'};
 const ease=t=>1-Math.pow(1-t,3);
 const NS='http://www.w3.org/2000/svg';
 const el=(t,a={},p)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p&&p.appendChild(e);return e};
@@ -192,12 +192,12 @@ const total=p=>p.fiat+p.stocks+p.crypto;
 /* ---------- helpers ---------- */
 function bg({top,base,bottom,core}){return `<div class="g" style="background:linear-gradient(180deg,${top} 0%,${base} 36%,${base} 74%,${bottom} 100%)"></div><div class="core" style="background:${core}"></div>`}
 const GR={
-  blue:{top:'#cea3f5',base:'#5b47a8',bottom:'#8a74d8',core:'#0b0820'},
-  graph:{top:'#8f86b3',base:'#241f45',bottom:'#3a3170',core:'#07060f'},
-  pink:{top:'#f0b5f2',base:'#9c3f99',bottom:'#cb72d0',core:'#1f0820'},
-  copper:{top:'#d9c2f7',base:'#62398f',bottom:'#9b6cd0',core:'#120724'},
-  green:{top:'#b3a9d6',base:'#352a72',bottom:'#5a4aa6',core:'#08061a'},
-  lime:{top:'#e3c8fb',base:'#8c5fd0',bottom:'#b07de6',core:'#1c0b33'},
+  blue:{top:'#ffb37a',base:'#a86d47',bottom:'#d89b74',core:'#1b130d'},
+  graph:{top:'#a8978a',base:'#452e1f',bottom:'#704a31',core:'#0e0a07'},
+  pink:{top:'#f2bcb5',base:'#9c4a3f',bottom:'#f2545b',core:'#1b130d'},
+  copper:{top:'#f7d7c2',base:'#8f5b39',bottom:'#d0936c',core:'#1d140e'},
+  green:{top:'#d1c2b4',base:'#72462a',bottom:'#a66e4a',core:'#160f0a'},
+  lime:{top:'#fbdcc8',base:'#d08b5f',bottom:'#e6a67d',core:'#2a1d14'},
 };
 function smoothPath(P,move=true){let d=(move?'M':'L')+`${P[0][0]},${P[0][1]}`;for(let i=0;i<P.length-1;i++){const p0=P[i-1]||P[i],p1=P[i],p2=P[i+1],p3=P[i+2]||p2,k=.17;
   d+=`C${p1[0]+(p2[0]-p0[0])*k},${p1[1]+(p2[1]-p0[1])*k} ${p2[0]-(p3[0]-p1[0])*k},${p2[1]-(p3[1]-p1[1])*k} ${p2[0]},${p2[1]}`}return d}
@@ -326,7 +326,7 @@ function updateGoals(){goals.innerHTML=`<div class="in-c"><div class="row" style
 const flow=$id('flow');
 flow.innerHTML=`${bg(GR.pink)}<div class="in-c">
   <div class="row" style="justify-content:space-between"><div><div class="ttl">Cash flow</div><div class="muted" style="margin-top:4px">Net <span class="mono" style="color:${ACC}">+$3,240</span> a month</div></div>
-    <div class="legend" style="flex-direction:column;gap:4px;align-items:flex-end"><span><i style="background:#fff"></i>Income</span><span><i style="background:#F3C6F5"></i>Spending</span></div></div>
+    <div class="legend" style="flex-direction:column;gap:4px;align-items:flex-end"><span><i style="background:#fff"></i>Income</span><span><i style="background:#f5ccc6"></i>Spending</span></div></div>
   <svg class="fls" style="position:absolute;left:0;bottom:12px" aria-hidden="true"></svg></div><div class="rim"></div>`;
 const MLAB=data.cashflow.months;
 const INC=data.cashflow.income;
@@ -346,13 +346,13 @@ function updateFlow(instant){
         <line x1="${R+8}" x2="${R+14}" y1="${yT}" y2="${yT}" stroke="${T3}"/><line x1="${R+8}" x2="${R+14}" y1="${yB}" y2="${yB}" stroke="${T3}"/>`});
     MLAB.forEach((m,i)=>s+=`<text x="${X(i)}" y="${mid+4}" text-anchor="middle" font-size="10.5" font-weight="500" fill="rgba(255,255,255,.75)" font-family="Geist Mono">${m}</text>`);
     INC.slice().reverse().forEach((a,k)=>{const j=2-k;s+=`<path d="${path(a,-1)}" fill="none" stroke="#fff" stroke-opacity="${[1,.55,.3][j]}" stroke-width="${j?1.6:2.4}" stroke-linecap="round"/>`});
-    SPN.slice().reverse().forEach((a,k)=>{const j=2-k;s+=`<path d="${path(a,1)}" fill="none" stroke="#F3C6F5" stroke-opacity="${[1,.55,.3][j]}" stroke-width="${j?1.6:2.4}" stroke-linecap="round"/>`});
+    SPN.slice().reverse().forEach((a,k)=>{const j=2-k;s+=`<path d="${path(a,1)}" fill="none" stroke="#f5ccc6" stroke-opacity="${[1,.55,.3][j]}" stroke-width="${j?1.6:2.4}" stroke-linecap="round"/>`});
     s+=`<line class="hl" y1="10" y2="${Hh-10}" stroke="#fff" stroke-opacity=".5" opacity="0"/><rect class="hit" x="${L-10}" width="${R-L+20}" height="${Hh}" fill="transparent"/>`;
     svg.innerHTML=s;
     const hit=svg.querySelector('.hit'),hl=svg.querySelector('.hl');
     hit.onpointermove=e=>{const r=svg.getBoundingClientRect(),z=r.width/W,x=(e.clientX-r.left)/z,i=Math.max(0,Math.min(5,Math.round((x-L)/(R-L)*5)));
       hl.setAttribute('x1',X(i));hl.setAttribute('x2',X(i));hl.setAttribute('opacity',1);
-      showTip(r.left+X(i)*z,r.top+(mid-lab-INC[0][i]/max*amp)*z,MLAB[i]+' 2026',[['Income',money(INC[0][i]*1000),'#fff'],['Spending',money(SPN[0][i]*1000),'#F3C6F5'],['Saved',money((INC[0][i]-SPN[0][i])*1000)]])};
+      showTip(r.left+X(i)*z,r.top+(mid-lab-INC[0][i]/max*amp)*z,MLAB[i]+' 2026',[['Income',money(INC[0][i]*1000),'#fff'],['Spending',money(SPN[0][i]*1000),'#f5ccc6'],['Saved',money((INC[0][i]-SPN[0][i])*1000)]])};
     hit.onpointerleave=()=>{hl.setAttribute('opacity',0);hideTip()};
     if(g<1)flowRaf=RAF(frame)};
   flowRaf=RAF(frame);

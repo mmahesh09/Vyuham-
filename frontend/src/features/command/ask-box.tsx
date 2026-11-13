@@ -42,7 +42,7 @@ export function AskBox() {
           e.preventDefault();
           submit(q);
         }}
-        className="flex flex-wrap gap-2 rounded-2xl border border-line-strong bg-surface p-2 shadow-[0_24px_60px_-32px_rgba(112,92,187,0.55)] transition-colors focus-within:border-highlight/70"
+        className="flex flex-wrap gap-2 rounded-2xl border border-line-strong bg-surface p-2 shadow-[0_24px_60px_-32px_rgba(240,122,43,0.55)] transition-colors focus-within:border-highlight/70"
       >
         <label htmlFor="ask" className="sr-only">
           Ask a question about your data
@@ -59,7 +59,7 @@ export function AskBox() {
         <button
           type="submit"
           disabled={ask.isPending}
-          className="flex min-h-12 items-center gap-2 rounded-xl bg-primary px-6 font-semibold text-text transition-colors hover:bg-primary/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight disabled:opacity-70"
+          className="flex min-h-12 items-center gap-2 rounded-xl bg-primary px-6 font-semibold text-primary-foreground transition-colors hover:bg-primary/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-highlight disabled:opacity-70"
         >
           {ask.isPending ? <Loader2 className="size-[18px] animate-spin" aria-hidden /> : <Sparkle className="size-[18px]" strokeWidth={2} aria-hidden />}
           Ask

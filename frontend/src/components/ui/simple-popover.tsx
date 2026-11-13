@@ -45,7 +45,7 @@ export function Popover({ trigger, children, align = "start", className }: Props
           id={id}
           data-lenis-prevent
           className={cn(
-            "absolute top-[calc(100%+8px)] z-40 max-w-[calc(100vw-32px)] rounded-[14px] border border-white/10 bg-[#110e22] p-3 shadow-[0_24px_60px_-16px_rgba(0,0,0,0.9)]",
+            "absolute top-[calc(100%+8px)] z-40 max-w-[calc(100vw-32px)] rounded-[14px] border border-white/10 bg-[#15100c] p-3 shadow-[0_24px_60px_-16px_rgba(0,0,0,0.9)]",
             align === "end" ? "right-0" : "left-0",
             className,
           )}

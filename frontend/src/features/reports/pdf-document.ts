@@ -17,16 +17,16 @@ import { chartSvg } from "./chart-svg";
 
 /** The app's dark palette (globals.css). */
 const C = {
-  bg: "#05040a",
-  surface: "#110e22",
-  surface2: "#17132e",
-  line: "#221c4a",
-  lineStrong: "#2e2660",
-  text: "#f5f2ff",
-  muted: "#b3a9d6",
-  faint: "#8f86b3",
-  highlight: "#cea3f5",
-  accent: "#cb72d0",
+  bg: "#070504",
+  surface: "#15100c",
+  surface2: "#1c1510",
+  line: "#2a1e16",
+  lineStrong: "#3a2a1e",
+  text: "#fbf6f1",
+  muted: "#d1c2b4",
+  faint: "#a8978a",
+  highlight: "#ffb37a",
+  accent: "#f2545b",
 };
 const SIZES = { A4: { width: 595.28, height: 841.89 }, Letter: { width: 612, height: 792 } } as const;
 const PAD = 32;

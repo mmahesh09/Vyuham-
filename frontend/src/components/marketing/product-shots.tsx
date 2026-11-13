@@ -24,7 +24,7 @@ export function ColumnsShot() {
             <code className="truncate font-mono text-[13px] text-white">{c.name}</code>
             <span
               className={`w-fit rounded-[4px] px-2 py-0.5 text-xs font-semibold ${
-                c.role === "Metric" ? "bg-accent text-[#14051b]" : "bg-white/10 text-highlight"
+                c.role === "Metric" ? "bg-accent text-[#160f0a]" : "bg-white/10 text-highlight"
               }`}
             >
               {c.role}
