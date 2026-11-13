@@ -93,6 +93,14 @@ services:
     ports: ["3000:3000"]
     depends_on: [backend]
 
+  # Local S3 (MiniStack) for trying REPORT_STORAGE=s3 without AWS. Dev only:
+  #   docker compose --profile dev up s3
+  # then S3_ENDPOINT_URL=http://localhost:4566, S3_ACCESS_KEY=test, S3_SECRET_KEY=test.
+  s3:
+    image: ministackorg/ministack:1.5.37
+    profiles: ["dev"]
+    ports: ["127.0.0.1:4566:4566"]
+
 volumes:
   pgdata:
   appdata:

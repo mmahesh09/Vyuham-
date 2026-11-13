@@ -1,3 +1,5 @@
 -r requirements.txt
 pytest==8.3.5
 httpx==0.28.1
+# S3 report storage (REPORT_STORAGE=s3) and its test; production installs it only when using S3.
+boto3==1.44.2
