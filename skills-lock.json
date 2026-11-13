@@ -1,35 +1,89 @@
 {
-  "version": 1,
+  "version": 2,
   "skills": {
+    "ai-copywriter": {
+      "source": "mikiarlo3/ai-copywriter",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "caa92230c2edcd38913e783290823567c461e9459eb1f97022a32e15344aed06"
+    },
     "api-design-principles": {
       "source": "wshobson/agents",
       "sourceType": "github",
       "skillPath": "plugins/backend-development/skills/api-design-principles/SKILL.md",
-      "computedHash": "be8d63ffae30e1d5d420f3bc3526beb0cea354b758765befe8a6e463a0d1f1d5"
+      "computedHash": ""
     },
     "auth-implementation-patterns": {
       "source": "wshobson/agents",
       "sourceType": "github",
       "skillPath": "plugins/developer-essentials/skills/auth-implementation-patterns/SKILL.md",
-      "computedHash": "4296a457c11618f207ffb78d248bf8f4e03c6670bfc8d4cd21fb88b67e11de2d"
+      "computedHash": ""
     },
     "backend-development": {
       "source": "mrgoonie/claudekit-skills",
       "sourceType": "github",
       "skillPath": ".claude/skills/backend-development/SKILL.md",
-      "computedHash": "dedbc6bb7afa2c16ac6b3451a435a198af0e5d3786b30a15d40910ba207fd6e3"
+      "computedHash": ""
+    },
+    "diagram-design": {
+      "source": "cathrynlavery/diagram-design",
+      "sourceType": "github",
+      "skillPath": "skills/diagram-design/SKILL.md",
+      "computedHash": "131d0484db90409d4663ba9c7236a7ffd8708cf66abf33a53c746e4e3170abc3"
+    },
+    "drawio-skill": {
+      "source": "Agents365-ai/drawio-skill",
+      "sourceType": "github",
+      "skillPath": "skills/drawio-skill/SKILL.md",
+      "computedHash": "c67563a1b84cec8d0b905f7385a30ff96d7185a15d6fe570e6e4d2cf743916cc"
+    },
+    "hallmark": {
+      "source": "Nutlope/hallmark",
+      "sourceType": "github",
+      "skillPath": "skills/hallmark/SKILL.md",
+      "computedHash": "e5d4ee5cf0af2dcc81a23ef49b587fbfd71236ff9f9df9da12d3bf347e26e572"
+    },
+    "ip-as-logo": {
+      "source": "s1dashu/ip-as-logo-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "8c5b3f57e6b89650def1134b2995f766b19bae63c7670329fa972a0049403c4f"
     },
     "premium-web-design": {
       "source": "Lucxar/premium-web-design-skill",
       "sourceType": "github",
       "skillPath": "SKILL.md",
-      "computedHash": "d6eac0d21b4bf2aeb5441a4a4302b1910a5713ea52fe342cd64d0341d1cb169b"
+      "computedHash": ""
     },
     "security-audit": {
       "source": "cloudflare/security-audit-skill",
       "sourceType": "github",
       "skillPath": "skills/security-audit/SKILL.md",
-      "computedHash": "e6b2e317de75da97e9de18d842982994803f3a67a4a6d8154a82323dc3de8528"
+      "computedHash": ""
+    },
+    "startup-competitors": {
+      "source": "ferdinandobons/startup-skill",
+      "sourceType": "github",
+      "skillPath": "startup-competitors/SKILL.md",
+      "computedHash": "9b35810a61caa503d2ed1c081b332345190ff3050493b436791f112fa047d105"
+    },
+    "startup-design": {
+      "source": "ferdinandobons/startup-skill",
+      "sourceType": "github",
+      "skillPath": "startup-design/SKILL.md",
+      "computedHash": "203ea8c92dc443e65f50d5a5d99f3faab8cb9d62788615f907d716ce2f77c58a"
+    },
+    "startup-pitch": {
+      "source": "ferdinandobons/startup-skill",
+      "sourceType": "github",
+      "skillPath": "startup-pitch/SKILL.md",
+      "computedHash": "2dfb904de8e7b87c8036583a622fe7ef156eae33a0bdc9c6b73999f4bb978d52"
+    },
+    "startup-positioning": {
+      "source": "ferdinandobons/startup-skill",
+      "sourceType": "github",
+      "skillPath": "startup-positioning/SKILL.md",
+      "computedHash": "437d134173e2d33693a2b946558ba70a62c337e74fa15140c9324cb58446a44f"
     }
   }
 }
