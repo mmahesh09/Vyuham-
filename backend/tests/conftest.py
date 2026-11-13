@@ -36,6 +36,16 @@ def engine():
 
 
 @pytest.fixture(autouse=True)
+def _fresh_rate_limits():
+    """Each test starts with no requests counted (counts are in memory without Redis)."""
+    from app import rate_limit
+
+    rate_limit.reset()
+    yield
+    rate_limit.reset()
+
+
+@pytest.fixture(autouse=True)
 def data_dir(tmp_path, monkeypatch):
     """Parquet files go to a temp folder per test."""
     from app.config import get_settings

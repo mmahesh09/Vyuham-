@@ -19,6 +19,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app import signing
+from app.rate_limit import per_user
 from app.config import get_settings
 from app.db import get_db
 from app.models import Dashboard, Dataset, Report, ReportRun, SavedQuery, WorkspaceMember
@@ -261,7 +262,7 @@ def delete_report(rid: str, member: WorkspaceMember = Depends(current_membership
     db.commit()
 
 
-@router.post("/reports/{rid}/run", response_model=ReportRunOut, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/reports/{rid}/run", response_model=ReportRunOut, status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(per_user("export"))])
 def run_report(rid: str, background: BackgroundTasks, member: WorkspaceMember = Depends(current_membership),
                user: AuthUser = Depends(current_user), db: Session = Depends(get_db)):
     r = _report(db, member, rid)
@@ -273,7 +274,7 @@ def run_report(rid: str, background: BackgroundTasks, member: WorkspaceMember = 
 # ---------- quick exports and history ----------
 
 
-@router.post("/exports", response_model=ReportRunOut, status_code=status.HTTP_202_ACCEPTED)
+@router.post("/exports", response_model=ReportRunOut, status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(per_user("export"))])
 def quick_export(body: ExportIn, background: BackgroundTasks, member: WorkspaceMember = Depends(current_membership),
                  user: AuthUser = Depends(current_user), db: Session = Depends(get_db)):
     """Export now without saving a report (the dashboard and SQL Lab "Export" buttons)."""

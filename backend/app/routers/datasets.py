@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Respon
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
+from app.rate_limit import per_user
 from app.config import get_settings
 from app.db import get_db
 from app.ingest import IngestError, ingest, write_parquet
@@ -46,7 +47,7 @@ def _unique_name(db: Session, workspace_id: str, base: str) -> str:
     return name
 
 
-@router.post("", response_model=DatasetOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=DatasetOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(per_user("upload"))])
 def upload_dataset(
     file: UploadFile = File(...),
     sheet: str | None = Form(None),
@@ -191,7 +192,7 @@ def delete_dataset(dataset_id: str, member: WorkspaceMember = Depends(current_me
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.put("/{dataset_id}/file", response_model=DatasetOut)
+@router.put("/{dataset_id}/file", response_model=DatasetOut, dependencies=[Depends(per_user("upload"))])
 def replace_file(
     dataset_id: str,
     file: UploadFile = File(...),

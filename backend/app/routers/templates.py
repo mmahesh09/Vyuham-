@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.rate_limit import per_user
 from app.db import get_db
 from app.models import Chart, Dashboard, WorkspaceMember
 from app.routers.dashboards import _editor, _out
@@ -31,7 +32,7 @@ def suggest(template_id: str, dataset_id: str, member: WorkspaceMember = Depends
     return suggest_mapping(template_id, owned_dataset(db, member, dataset_id))
 
 
-@router.post("/templates/{template_id}/apply", response_model=DashboardOut, status_code=status.HTTP_201_CREATED)
+@router.post("/templates/{template_id}/apply", response_model=DashboardOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(per_user("build"))])
 def apply_template(
     template_id: str, body: TemplateApplyIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)
 ):
