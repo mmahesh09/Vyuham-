@@ -50,13 +50,13 @@ function KpiTile({
   return (
     <div
       className={cn(
-        "flex h-full flex-col justify-between gap-1 rounded-[16px] border bg-surface p-5",
-        editing ? "border-primary/60" : "border-line",
+        "flex h-full flex-col justify-between gap-2 bg-surface px-5 py-4",
+        editing && "rounded-xl border border-line-strong",
       )}
-      style={chart.spec.color ? { borderTopColor: chart.spec.color, borderTopWidth: 3 } : undefined}
+      style={chart.spec.color ? { boxShadow: `inset 0 2px 0 ${chart.spec.color}` } : undefined}
     >
       <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-[14px] text-muted" title={chart.spec.title}>
+        <span className="truncate text-[13.5px] text-muted" title={chart.spec.title}>
           {chart.spec.title}
         </span>
         <span className="flex items-center">
@@ -67,11 +67,12 @@ function KpiTile({
       {view?.error ? (
         <span className="text-[13px] text-accent">{view.error}</span>
       ) : (
-        <span className="truncate text-[30px] font-light tracking-[-0.02em] text-text tabular-nums">{view ? formatNumber(raw) : "…"}</span>
+        <span className="type-kpi truncate text-text">{view ? formatNumber(raw) : "…"}</span>
       )}
       {change !== null ? (
         <span className={cn("flex items-center gap-1 text-[13px] font-semibold", up ? "text-highlight" : down ? "text-accent" : "text-faint")}>
           <Icon className="size-3.5" strokeWidth={2.6} aria-hidden />
+          <span className="sr-only">{up ? "Up" : down ? "Down" : "Flat"}</span>
           {change >= 0 ? "+" : ""}
           {change.toFixed(1)}% <span className="font-normal text-faint">vs previous period</span>
         </span>
@@ -110,15 +111,20 @@ export function KpiGrid({ charts, views, layout, editing, canEdit, allTime, onLa
 
   if (!charts.length) return null;
   return (
-    <div ref={containerRef} aria-label="Key numbers" role="region">
+    <div
+      ref={containerRef}
+      aria-label="Key numbers"
+      role="region"
+      className={cn(!editing && "overflow-hidden rounded-xl border border-line bg-line")}
+    >
       {mounted && (
         <ResponsiveGridLayout
           width={width}
           breakpoints={BREAKPOINTS}
           cols={COLS}
           layouts={layouts}
-          rowHeight={136}
-          margin={[12, 12]}
+          rowHeight={140}
+          margin={editing ? [12, 12] : [1, 1]}
           containerPadding={[0, 0]}
           dragConfig={{ enabled: editing, handle: ".kpi-handle", bounded: false, threshold: 3 }}
           resizeConfig={{ enabled: editing, handles: ["e"] }}

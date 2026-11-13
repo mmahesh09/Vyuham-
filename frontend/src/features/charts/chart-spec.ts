@@ -39,6 +39,11 @@ export const chartSpecSchema = z.object({
   target: z.number().optional(),
   /** Saved from SQL Lab: the query defines the chart; groupBy/metrics name its result columns. */
   sql: z.string().max(10_000).optional(),
+  /** SQL charts: values for the query's {{name}} placeholders, fixed when the chart was saved. */
+  params: z
+    .array(z.object({ name: z.string(), type: z.enum(["text", "number", "date"]), value: z.string() }))
+    .max(20)
+    .optional(),
 });
 
 export type ChartSpec = z.infer<typeof chartSpecSchema>;

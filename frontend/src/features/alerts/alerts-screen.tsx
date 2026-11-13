@@ -5,6 +5,9 @@ import { BellRing, CalendarClock, Pencil, Play, Send, Trash2 } from "lucide-reac
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
 
+import { NativeSelect } from "@/components/ui/native-select";
+import { PageContainer } from "@/components/app/page-container";
+import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -38,7 +41,6 @@ import {
 } from "./api";
 import { ChannelsField } from "./channels-field";
 
-const selectClass = "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-text";
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const TABS = ["alerts", "automations", "history"] as const;
 const defaultChannels: Channels = { inapp: true, emails: [], webhook: null };
@@ -105,9 +107,9 @@ function AlertDialog({ open, onOpenChange, alert }: { open: boolean; onOpenChang
           <div className="grid gap-4 sm:grid-cols-3">
             <Field className="sm:col-span-3">
               <FieldLabel htmlFor="al-ds">Dataset</FieldLabel>
-              <select
-                id="al-ds"
-                className={selectClass}
+              <NativeSelect
+ id="al-ds"
+                className="w-full"
                 value={form.dataset_id}
                 onChange={(e) => {
                   const next = datasets?.find((d) => d.id === e.target.value);
@@ -124,13 +126,13 @@ function AlertDialog({ open, onOpenChange, alert }: { open: boolean; onOpenChang
                     {d.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
             <Field className="sm:col-span-2">
               <FieldLabel htmlFor="al-field">Measure</FieldLabel>
-              <select
-                id="al-field"
-                className={selectClass}
+              <NativeSelect
+ id="al-field"
+                className="w-full"
                 value={form.metric.field}
                 onChange={(e) => {
                   const f = e.target.value;
@@ -146,40 +148,40 @@ function AlertDialog({ open, onOpenChange, alert }: { open: boolean; onOpenChang
                     {c.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
             <Field>
               <FieldLabel htmlFor="al-agg">As</FieldLabel>
-              <select id="al-agg" className={selectClass} value={form.metric.agg} onChange={(e) => set({ metric: { ...form.metric, agg: e.target.value as Aggregation } })}>
+              <NativeSelect id="al-agg" className="w-full" value={form.metric.agg} onChange={(e) => set({ metric: { ...form.metric, agg: e.target.value as Aggregation } })}>
                 {aggs.map((a) => (
                   <option key={a} value={a} className="bg-surface">
                     {AGG_LABEL[a]}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="al-window">Over</FieldLabel>
-              <select id="al-window" className={selectClass} value={form.date_field ? form.window_days : 0} onChange={(e) => set({ window_days: Number(e.target.value) })} disabled={!form.date_field}>
+              <NativeSelect id="al-window" className="w-full" value={form.date_field ? form.window_days : 0} onChange={(e) => set({ window_days: Number(e.target.value) })} disabled={!form.date_field}>
                 <option value={0} className="bg-surface">All time</option>
                 <option value={1} className="bg-surface">Today</option>
                 <option value={7} className="bg-surface">The last 7 days</option>
                 <option value={30} className="bg-surface">The last 30 days</option>
                 <option value={90} className="bg-surface">The last 90 days</option>
-              </select>
+              </NativeSelect>
               {!form.date_field && <FieldDescription>This dataset has no date column, so it looks at all rows.</FieldDescription>}
             </Field>
             <Field>
               <FieldLabel htmlFor="al-cond">Alert when it</FieldLabel>
-              <select id="al-cond" className={selectClass} value={form.condition} onChange={(e) => set({ condition: e.target.value as Condition })}>
+              <NativeSelect id="al-cond" className="w-full" value={form.condition} onChange={(e) => set({ condition: e.target.value as Condition })}>
                 {(Object.keys(CONDITION_LABEL) as Condition[]).map((c) => (
                   <option key={c} value={c} className="bg-surface" disabled={c.startsWith("change") && (!form.date_field || !form.window_days)}>
                     {CONDITION_LABEL[c]}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -190,11 +192,11 @@ function AlertDialog({ open, onOpenChange, alert }: { open: boolean; onOpenChang
             </Field>
             <Field>
               <FieldLabel htmlFor="al-sched">Check</FieldLabel>
-              <select id="al-sched" className={selectClass} value={form.schedule} onChange={(e) => set({ schedule: e.target.value as AlertInput["schedule"] })}>
+              <NativeSelect id="al-sched" className="w-full" value={form.schedule} onChange={(e) => set({ schedule: e.target.value as AlertInput["schedule"] })}>
                 <option value="hourly" className="bg-surface">Every hour</option>
                 <option value="daily" className="bg-surface">Every day</option>
                 <option value="weekly" className="bg-surface">Every week</option>
-              </select>
+              </NativeSelect>
             </Field>
           </div>
           <ChannelsField value={form.channels} onChange={(channels) => set({ channels })} />
@@ -268,56 +270,56 @@ function AutomationDialog({ open, onOpenChange, automation }: { open: boolean; o
           </Field>
           <Field>
             <FieldLabel htmlFor="au-dash">Dashboard</FieldLabel>
-            <select id="au-dash" className={selectClass} value={form.dashboard_id} onChange={(e) => set({ dashboard_id: e.target.value })}>
+            <NativeSelect id="au-dash" className="w-full" value={form.dashboard_id} onChange={(e) => set({ dashboard_id: e.target.value })}>
               {dashboards?.map((d) => (
                 <option key={d.id} value={d.id} className="bg-surface">
                   {d.name}
                 </option>
               ))}
-            </select>
+            </NativeSelect>
           </Field>
           <div className="grid gap-4 sm:grid-cols-3">
             <Field>
               <FieldLabel htmlFor="au-sched">Every</FieldLabel>
-              <select id="au-sched" className={selectClass} value={form.schedule} onChange={(e) => set({ schedule: e.target.value as AutomationInput["schedule"] })}>
+              <NativeSelect id="au-sched" className="w-full" value={form.schedule} onChange={(e) => set({ schedule: e.target.value as AutomationInput["schedule"] })}>
                 <option value="daily" className="bg-surface">Day</option>
                 <option value="weekly" className="bg-surface">Week</option>
                 <option value="monthly" className="bg-surface">Month (1st)</option>
-              </select>
+              </NativeSelect>
             </Field>
             {form.schedule === "weekly" && (
               <Field>
                 <FieldLabel htmlFor="au-day">On</FieldLabel>
-                <select id="au-day" className={selectClass} value={form.weekday} onChange={(e) => set({ weekday: Number(e.target.value) })}>
+                <NativeSelect id="au-day" className="w-full" value={form.weekday} onChange={(e) => set({ weekday: Number(e.target.value) })}>
                   {DAYS.map((d, i) => (
                     <option key={d} value={i} className="bg-surface">
                       {d}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
             )}
             <Field>
               <FieldLabel htmlFor="au-hour">At</FieldLabel>
-              <select id="au-hour" className={selectClass} value={form.hour} onChange={(e) => set({ hour: Number(e.target.value) })}>
+              <NativeSelect id="au-hour" className="w-full" value={form.hour} onChange={(e) => set({ hour: Number(e.target.value) })}>
                 {Array.from({ length: 24 }, (_, h) => (
                   <option key={h} value={h} className="bg-surface">
                     {`${String(h).padStart(2, "0")}:00`}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field>
               <FieldLabel htmlFor="au-period">Covering the last</FieldLabel>
-              <select id="au-period" className={selectClass} value={form.period_days} onChange={(e) => set({ period_days: Number(e.target.value) })}>
+              <NativeSelect id="au-period" className="w-full" value={form.period_days} onChange={(e) => set({ period_days: Number(e.target.value) })}>
                 {[1, 7, 30, 90].map((n) => (
                   <option key={n} value={n} className="bg-surface">
                     {n === 1 ? "day" : `${n} days`}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
             <Field>
               <FieldLabel htmlFor="au-tz">Time zone</FieldLabel>
@@ -363,23 +365,25 @@ export function AlertsScreen() {
   const actionError = (check.error ?? run.error)?.message;
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-6 pt-4">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1.5">
-          <h1 className="text-[38px] font-semibold tracking-[-0.03em]">Alerts & automations</h1>
-          <p className="text-[15px] text-muted">Get told when a number moves, and send dashboards to people on a schedule.</p>
-        </div>
-        {canEdit && (
-          <div className="flex gap-2">
-            <Button onClick={() => setAlertDialog({ open: true, alert: null })} disabled={!datasets?.length}>
-              <BellRing /> New alert
-            </Button>
-            <Button variant="outline" onClick={() => setAutoDialog({ open: true, automation: null })} disabled={!dashboards?.length}>
-              <CalendarClock /> New automation
-            </Button>
-          </div>
-        )}
-      </div>
+    <PageContainer className="gap-6">
+      <PageHeader
+        title="Alerts & automations"
+        description="Get told when a number moves, and send dashboards to people on a schedule."
+        actions={
+          <>
+            {canEdit && (
+              <div className="flex gap-2">
+                <Button onClick={() => setAlertDialog({ open: true, alert: null })} disabled={!datasets?.length}>
+                  <BellRing /> New alert
+                </Button>
+                <Button variant="outline" onClick={() => setAutoDialog({ open: true, automation: null })} disabled={!dashboards?.length}>
+                  <CalendarClock /> New automation
+                </Button>
+              </div>
+            )}
+          </>
+        }
+      />
       {actionError && <p className="text-sm text-accent">{actionError}</p>}
 
       <Tabs value={tab} onValueChange={(v) => void setTab(v as (typeof TABS)[number])}>
@@ -525,6 +529,6 @@ export function AlertsScreen() {
 
       <AlertDialog open={alertDialog.open} onOpenChange={(o) => setAlertDialog((s) => ({ ...s, open: o }))} alert={alertDialog.alert} />
       <AutomationDialog open={autoDialog.open} onOpenChange={(o) => setAutoDialog((s) => ({ ...s, open: o }))} automation={autoDialog.automation} />
-    </div>
+    </PageContainer>
   );
 }

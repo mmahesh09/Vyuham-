@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BarChart3, BarChartHorizontal, ChartPie, ChartScatter, Filter, Gauge, Hash, LayoutGrid, LineChart, Loader2, Sheet as SheetIcon, Sparkles, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
 
+import { NativeSelect } from "@/components/ui/native-select";
 import { ColorPicker } from "@/components/reui/color-picker";
 import { Stepper, StepperIndicator, StepperItem, StepperNav, StepperSeparator, StepperTitle, StepperTrigger } from "@/components/reui/stepper";
 import { Button } from "@/components/ui/button";
@@ -77,7 +78,6 @@ const TEMPLATES: Template[] = [
     apply: (ds) => ({ kind: "kpi", ...measure(pick(ds).amount), groupBy: "" }) },
 ];
 const BUCKETS: DateBucket[] = ["day", "week", "month", "quarter", "year"];
-const selectClass = "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-text focus-visible:border-ring focus-visible:outline-none";
 
 type Draft = {
   datasetId: string;
@@ -308,9 +308,9 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                   )}
                   <Field>
                     <FieldLabel htmlFor="cb-dataset">Dataset</FieldLabel>
-                    <select
-                      id="cb-dataset"
-                      className={selectClass}
+                    <NativeSelect
+ id="cb-dataset"
+                      className="w-full"
                       value={draft.datasetId}
                       onChange={(e) => setDraft({ ...initialDraft(datasets.find((d) => d.id === e.target.value), draft.kind), note: draft.note })}
                     >
@@ -319,7 +319,7 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                           {d.name} ({d.row_count.toLocaleString()} rows)
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </Field>
                   <Field>
                     <FieldLabel>Show it as</FieldLabel>
@@ -355,9 +355,9 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                 <div className="grid gap-5 sm:grid-cols-2">
                   <Field>
                     <FieldLabel htmlFor="cb-field">Measure</FieldLabel>
-                    <select
-                      id="cb-field"
-                      className={selectClass}
+                    <NativeSelect
+ id="cb-field"
+                      className="w-full"
                       value={draft.field}
                       onChange={(e) => {
                         const f = e.target.value;
@@ -373,17 +373,17 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                           {c.name} ({c.type})
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="cb-agg">Calculation</FieldLabel>
-                    <select id="cb-agg" className={selectClass} value={draft.agg} onChange={(e) => set({ agg: e.target.value as Aggregation })} disabled={aggs.length === 1}>
+                    <NativeSelect id="cb-agg" className="w-full" value={draft.agg} onChange={(e) => set({ agg: e.target.value as Aggregation })} disabled={aggs.length === 1}>
                       {aggs.map((a) => (
                         <option key={a} value={a} className="bg-surface">
                           {AGG_LABEL[a]}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                     {!isNumber && draft.field !== ROW_FIELD && <FieldDescription>Text and category columns can only be counted.</FieldDescription>}
                   </Field>
                   {draft.kind === "card" && TWO_MEASURES.has(draft.chartType) && (
@@ -392,9 +392,9 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                         {draft.chartType === "combo" ? "Line measure" : draft.chartType === "scatter" ? "Second measure (up/down axis)" : "Second column (optional)"}
                       </FieldLabel>
                       <div className="grid gap-2 sm:grid-cols-2">
-                        <select
-                          id="cb-field2"
-                          className={selectClass}
+                        <NativeSelect
+ id="cb-field2"
+                          className="w-full"
                           value={draft.field2}
                           onChange={(e) =>
                             set({
@@ -414,9 +414,9 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                               {c.name} ({c.type})
                             </option>
                           ))}
-                        </select>
+                        </NativeSelect>
                         {draft.field2 && draft.field2 !== ROW_FIELD && (
-                          <select aria-label="Second calculation" className={selectClass} value={draft.agg2} onChange={(e) => set({ agg2: e.target.value as Aggregation })}>
+                          <NativeSelect aria-label="Second calculation" className="w-full" value={draft.agg2} onChange={(e) => set({ agg2: e.target.value as Aggregation })}>
                             {(ds.columns.find((c) => c.name === draft.field2)?.type === "number"
                               ? (["sum", "avg", "min", "max", "count", "count_distinct"] as Aggregation[])
                               : (["count", "count_distinct"] as Aggregation[])
@@ -425,7 +425,7 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                                 {AGG_LABEL[a]}
                               </option>
                             ))}
-                          </select>
+                          </NativeSelect>
                         )}
                       </div>
                     </Field>
@@ -440,9 +440,9 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                   <div className="grid gap-5 sm:grid-cols-2">
                     <Field>
                       <FieldLabel htmlFor="cb-group">Group by</FieldLabel>
-                      <select
-                        id="cb-group"
-                        className={selectClass}
+                      <NativeSelect
+ id="cb-group"
+                        className="w-full"
                         value={draft.groupBy}
                         onChange={(e) => {
                           const g = e.target.value;
@@ -460,18 +460,18 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                               {c.name} ({c.type === "date" ? "over time" : c.type})
                             </option>
                           ))}
-                      </select>
+                      </NativeSelect>
                     </Field>
                     {groupIsDate && (
                       <Field>
                         <FieldLabel htmlFor="cb-bucket">Per</FieldLabel>
-                        <select id="cb-bucket" className={selectClass} value={draft.dateBucket} onChange={(e) => set({ dateBucket: e.target.value as DateBucket })}>
+                        <NativeSelect id="cb-bucket" className="w-full" value={draft.dateBucket} onChange={(e) => set({ dateBucket: e.target.value as DateBucket })}>
                           {BUCKETS.map((b) => (
                             <option key={b} value={b} className="bg-surface">
                               {b[0].toUpperCase() + b.slice(1)}
                             </option>
                           ))}
-                        </select>
+                        </NativeSelect>
                       </Field>
                     )}
                   </div>
@@ -574,7 +574,7 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                     {draft.kind === "card" && draft.groupBy && (
                       <Field>
                         <FieldLabel htmlFor="cb-sort">Order</FieldLabel>
-                        <select id="cb-sort" className={selectClass} value={draft.sort} onChange={(e) => set({ sort: e.target.value as Draft["sort"] })}>
+                        <NativeSelect id="cb-sort" className="w-full" value={draft.sort} onChange={(e) => set({ sort: e.target.value as Draft["sort"] })}>
                           <option value="" className="bg-surface">
                             {groupIsDate ? "Oldest first" : "Biggest first"}
                           </option>
@@ -587,7 +587,7 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                           <option value="label" className="bg-surface">
                             A → Z / oldest first
                           </option>
-                        </select>
+                        </NativeSelect>
                       </Field>
                     )}
                   </div>

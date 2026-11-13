@@ -60,7 +60,8 @@ function useTargetRect(selector: string | undefined, active: boolean) {
     let tries = 0;
     let frame = 0;
     const measure = () => {
-      const el = document.querySelector<HTMLElement>(selector);
+      // Skip copies that aren't rendered (e.g. the desktop sidebar on a phone) and use the visible one.
+      const el = Array.from(document.querySelectorAll<HTMLElement>(selector)).find((n) => n.getClientRects().length > 0);
       if (!el) {
         // The page may still be rendering after a navigation: keep looking for ~4s.
         if (tries++ < 80) frame = window.setTimeout(measure, 50);

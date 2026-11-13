@@ -3,6 +3,7 @@
 import { format, parseISO } from "date-fns";
 import { useState } from "react";
 
+import { NativeSelect } from "@/components/ui/native-select";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -16,8 +17,6 @@ import { LEAVE_LABEL, MENU_STATUSES, STATUS, StatusDot } from "./status";
 
 const today = () => format(new Date(), "yyyy-MM-dd");
 const OTHER = "__other__";
-const selectClass =
-  "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-text focus-visible:border-ring focus-visible:outline-none";
 
 /**
  * Status + leave (profile page). Leave needs a type (sick / casual / paid), dates and a backup —
@@ -163,13 +162,13 @@ export function StatusCard({ meId, members }: { meId: string; members: Member[] 
           <div className="grid gap-4 sm:grid-cols-3">
             <Field className="sm:col-span-3">
               <FieldLabel htmlFor="leave-type">Leave type</FieldLabel>
-              <select id="leave-type" value={leaveType} onChange={(e) => setLeaveType(e.target.value as LeaveType)} className={selectClass}>
+              <NativeSelect id="leave-type" value={leaveType} onChange={(e) => setLeaveType(e.target.value as LeaveType)} className="w-full">
                 {(Object.keys(LEAVE_LABEL) as LeaveType[]).map((t) => (
                   <option key={t} value={t} className="bg-surface">
                     {LEAVE_LABEL[t]}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
             <Field className="sm:col-span-3 sm:grid sm:grid-cols-2 sm:gap-4">
               <div className="flex flex-col gap-2">
@@ -186,7 +185,7 @@ export function StatusCard({ meId, members }: { meId: string; members: Member[] 
             <FieldLabel htmlFor="leave-backup">
               Backup while you&apos;re away <span className="text-accent" aria-hidden>*</span>
             </FieldLabel>
-            <select id="leave-backup" value={backup || OTHER} onChange={(e) => setBackup(e.target.value)} className={selectClass}>
+            <NativeSelect id="leave-backup" value={backup || OTHER} onChange={(e) => setBackup(e.target.value)} className="w-full">
               {teammates.map((m) => (
                 <option key={m.id} value={m.id} className="bg-surface">
                   {m.name}
@@ -196,7 +195,7 @@ export function StatusCard({ meId, members }: { meId: string; members: Member[] 
               <option value={OTHER} className="bg-surface">
                 Someone outside this workspace…
               </option>
-            </select>
+            </NativeSelect>
             {(backup === OTHER || !backup) && (
               <Input
                 aria-label="Backup person's name"

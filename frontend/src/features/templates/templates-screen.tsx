@@ -6,6 +6,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { NativeSelect } from "@/components/ui/native-select";
+import { PageContainer } from "@/components/app/page-container";
+import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -21,7 +24,6 @@ type Template = { id: string; name: string; description: string; fields: Templat
 
 const ICON: Record<string, LucideIcon> = { sales: ShoppingBag, startup: Rocket, expenses: Receipt };
 const OK_TYPES: Record<TemplateField["type"], string[]> = { number: ["number"], date: ["date"], category: ["category", "text"] };
-const selectClass = "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-text";
 
 function UseTemplateDialog({ template }: { template: Template }) {
   const router = useRouter();
@@ -97,13 +99,13 @@ function UseTemplateDialog({ template }: { template: Template }) {
           >
             <Field>
               <FieldLabel htmlFor="tpl-ds">Dataset</FieldLabel>
-              <select id="tpl-ds" className={selectClass} value={datasetId} onChange={(e) => setDatasetId(e.target.value)}>
+              <NativeSelect id="tpl-ds" className="w-full" value={datasetId} onChange={(e) => setDatasetId(e.target.value)}>
                 {datasets.map((d) => (
                   <option key={d.id} value={d.id} className="bg-surface">
                     {d.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
               {template.fields.map((f) => {
@@ -114,9 +116,9 @@ function UseTemplateDialog({ template }: { template: Template }) {
                       {f.label}
                       {f.required ? <span className="text-accent" aria-hidden> *</span> : <span className="font-normal text-faint"> (optional)</span>}
                     </FieldLabel>
-                    <select
-                      id={`tpl-${f.key}`}
-                      className={selectClass}
+                    <NativeSelect
+ id={`tpl-${f.key}`}
+                      className="w-full"
                       value={mapping[f.key] ?? ""}
                       onChange={(e) => setMapping((m) => ({ ...m, [f.key]: e.target.value || null }))}
                     >
@@ -128,7 +130,7 @@ function UseTemplateDialog({ template }: { template: Template }) {
                           {c.name}
                         </option>
                       ))}
-                    </select>
+                    </NativeSelect>
                     {!options.length && <FieldDescription>No {f.type} column in this dataset.</FieldDescription>}
                   </Field>
                 );
@@ -156,11 +158,11 @@ export function TemplatesScreen() {
   const templates = useQuery({ queryKey: ["templates"], queryFn: () => api<Template[]>("/templates"), staleTime: Infinity });
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-8 pt-4">
-      <div className="flex flex-col gap-1.5">
-        <h1 className="text-[38px] font-semibold tracking-[-0.03em]">Templates</h1>
-        <p className="text-[15px] text-muted">Ready-made dashboards for common questions. Map your columns once and get the whole set of charts.</p>
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Templates"
+        description="Ready-made dashboards for common questions. Map your columns once and get the whole set of charts."
+      />
       {templates.isError && <p className="text-sm text-accent">{templates.error.message}</p>}
       <ul className="grid gap-4 md:grid-cols-3">
         {(templates.data ?? []).map((t) => {
@@ -186,6 +188,6 @@ export function TemplatesScreen() {
         })}
         {templates.isPending && [0, 1, 2].map((i) => <li key={i} className="h-80 animate-pulse rounded-[18px] bg-surface" />)}
       </ul>
-    </div>
+    </PageContainer>
   );
 }

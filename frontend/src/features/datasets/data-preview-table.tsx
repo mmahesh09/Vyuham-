@@ -51,7 +51,7 @@ export function DataPreviewTable({ columns, rows }: { columns: ColumnProfile[]; 
       data-lenis-prevent
       tabIndex={0}
       aria-label="Data preview, scrollable"
-      className="h-[min(560px,65vh)] overflow-auto overscroll-contain rounded-[12px] border border-white/10 bg-black/40 font-mono text-[12.5px] focus-visible:outline-highlight"
+      className="h-[min(560px,65vh)] overflow-auto overscroll-contain rounded-[12px] border border-line bg-black/40 font-mono text-[12.5px] focus-visible:outline-highlight"
     >
       <table className="grid border-collapse" style={{ width }}>
         <thead className="sticky top-0 z-10 grid bg-[#17132e]">
@@ -64,7 +64,7 @@ export function DataPreviewTable({ columns, rows }: { columns: ColumnProfile[]; 
                 <th
                   key={header.id}
                   scope="col"
-                  className="flex shrink-0 items-center border-l border-white/[0.06] px-3 text-left font-sans text-[13px] font-semibold text-white"
+                  className="flex shrink-0 items-center border-l border-white/[0.06] px-3 text-left font-sans text-[13px] font-semibold text-text"
                   style={{ width: COL_WIDTH, height: 40 }}
                 >
                   {header.isPlaceholder ? null : <table.FlexRender header={header} />}
@@ -79,7 +79,7 @@ export function DataPreviewTable({ columns, rows }: { columns: ColumnProfile[]; 
             return (
               <tr
                 key={row.id}
-                className="absolute flex w-full border-t border-white/[0.05] hover:bg-white/[0.04]"
+                className="absolute flex w-full border-t border-white/[0.05] hover:bg-surface-2"
                 style={{ transform: `translateY(${item.start}px)`, height: ROW_HEIGHT }}
               >
                 <td className="flex shrink-0 items-center justify-end px-3 text-white/30" style={{ width: INDEX_WIDTH }}>
@@ -88,7 +88,7 @@ export function DataPreviewTable({ columns, rows }: { columns: ColumnProfile[]; 
                 {row.getAllCells().map((cell) => (
                   <td
                     key={cell.id}
-                    className="flex shrink-0 items-center overflow-hidden border-l border-white/[0.05] px-3 text-white/80"
+                    className="flex shrink-0 items-center overflow-hidden border-l border-white/[0.05] px-3 text-text"
                     style={{ width: COL_WIDTH }}
                   >
                     <span className="truncate">

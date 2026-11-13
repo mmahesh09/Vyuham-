@@ -36,18 +36,19 @@ const axis = {
   axisLine: { show: false },
   axisTick: { show: false },
   axisLabel: { color: BRAND.faint, fontSize: 11 },
-  splitLine: { lineStyle: { color: "rgba(255,255,255,0.06)" } },
+  splitLine: { lineStyle: { color: "rgba(206,163,245,0.08)" } }, // --highlight at 8%: reads as a hairline on --surface
 };
 
 echarts.registerTheme("brand", {
+  // Same order as --chart-1..5 in globals.css.
   color: [BRAND.highlight, BRAND.primary, BRAND.accent, "#8f86b3", "#4b3f8f"],
   backgroundColor: "transparent",
   textStyle: { fontFamily: `${outfit.style.fontFamily}, system-ui, sans-serif`, color: BRAND.muted },
   categoryAxis: axis,
   valueAxis: axis,
   tooltip: {
-    backgroundColor: "rgba(20, 8, 29, 0.92)",
-    borderColor: "rgba(255,255,255,0.1)",
+    backgroundColor: "rgba(23, 19, 46, 0.96)", // --surface-2
+    borderColor: "#2e2660", // --line-strong
     textStyle: { color: BRAND.text, fontSize: 12 },
   },
   legend: { textStyle: { color: BRAND.muted } },

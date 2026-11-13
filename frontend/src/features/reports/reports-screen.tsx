@@ -6,6 +6,9 @@ import { Download, FileText, LoaderCircle, Pencil, Play, Trash2 } from "lucide-r
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useEffect, useState } from "react";
 
+import { NativeSelect } from "@/components/ui/native-select";
+import { PageContainer } from "@/components/app/page-container";
+import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -37,7 +40,6 @@ import {
   type ReportSource,
 } from "./api";
 
-const selectClass = "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-text";
 const TABS = ["reports", "history"] as const;
 const PERIODS: { value: number | null; label: string }[] = [
   { value: null, label: "All time" },
@@ -121,9 +123,9 @@ function ReportDialog({ open, onOpenChange, report, sources }: {
           <div className="grid gap-4 sm:grid-cols-3">
             <Field>
               <FieldLabel htmlFor="rp-kind">From</FieldLabel>
-              <select
-                id="rp-kind"
-                className={selectClass}
+              <NativeSelect
+ id="rp-kind"
+                className="w-full"
                 value={form.source}
                 onChange={(e) => {
                   const source = e.target.value as ReportSource;
@@ -135,17 +137,17 @@ function ReportDialog({ open, onOpenChange, report, sources }: {
                     {SOURCE_LABEL[k]}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
             <Field className="sm:col-span-2">
               <FieldLabel htmlFor="rp-source">{SOURCE_LABEL[form.source]}</FieldLabel>
-              <select id="rp-source" className={selectClass} value={form.source_id} onChange={(e) => set({ source_id: e.target.value })}>
+              <NativeSelect id="rp-source" className="w-full" value={form.source_id} onChange={(e) => set({ source_id: e.target.value })}>
                 {sources[form.source]?.map((s) => (
                   <option key={s.id} value={s.id} className="bg-surface">
                     {s.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
           </div>
           <Field>
@@ -164,9 +166,9 @@ function ReportDialog({ open, onOpenChange, report, sources }: {
           {isDashboard && (
             <Field>
               <FieldLabel htmlFor="rp-period">Period</FieldLabel>
-              <select
-                id="rp-period"
-                className={selectClass}
+              <NativeSelect
+ id="rp-period"
+                className="w-full"
                 value={form.options.period_days ?? ""}
                 onChange={(e) => setOptions({ period_days: e.target.value ? Number(e.target.value) : null })}
               >
@@ -175,7 +177,7 @@ function ReportDialog({ open, onOpenChange, report, sources }: {
                     {p.label}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
               <FieldDescription>Counted back from the day the report runs. Applies to dashboards with a date column.</FieldDescription>
             </Field>
           )}
@@ -183,17 +185,17 @@ function ReportDialog({ open, onOpenChange, report, sources }: {
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="rp-orient">Orientation</FieldLabel>
-                <select id="rp-orient" className={selectClass} value={form.options.orientation} onChange={(e) => setOptions({ orientation: e.target.value as "portrait" | "landscape" })}>
+                <NativeSelect id="rp-orient" className="w-full" value={form.options.orientation} onChange={(e) => setOptions({ orientation: e.target.value as "portrait" | "landscape" })}>
                   <option value="portrait" className="bg-surface">Portrait</option>
                   <option value="landscape" className="bg-surface">Landscape</option>
-                </select>
+                </NativeSelect>
               </Field>
               <Field>
                 <FieldLabel htmlFor="rp-size">Paper</FieldLabel>
-                <select id="rp-size" className={selectClass} value={form.options.page_size} onChange={(e) => setOptions({ page_size: e.target.value as "A4" | "Letter" })}>
+                <NativeSelect id="rp-size" className="w-full" value={form.options.page_size} onChange={(e) => setOptions({ page_size: e.target.value as "A4" | "Letter" })}>
                   <option value="A4" className="bg-surface">A4</option>
                   <option value="Letter" className="bg-surface">US Letter</option>
-                </select>
+                </NativeSelect>
               </Field>
             </div>
           )}
@@ -255,18 +257,20 @@ export function ReportsScreen() {
   const actionError = (runReport.error ?? del.error)?.message;
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-6 pt-4">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1.5">
-          <h1 className="text-[38px] font-semibold tracking-[-0.03em]">Reports</h1>
-          <p className="text-[15px] text-muted">PDFs of dashboards, and Excel or CSV exports of your data. Files are kept for 30 days.</p>
-        </div>
-        {canEdit && (
-          <Button onClick={() => setDialog({ open: true, report: null })} disabled={!hasSources}>
-            <FileText /> New report
-          </Button>
-        )}
-      </div>
+    <PageContainer className="gap-6">
+      <PageHeader
+        title="Reports"
+        description="PDFs of dashboards, and Excel or CSV exports of your data. Files are kept for 30 days."
+        actions={
+          <>
+            {canEdit && (
+              <Button onClick={() => setDialog({ open: true, report: null })} disabled={!hasSources}>
+                <FileText /> New report
+              </Button>
+            )}
+          </>
+        }
+      />
       {actionError && <p role="alert" className="text-sm text-accent">{actionError}</p>}
 
       <Tabs value={tab} onValueChange={(v) => void setTab(v as (typeof TABS)[number])}>
@@ -350,6 +354,6 @@ export function ReportsScreen() {
       </Tabs>
 
       <ReportDialog open={dialog.open} onOpenChange={(o) => setDialog((s) => ({ ...s, open: o }))} report={dialog.report} sources={sources} />
-    </div>
+    </PageContainer>
   );
 }

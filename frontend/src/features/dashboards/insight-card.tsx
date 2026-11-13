@@ -7,22 +7,24 @@ import { AlertCircle, ArrowDownRight, ArrowUpRight, Circle, GripVertical } from 
 import { axisLabel, buildOption, formatNumber, metricKey } from "@/features/charts/build-option";
 import { metricLabel, type ChartSpec, type ResultRow } from "@/features/charts/chart-spec";
 import { EChart } from "@/features/charts/echart";
+import { EmptyState } from "@/components/app/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 import type { ChartRecord, ChartView, Insight } from "./api";
 import { ChartMenu, type ChartActions } from "./chart-menu";
 
 const TREND = {
-  up: { icon: ArrowUpRight, tone: "text-highlight" },
-  down: { icon: ArrowDownRight, tone: "text-accent" },
-  flat: { icon: Circle, tone: "text-faint" },
+  up: { icon: ArrowUpRight, tone: "text-highlight", label: "Up" },
+  down: { icon: ArrowDownRight, tone: "text-accent", label: "Down" },
+  flat: { icon: Circle, tone: "text-faint", label: "Flat" },
 };
 
 /** A small table for "table" charts: the group and each measure. */
 function ResultTable({ spec, rows }: { spec: ChartSpec; rows: ResultRow[] }) {
   const group = spec.groupBy;
   return (
-    <div className="mt-5 max-h-72 overflow-auto rounded-xl border border-line">
+    <div className="mt-5 max-h-72 overflow-auto rounded-lg border border-line">
       <table className="w-full text-left text-[14px]">
         <thead className="sticky top-0 bg-surface-2 text-muted">
           <tr>
@@ -53,10 +55,11 @@ function ResultTable({ spec, rows }: { spec: ChartSpec; rows: ResultRow[] }) {
 
 /** The chart body only: used by the feed card, the chart builder preview and Ask answers. */
 export function ChartBody({ spec, rows, height }: { spec: ChartSpec; rows: ResultRow[]; height?: number }) {
-  if (!rows.length) return <p className="mt-5 rounded-xl border border-dashed border-line px-4 py-10 text-center text-sm text-faint">No data for these filters.</p>;
+  if (!rows.length)
+    return <EmptyState compact className="mt-5" title="No data for these filters" description="Widen the date range or clear a filter to see this chart." />;
   if (spec.chartType === "table") return <ResultTable spec={spec} rows={rows} />;
   if (spec.chartType === "kpi")
-    return <p className="mt-4 text-[44px] font-light tracking-[-0.02em] tabular-nums">{formatNumber(rows[0]?.[metricKey(spec.metrics[0])])}</p>;
+    return <p className="type-kpi mt-4 text-[44px]">{formatNumber(rows[0]?.[metricKey(spec.metrics[0])])}</p>;
   return (
     <EChart
       className="mt-5"
@@ -69,10 +72,12 @@ export function ChartBody({ spec, rows, height }: { spec: ChartSpec; rows: Resul
 
 export function InsightHeadline({ insight, fallback }: { insight: Insight | null | undefined; fallback: string }) {
   const trend = insight?.trend ?? "flat";
-  const { icon: Icon, tone } = TREND[trend];
+  const { icon: Icon, tone, label } = TREND[trend];
   return (
-    <h3 className="flex items-start gap-2.5 text-[19px] font-semibold leading-snug tracking-[-0.02em] text-text">
-      <Icon className={cn("mt-1 size-4 shrink-0", tone, trend === "flat" && "size-3 fill-current")} strokeWidth={2.6} aria-hidden />
+    <h3 className="type-insight flex max-w-[68ch] items-start gap-2.5 text-text">
+      <Icon className={cn("mt-1.5 size-4 shrink-0", tone, trend === "flat" && "size-3 fill-current")} strokeWidth={2.6} aria-hidden />
+      {/* The arrow's colour isn't the only signal: screen readers hear the direction too. */}
+      {insight && <span className="sr-only">{label}:</span>}
       {insight?.headline ?? fallback}
     </h3>
   );
@@ -92,8 +97,8 @@ export function InsightCard({ chart, view, canEdit, draggable, actions }: Props)
       ref={setNodeRef}
       style={{ transform: CSS.Translate.toString(transform), transition }}
       className={cn(
-        "rounded-[18px] border border-line bg-surface/80 p-6 sm:p-7",
-        isDragging && "relative z-10 border-primary/70 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.9)]",
+        "rounded-xl border border-line bg-surface p-5 sm:p-6",
+        isDragging && "relative z-10 border-line-strong shadow-[0_30px_60px_-20px_rgba(0,0,0,0.9)]",
       )}
     >
       <header className="flex items-start justify-between gap-4">
@@ -106,10 +111,10 @@ export function InsightCard({ chart, view, canEdit, draggable, actions }: Props)
           ) : (
             <InsightHeadline insight={view?.insight} fallback={chart.spec.title} />
           )}
-          <p className="pl-6 text-[14px] text-muted">
+          <p className="max-w-[72ch] pl-6.5 text-[14px] leading-relaxed text-muted">
             {view?.error ? <span className="text-accent">{view.error}</span> : (view?.insight?.note || chart.spec.title)}
           </p>
-          {chart.note && <p className="pl-6 text-[13px] italic text-faint">“{chart.note}”</p>}
+          {chart.note && <p className="max-w-[72ch] pl-6.5 text-[13px] italic text-faint">“{chart.note}”</p>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {canEdit && <ChartMenu title={chart.spec.title} {...actions} />}
@@ -118,7 +123,7 @@ export function InsightCard({ chart, view, canEdit, draggable, actions }: Props)
               ref={setActivatorNodeRef}
               type="button"
               aria-label={`Reorder card: ${chart.spec.title}`}
-              className="flex size-10 cursor-grab touch-none items-center justify-center rounded-[10px] text-faint hover:bg-surface-2 hover:text-text active:cursor-grabbing"
+              className="flex size-10 cursor-grab touch-none items-center justify-center rounded-lg text-faint transition-colors hover:bg-surface-2 hover:text-text active:cursor-grabbing"
               {...attributes}
               {...listeners}
             >
@@ -128,7 +133,7 @@ export function InsightCard({ chart, view, canEdit, draggable, actions }: Props)
         </div>
       </header>
       {!view ? (
-        <div className="mt-5 h-[220px] animate-pulse rounded-xl bg-line/40" />
+        <Skeleton className="mt-5 h-[220px] rounded-lg" />
       ) : view.error ? null : (
         <ChartBody spec={chart.spec} rows={view.rows} />
       )}

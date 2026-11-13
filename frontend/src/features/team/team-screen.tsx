@@ -4,6 +4,8 @@ import { Plus } from "lucide-react";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useState } from "react";
 
+import { PageContainer } from "@/components/app/page-container";
+import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMe } from "@/features/auth/hooks";
@@ -30,20 +32,24 @@ export function TeamScreen() {
   const mine = (tasks.data ?? []).filter((t) => t.assignee_id === meId && t.status !== "done").length;
 
   return (
-    <div className="mx-auto flex max-w-[1240px] flex-col gap-6 pt-4">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1.5">
-          <h1 className="text-[38px] font-semibold tracking-[-0.03em]">Team</h1>
-          <p className="text-[15px] text-muted">
+    <PageContainer width="wide" className="gap-6">
+      <PageHeader
+        title="Team"
+        description={
+          <>
             Data tasks for the people in {me?.workspace.name}. {mine > 0 ? `${mine} open task${mine > 1 ? "s" : ""} assigned to you.` : ""}
-          </p>
-        </div>
-        {canEdit && (
-          <Button onClick={() => open(null)}>
-            <Plus /> New task
-          </Button>
-        )}
-      </div>
+          </>
+        }
+        actions={
+          <>
+            {canEdit && (
+              <Button onClick={() => open(null)}>
+                <Plus /> New task
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {tasks.isError && <p className="text-sm text-accent">{tasks.error.message}</p>}
 
@@ -74,6 +80,6 @@ export function TeamScreen() {
         task={dialog.task}
         canEdit={canEdit}
       />
-    </div>
+    </PageContainer>
   );
 }

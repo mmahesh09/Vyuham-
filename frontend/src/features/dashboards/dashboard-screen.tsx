@@ -1,11 +1,16 @@
 "use client";
 
-import { ArrowLeft, Copy, Hash, LayoutGrid, ListTodo, LoaderCircle, MoreHorizontal, Newspaper, Plus, Sparkle, Trash2 } from "lucide-react";
+import { Copy, Hash, LayoutDashboard, LayoutGrid, ListTodo, LoaderCircle, Move, MoreHorizontal, Newspaper, Plus, SlidersHorizontal, Sparkle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 import { useEffect, useMemo, useState } from "react";
 
+import { EmptyState } from "@/components/app/empty-state";
+import { InlineAlert } from "@/components/app/inline-alert";
+import { PageContainer } from "@/components/app/page-container";
+import { PageHeader } from "@/components/app/page-header";
+import { SegmentedControl } from "@/components/app/segmented-control";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +23,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { ChartBuilder } from "@/features/charts/chart-builder";
 import { TaskDialog } from "@/features/team/task-dialog";
 import { ExportMenu } from "@/features/reports/export-menu";
@@ -51,22 +55,27 @@ function DashboardBody({ source, mode }: { source: DashboardSource; mode: "priva
   const meta = useDashboardMeta(source);
   if (meta.isPending)
     return (
-      <div className="flex h-64 items-center justify-center text-faint">
-        <LoaderCircle className="size-5 animate-spin" aria-label="Loading dashboard" />
+      <div className="flex h-64 items-center justify-center text-faint" role="status">
+        <LoaderCircle className="size-5 animate-spin" aria-hidden />
+        <span className="sr-only">Loading dashboard</span>
       </div>
     );
   if (meta.isError)
     return (
-      <div className="mx-auto flex max-w-[1100px] flex-col items-start gap-4 pt-10">
-        <p role="alert" className="text-muted">
-          {meta.error.message === "Dashboard not found" ? "This dashboard doesn't exist, or it was deleted." : meta.error.message}
-        </p>
-        {mode === "private" && (
-          <Button variant="outline" nativeButton={false} render={<Link href="/dashboards" />}>
-            <ArrowLeft /> All dashboards
-          </Button>
-        )}
-      </div>
+      <PageContainer className="pt-6">
+        <EmptyState
+          icon={<LayoutDashboard />}
+          title={meta.error.message === "Dashboard not found" ? "This dashboard doesn't exist" : "We couldn't open this dashboard"}
+          description={meta.error.message === "Dashboard not found" ? "It may have been deleted, or the link is wrong." : meta.error.message}
+          action={
+            mode === "private" ? (
+              <Button variant="outline" nativeButton={false} render={<Link href="/dashboards" />}>
+                All dashboards
+              </Button>
+            ) : undefined
+          }
+        />
+      </PageContainer>
     );
   return <Loaded dashboard={meta.data} source={source} mode={mode} />;
 }
@@ -90,6 +99,7 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
   const [builder, setBuilder] = useState<{ open: boolean; chart: ChartRecord | null; kind: ChartKind }>({ open: false, chart: null, kind: "card" });
   const [confirmDelete, setConfirmDelete] = useState<ChartRecord | "dashboard" | null>(null);
   const [taskOpen, setTaskOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const kpis = dashboard.charts.filter((c) => c.kind === "kpi");
   const cards = dashboard.charts.filter((c) => c.kind === "card");
@@ -108,116 +118,114 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
     .slice(0, 3);
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-7 pt-2">
-      {mode === "private" && (
-        <Link href="/dashboards" className="inline-flex w-fit items-center gap-1.5 text-sm text-faint hover:text-text">
-          <ArrowLeft className="size-4" aria-hidden /> All dashboards
-        </Link>
-      )}
-
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <h1 className="text-[clamp(28px,3.6vw,38px)] font-semibold tracking-[-0.03em]">{dashboard.name}</h1>
-          <p className="flex flex-wrap items-center gap-2 text-[14px] text-muted">
+    <PageContainer width={canvas ? "wide" : "default"} className="gap-7">
+      <PageHeader
+        back={mode === "private" ? { href: "/dashboards", label: "All dashboards" } : undefined}
+        crumb={dashboard.name}
+        title={dashboard.name}
+        description={
+          <span className="flex flex-wrap items-center gap-2">
             {dashboard.description || (dashboard.datasets.length ? `From ${dashboard.datasets.map((d) => d.name).join(", ")}` : "No data yet")}
-            {view.isFetching && <LoaderCircle className="size-3.5 animate-spin text-highlight" aria-label="Updating" />}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {dashboard.charts.length > 0 && (
-            <div role="group" aria-label="Layout" className="flex rounded-lg border border-line p-0.5" data-tour="layout-toggle">
-              {(
-                [
-                  ["story", "Story", Newspaper],
-                  ["canvas", "Canvas", LayoutGrid],
-                ] as const
-              ).map(([value, label, Icon]) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={layoutMode === value}
-                  onClick={() => (setEditing(false), void setLayoutMode(value === "story" ? null : value))}
-                  className={cn(
-                    "flex h-8 items-center gap-1.5 rounded-md px-3 text-[13px] font-medium",
-                    layoutMode === value ? "bg-line text-text" : "text-muted hover:text-text",
-                  )}
-                >
-                  <Icon className="size-3.5" aria-hidden /> {label}
-                </button>
-              ))}
-            </div>
-          )}
-        {mode === "private" && dashboard.charts.length > 0 && (
-          <ExportMenu source="dashboard" sourceId={dashboard.id} options={{ date_from: viewQuery.from, date_to: viewQuery.to, filters: viewQuery.f }} />
-        )}
-        {canEdit && (
-          <>
-            <Button onClick={() => setBuilder({ open: true, chart: null, kind: "card" })}>
-              <Plus /> Add chart
-            </Button>
-            <Button variant="outline" onClick={() => setBuilder({ open: true, chart: null, kind: "kpi" })}>
-              <Hash /> Add number
-            </Button>
-            <ShareDialog dashboard={dashboard} />
-            {(canvas ? dashboard.charts.length > 0 : kpis.length > 0) && (
-              <Button variant={editing ? "default" : "outline"} onClick={() => setEditing(!editing)} aria-pressed={editing}>
-                {editing ? "Done" : canvas ? "Arrange" : "Arrange numbers"}
-              </Button>
+            {view.isFetching && (
+              <span role="status" className="flex items-center">
+                <LoaderCircle className="size-3.5 animate-spin text-highlight" aria-hidden />
+                <span className="sr-only">Updating</span>
+              </span>
             )}
-            <SettingsDialog dashboard={dashboard} />
-            <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="More dashboard actions" />}>
-                <MoreHorizontal />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => setTaskOpen(true)}>
-                  <ListTodo /> Assign a task
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => duplicate.mutate(dashboard.id, { onSuccess: (d) => router.push(`/dashboards/${d.id}`) })}>
-                  <Copy /> Duplicate
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem variant="destructive" onClick={() => setConfirmDelete("dashboard")}>
-                  <Trash2 /> Delete dashboard
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          </span>
+        }
+        actions={
+          <>
+            {mode === "private" && dashboard.charts.length > 0 && (
+              <ExportMenu source="dashboard" sourceId={dashboard.id} options={{ date_from: viewQuery.from, date_to: viewQuery.to, filters: viewQuery.f }} />
+            )}
+            {canEdit && (
+              <>
+                <ShareDialog dashboard={dashboard} />
+                {editing ? (
+                  <Button onClick={() => setEditing(false)}>Done arranging</Button>
+                ) : (
+                  <Button onClick={() => setBuilder({ open: true, chart: null, kind: "card" })}>
+                    <Plus /> Add chart
+                  </Button>
+                )}
+                <DropdownMenu>
+                  <DropdownMenuTrigger render={<Button variant="outline" size="icon" aria-label="More dashboard actions" />}>
+                    <MoreHorizontal />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuItem onClick={() => setBuilder({ open: true, chart: null, kind: "kpi" })}>
+                      <Hash /> Add a key number
+                    </DropdownMenuItem>
+                    {(canvas ? dashboard.charts.length > 0 : kpis.length > 0) && (
+                      <DropdownMenuItem onClick={() => setEditing(!editing)}>
+                        <Move /> {editing ? "Stop arranging" : canvas ? "Arrange tiles" : "Arrange numbers"}
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem onClick={() => setSettingsOpen(true)}>
+                      <SlidersHorizontal /> Settings
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => setTaskOpen(true)}>
+                      <ListTodo /> Assign a task
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => duplicate.mutate(dashboard.id, { onSuccess: (d) => router.push(`/dashboards/${d.id}`) })}>
+                      <Copy /> Duplicate
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem variant="destructive" onClick={() => setConfirmDelete("dashboard")}>
+                      <Trash2 /> Delete dashboard
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            )}
           </>
+        }
+      >
+        {dashboard.charts.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
+            <div data-tour="layout-toggle">
+              <SegmentedControl
+                label="Layout"
+                value={layoutMode}
+                onChange={(v) => (setEditing(false), void setLayoutMode(v === "story" ? null : v))}
+                options={[
+                  { value: "story", label: "Story", icon: <Newspaper className="size-3.5" aria-hidden /> },
+                  { value: "canvas", label: "Canvas", icon: <LayoutGrid className="size-3.5" aria-hidden /> },
+                ]}
+              />
+            </div>
+            {(hasDates || dashboard.filter_columns.length > 0) && (
+              <FilterBar source={source} columns={dashboard.filter_columns} hasDates={hasDates} />
+            )}
+          </div>
         )}
-        </div>
-      </header>
+      </PageHeader>
 
-      {dashboard.charts.length > 0 && (hasDates || dashboard.filter_columns.length > 0) && (
-        <FilterBar source={source} columns={dashboard.filter_columns} hasDates={hasDates} />
-      )}
-
-      {view.isError && <p role="alert" className="text-sm text-accent">{view.error.message}</p>}
+      {view.isError && <InlineAlert>{view.error.message}</InlineAlert>}
 
       {dashboard.charts.length === 0 ? (
-        <Empty className="border border-dashed border-line py-16">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Sparkle />
-            </EmptyMedia>
-            <EmptyTitle>This dashboard is empty</EmptyTitle>
-            <EmptyDescription>
-              {canEdit ? "Add a chart or a key number from one of your datasets." : "Nothing has been added here yet."}
-            </EmptyDescription>
-          </EmptyHeader>
-          {canEdit && (
-            <EmptyContent className="flex-row justify-center">
-              <Button onClick={() => setBuilder({ open: true, chart: null, kind: "card" })}>
-                <Plus /> Add chart
-              </Button>
-              <Button variant="outline" onClick={() => setBuilder({ open: true, chart: null, kind: "kpi" })}>
-                <Hash /> Add number
-              </Button>
-            </EmptyContent>
-          )}
-        </Empty>
+        <EmptyState
+          icon={<Sparkle />}
+          title="This dashboard is empty"
+          description={canEdit ? "Add a chart or a key number from one of your datasets." : "Nothing has been added here yet."}
+          action={
+            canEdit ? (
+              <div className="flex flex-wrap justify-center gap-2">
+                <Button onClick={() => setBuilder({ open: true, chart: null, kind: "card" })}>
+                  <Plus /> Add chart
+                </Button>
+                <Button variant="outline" onClick={() => setBuilder({ open: true, chart: null, kind: "kpi" })}>
+                  <Hash /> Add a key number
+                </Button>
+              </div>
+            ) : undefined
+          }
+        />
       ) : canvas ? (
         <>
-          {editing && <p className="-mt-3 text-[13px] text-faint">Drag tiles by the handle and resize from the edges. The canvas layout is saved for everyone and doesn&apos;t change the story order.</p>}
+          {editing && <p className="-mt-3 text-[13px] text-muted">Drag tiles by the handle and resize from the edges. The canvas layout is saved for everyone and doesn&apos;t change the story order.</p>}
           <CanvasView
             charts={dashboard.charts}
             views={views}
@@ -240,19 +248,19 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
             onLayoutChange={canEdit ? (kpi_layout) => m.update.mutate({ kpi_layout }) : undefined}
             actionsFor={actionsFor}
           />
-          {editing && <p className="-mt-4 text-[13px] text-faint">Drag a tile by its handle or widen it from its right edge. Saved for everyone.</p>}
+          {editing && <p className="-mt-4 text-[13px] text-muted">Drag a tile by its handle or widen it from its right edge. Saved for everyone.</p>}
 
           {summary.length > 0 && (
-            <section aria-labelledby="changed-heading" className="rounded-[18px] bg-line p-6 sm:p-7">
-              <h2 id="changed-heading" className="flex items-center gap-2.5 text-[19px] font-semibold">
+            <section aria-labelledby="changed-heading" className="rounded-xl border border-line-strong bg-surface-2/50 px-5 py-5 sm:px-6">
+              <h2 id="changed-heading" className="type-section flex items-center gap-2">
                 <Sparkle className="size-4 text-highlight" strokeWidth={2.2} aria-hidden />
                 What stands out
               </h2>
-              <ul className="mt-3 flex list-disc flex-col gap-1.5 pl-6 text-[16px] leading-relaxed text-text/90">
+              <ul className="mt-3 flex flex-col gap-3">
                 {summary.map((s) => (
-                  <li key={s.headline}>
-                    {s.headline}
-                    {s.note && <span className="text-muted"> — {s.note}</span>}
+                  <li key={s.headline} className="flex max-w-[72ch] flex-col gap-0.5 border-l-2 border-line-strong pl-3.5">
+                    <span className="text-[15.5px] leading-snug text-text">{s.headline}</span>
+                    {s.note && <span className="text-[13.5px] text-muted">{s.note}</span>}
                   </li>
                 ))}
               </ul>
@@ -297,6 +305,7 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
               else m.addChart.mutate(body, done);
             }}
           />
+          <SettingsDialog dashboard={dashboard} open={settingsOpen} onOpenChange={setSettingsOpen} />
           <TaskDialog open={taskOpen} onOpenChange={setTaskOpen} canEdit defaults={{ title: `Review ${dashboard.name}`, dashboard_id: dashboard.id }} />
           <AlertDialog open={confirmDelete !== null} onOpenChange={(o) => !o && setConfirmDelete(null)}>
             <AlertDialogContent>
@@ -327,6 +336,6 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
           </AlertDialog>
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }

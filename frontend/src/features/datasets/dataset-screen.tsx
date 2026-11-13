@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { ArrowLeft, Check, FileSpreadsheet, LayoutDashboard, ListTodo, Pencil, RefreshCw, Trash2, X } from "lucide-react";
+import { Check, FileSpreadsheet, LayoutDashboard, ListTodo, Pencil, RefreshCw, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
@@ -17,8 +17,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { EmptyState } from "@/components/app/empty-state";
+import { InlineAlert } from "@/components/app/inline-alert";
+import { PageContainer } from "@/components/app/page-container";
+import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMe } from "@/features/auth/hooks";
 import { TaskDialog } from "@/features/team/task-dialog";
@@ -47,14 +53,18 @@ export function DatasetScreen({ id }: { id: string }) {
   if (isPending) return <DatasetSkeleton />;
   if (isError)
     return (
-      <div className="mx-auto flex max-w-[1100px] flex-col items-start gap-4 pt-10">
-        <p role="alert" className="text-muted">
-          {error.message === "Dataset not found" ? "This dataset doesn't exist, or it was deleted." : error.message}
-        </p>
-        <Button variant="outline" nativeButton={false} render={<Link href="/data" />}>
-          <ArrowLeft /> Back to data
-        </Button>
-      </div>
+      <PageContainer className="items-start gap-4 pt-6">
+        <EmptyState
+          icon={<FileSpreadsheet />}
+          title={error.message === "Dataset not found" ? "This dataset doesn't exist" : "We couldn't open this dataset"}
+          description={error.message === "Dataset not found" ? "It may have been deleted by someone in your workspace." : error.message}
+          action={
+            <Button variant="outline" nativeButton={false} render={<Link href="/data" />}>
+              Back to data
+            </Button>
+          }
+        />
+      </PageContainer>
     );
   return <DatasetView dataset={dataset} />;
 }
@@ -86,63 +96,64 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
   };
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-7 pt-2">
-      <Link href="/data" className="inline-flex w-fit items-center gap-1.5 text-sm text-faint hover:text-text">
-        <ArrowLeft className="size-4" aria-hidden /> All data
-      </Link>
-
-      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex min-w-0 flex-col gap-2">
-          {renaming ? (
-            <form
-              className="flex items-center gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                saveName();
-              }}
-            >
-              <Input
-                autoFocus
-                value={name}
-                maxLength={200}
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => e.key === "Escape" && (setName(dataset.name), setRenaming(false))}
-                aria-label="Dataset name"
-                className="h-11 max-w-md text-xl font-semibold"
-              />
-              <Button type="submit" size="icon" aria-label="Save name" disabled={update.isPending}>
-                <Check />
-              </Button>
-              <Button type="button" size="icon" variant="ghost" aria-label="Cancel" onClick={() => (setName(dataset.name), setRenaming(false))}>
-                <X />
-              </Button>
-            </form>
-          ) : (
-            <div className="flex min-w-0 items-center gap-2">
-              <h1 className="truncate text-[clamp(28px,3.4vw,38px)] font-semibold tracking-[-0.03em]">{dataset.name}</h1>
-              {canEdit && (
-                <Button variant="ghost" size="icon-sm" aria-label="Rename dataset" onClick={() => setRenaming(true)}>
-                  <Pencil />
-                </Button>
-              )}
-            </div>
+    <PageContainer className="gap-7">
+      <PageHeader
+        back={{ href: "/data", label: "All data" }}
+        crumb={dataset.name}
+        title={
+          <div className="flex min-w-0 flex-col gap-1">
+      {renaming ? (
+        <form
+          className="flex items-center gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            saveName();
+          }}
+        >
+          <Input
+            autoFocus
+            value={name}
+            maxLength={200}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && (setName(dataset.name), setRenaming(false))}
+            aria-label="Dataset name"
+            className="h-10 max-w-md text-lg font-semibold"
+          />
+          <Button type="submit" size="icon" aria-label="Save name" disabled={update.isPending}>
+            <Check />
+          </Button>
+          <Button type="button" size="icon" variant="ghost" aria-label="Cancel" onClick={() => (setName(dataset.name), setRenaming(false))}>
+            <X />
+          </Button>
+        </form>
+      ) : (
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="type-page-title truncate text-text">{dataset.name}</h1>
+          {canEdit && (
+            <Button variant="ghost" size="icon-sm" aria-label="Rename dataset" onClick={() => setRenaming(true)}>
+              <Pencil />
+            </Button>
           )}
-          {update.isError && <p className="text-[13px] text-accent">{update.error.message}</p>}
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[14px] text-muted">
-            <FileSpreadsheet className="size-4 text-highlight" aria-hidden />
-            <span>{dataset.source_filename}{dataset.sheet ? ` · ${dataset.sheet}` : ""}</span>
-            <span aria-hidden>·</span>
-            <span>{nf.format(dataset.row_count)} rows</span>
-            <span aria-hidden>·</span>
-            <span>{dataset.columns.length} columns</span>
-            <span aria-hidden>·</span>
-            <span>{formatBytes(dataset.file_size)}</span>
-            <span aria-hidden>·</span>
-            <span>updated {formatDistanceToNow(new Date(dataset.updated_at ?? dataset.created_at), { addSuffix: true })}</span>
-          </p>
         </div>
-
-        <div className="flex flex-wrap gap-2">
+      )}
+          {update.isError && <p className="text-[13px] text-accent">{update.error.message}</p>}
+          </div>
+        }
+        description={
+          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px]">
+            <span className="flex items-center gap-1.5">
+              <FileSpreadsheet className="size-4 text-faint" aria-hidden />
+              {dataset.source_filename}
+              {dataset.sheet ? ` (${dataset.sheet})` : ""}
+            </span>
+            <span>{nf.format(dataset.row_count)} rows</span>
+            <span>{dataset.columns.length} columns</span>
+            <span>{formatBytes(dataset.file_size)}</span>
+            <span className="text-faint">updated {formatDistanceToNow(new Date(dataset.updated_at ?? dataset.created_at), { addSuffix: true })}</span>
+          </p>
+        }
+        actions={
+          <>
           <Button nativeButton={false} render={<Link href={`/dashboards/new?dataset=${dataset.id}`} />}>
             <LayoutDashboard /> Build a dashboard
           </Button>
@@ -199,13 +210,14 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
               </AlertDialog>
             </>
           )}
-        </div>
-      </header>
+          </>
+        }
+      />
 
       {(replaceError || replace.isSuccess) && (
-        <p role="status" className={replaceError ? "text-sm text-accent" : "text-sm text-highlight"}>
+        <InlineAlert tone={replaceError ? "error" : "info"}>
           {replaceError ?? `Replaced with ${dataset.source_filename}. Dashboards using this dataset now show the new data.`}
-        </p>
+        </InlineAlert>
       )}
 
       <Tabs defaultValue="rows">
@@ -220,7 +232,7 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
           <ColumnsPanel dataset={dataset} canEdit={canEdit} />
         </TabsContent>
       </Tabs>
-    </div>
+    </PageContainer>
   );
 }
 
@@ -235,7 +247,7 @@ function ColumnsPanel({ dataset, canEdit }: { dataset: Dataset; canEdit: boolean
       {update.isError && <p className="text-[13px] text-accent">{update.error.message}</p>}
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {dataset.columns.map((c) => (
-          <li key={c.name} className="flex flex-col gap-2.5 rounded-[12px] border border-line bg-surface p-4">
+          <li key={c.name} className="flex flex-col gap-2.5 rounded-xl border border-line bg-surface p-4">
             <div className="flex items-center justify-between gap-3">
               <code className="truncate font-mono text-[13px] text-text" title={c.name}>
                 {c.name}
@@ -247,19 +259,20 @@ function ColumnsPanel({ dataset, canEdit }: { dataset: Dataset; canEdit: boolean
             {canEdit && (
               <label className="flex items-center gap-2 text-xs text-faint">
                 Treat as
-                <select
+                <NativeSelect
+                  size="sm"
+                  className="flex-1"
                   value={c.type}
                   disabled={update.isPending}
                   onChange={(e) => update.mutate({ column_types: { [c.name]: e.target.value as ColumnType } })}
-                  className="h-8 flex-1 rounded-md border border-input bg-transparent px-2 text-[13px] text-text"
                   aria-label={`Type of ${c.name}`}
                 >
                   {TYPES.map((t) => (
                     <option key={t.value} value={t.value} className="bg-surface">
-                      {t.label} — {t.hint}
+                      {t.label}: {t.hint}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </label>
             )}
           </li>
@@ -271,10 +284,11 @@ function ColumnsPanel({ dataset, canEdit }: { dataset: Dataset; canEdit: boolean
 
 function DatasetSkeleton() {
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-6 pt-6" aria-busy>
-      <div className="h-10 w-72 animate-pulse rounded-lg bg-surface" />
-      <div className="h-5 w-96 animate-pulse rounded bg-surface" />
-      <div className="h-[420px] animate-pulse rounded-[16px] bg-surface" />
-    </div>
+    <PageContainer className="gap-6" aria-busy>
+      <Skeleton className="h-4 w-20" />
+      <Skeleton className="h-9 w-72 rounded-lg" />
+      <Skeleton className="h-5 w-full max-w-md" />
+      <Skeleton className="h-[420px] rounded-xl" />
+    </PageContainer>
   );
 }
