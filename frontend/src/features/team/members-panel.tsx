@@ -4,6 +4,7 @@ import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { Check, Copy, Link2, UserMinus, UserPlus, X } from "lucide-react";
 import { useState } from "react";
 
+import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -20,7 +21,6 @@ const ROLE_HINT: Record<Role, string> = {
   editor: "Add data, build dashboards, assign tasks",
   viewer: "View dashboards; move tasks assigned to them",
 };
-const selectClass = "h-9 rounded-md border border-input bg-transparent px-2 text-sm text-text";
 const inviteUrl = (token: string) => (typeof window === "undefined" ? "" : `${window.location.origin}/invite/${token}`);
 
 function CopyButton({ text }: { text: string }) {
@@ -77,13 +77,13 @@ function InviteDialog() {
           >
             <Field>
               <FieldLabel htmlFor="inv-role">Role</FieldLabel>
-              <select id="inv-role" className={`${selectClass} w-full`} value={role} onChange={(e) => setRole(e.target.value as Role)}>
+              <NativeSelect id="inv-role" className="w-full" value={role} onChange={(e) => setRole(e.target.value as Role)}>
                 {(["editor", "viewer", "owner"] as Role[]).map((r) => (
                   <option key={r} value={r} className="bg-surface">
                     {r[0].toUpperCase() + r.slice(1)} — {ROLE_HINT[r]}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
             </Field>
             <Field>
               <FieldLabel htmlFor="inv-email">Their email (optional)</FieldLabel>
@@ -134,9 +134,9 @@ export function MembersPanel({ members, meId, isOwner }: { members: Member[]; me
             </div>
             {isOwner && m.id !== meId ? (
               <div className="flex items-center gap-2">
-                <select
-                  aria-label={`Role of ${m.name}`}
-                  className={selectClass}
+                <NativeSelect
+ aria-label={`Role of ${m.name}`}
+                  
                   value={m.role}
                   disabled={changeRole.isPending}
                   onChange={(e) => changeRole.mutate({ userId: m.id, role: e.target.value as Role })}
@@ -146,7 +146,7 @@ export function MembersPanel({ members, meId, isOwner }: { members: Member[]; me
                       {r[0].toUpperCase() + r.slice(1)}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
                 <Button
                   variant="ghost"
                   size="icon-sm"

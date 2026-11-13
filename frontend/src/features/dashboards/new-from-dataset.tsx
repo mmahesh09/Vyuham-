@@ -1,9 +1,12 @@
 "use client";
 
-import { LoaderCircle } from "lucide-react";
+import { LayoutDashboard, LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
+
+import { EmptyState } from "@/components/app/empty-state";
+import { PageContainer } from "@/components/app/page-container";
 
 import { useStarterDashboard } from "./hooks";
 
@@ -21,10 +24,18 @@ export function NewFromDataset({ datasetId }: { datasetId: string | null }) {
 
   if (!datasetId || starter.isError)
     return (
-      <div className="mx-auto flex max-w-[640px] flex-col gap-3 pt-16">
-        <p role="alert" className="text-muted">{starter.error?.message ?? "Pick a dataset to build a dashboard from."}</p>
-        <Link href="/dashboards" className="text-highlight underline">Back to dashboards</Link>
-      </div>
+      <PageContainer width="narrow" className="pt-6">
+        <EmptyState
+          icon={<LayoutDashboard />}
+          title={starter.isError ? "We couldn't build that dashboard" : "Pick a dataset first"}
+          description={starter.error?.message ?? "Open a dataset and choose Build a dashboard, or start from the Dashboards page."}
+          action={
+            <Link href="/dashboards" className="text-sm text-highlight hover:underline">
+              Back to dashboards
+            </Link>
+          }
+        />
+      </PageContainer>
     );
   return (
     <div className="flex h-72 flex-col items-center justify-center gap-3 text-muted" role="status">

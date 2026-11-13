@@ -8,7 +8,7 @@ import { useState } from "react";
 import { DayPicker, type DateRange } from "react-day-picker";
 
 import { Popover } from "@/components/ui/simple-popover";
-import { cn } from "@/lib/utils";
+import { SegmentedControl } from "@/components/app/segmented-control";
 
 const today = () => startOfDay(new Date());
 
@@ -39,25 +39,16 @@ export function DateRangePicker({ from, to, onChange }: Props) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div role="group" aria-label="Quick date ranges" className="flex flex-wrap gap-1 rounded-full border border-line bg-surface p-1">
-        {PRESETS.map((p) => (
-          <button
-            key={p.label}
-            type="button"
-            aria-pressed={activePreset === p.label}
-            onClick={() => {
-              const start = p.from();
-              onChange(start ? { from: start, to: today() } : { from: null, to: null });
-            }}
-            className={cn(
-              "min-h-9 rounded-full px-3.5 text-[13px] font-medium transition-colors",
-              activePreset === p.label ? "bg-line text-text" : "text-muted hover:text-text",
-            )}
-          >
-            {p.label}
-          </button>
-        ))}
-      </div>
+      {/* A custom range matches no preset, so nothing is pressed then. */}
+      <SegmentedControl
+        label="Quick date ranges"
+        value={(activePreset ?? "") as string}
+        onChange={(label) => {
+          const start = PRESETS.find((p) => p.label === label)?.from();
+          onChange(start ? { from: start, to: today() } : { from: null, to: null });
+        }}
+        options={PRESETS.map((p) => ({ value: p.label as string, label: p.label }))}
+      />
 
       <Popover
         trigger={(props) => (
@@ -68,7 +59,7 @@ export function DateRangePicker({ from, to, onChange }: Props) {
               setDraft(from && to ? { from, to } : undefined);
               props.onClick();
             }}
-            className="flex min-h-11 items-center gap-2 rounded-full border border-line px-4 text-[14px] text-text hover:bg-surface"
+            className="flex h-9 items-center gap-2 rounded-lg border border-line-strong bg-surface px-3 text-[13.5px] text-text transition-colors hover:border-faint/50"
           >
             <CalendarDays className="size-4 text-highlight" aria-hidden />
             {rangeLabel(from, to)}

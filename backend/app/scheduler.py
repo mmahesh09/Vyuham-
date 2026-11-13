@@ -1,13 +1,14 @@
-"""A small in-process scheduler: every minute, check due alerts and run due automations.
+"""The no-Redis fallback: every minute, run due jobs in a thread inside the API process.
 
-Good for a single backend process. With several workers, run it in one only
-(SCHEDULER_ENABLED=false on the others) or move it to a separate worker.
+Used for local dev only. In Docker and production, REDIS_URL is set and the Celery worker and
+beat (app/worker.py) run jobs instead, so this never starts. Job claims (app/jobs.py) still stop
+double sends if two processes run it by mistake.
 """
 
 import logging
 import threading
 
-from app.alerts import tick
+from app.jobs import tick
 from app.db import SessionLocal
 
 log = logging.getLogger("app.scheduler")

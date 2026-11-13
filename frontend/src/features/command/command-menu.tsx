@@ -1,7 +1,7 @@
 "use client";
 
 import { Command } from "cmdk";
-import { BellRing, Code2, Database, FileSpreadsheet, House, LayoutDashboard, LayoutGrid, LayoutTemplate, Sparkle, UserRound, Users, type LucideIcon } from "lucide-react";
+import { BellRing, Code2, Database, FileSpreadsheet, FileText, House, LayoutDashboard, LayoutGrid, LayoutTemplate, Sparkle, UserRound, Users, type LucideIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -17,13 +17,14 @@ const PAGES: { label: string; href: string; icon: LucideIcon }[] = [
   { label: "SQL Lab", href: "/sql", icon: Code2 },
   { label: "Dashboard Lab", href: "/lab", icon: LayoutGrid },
   { label: "Alerts & automations", href: "/alerts", icon: BellRing },
+  { label: "Reports", href: "/reports", icon: FileText },
   { label: "Team", href: "/team", icon: Users },
   { label: "Profile", href: "/profile", icon: UserRound },
 ];
 
 const item =
-  "flex min-h-11 cursor-pointer items-center gap-3 rounded-[10px] px-3 text-[15px] text-white/80 data-[selected=true]:bg-white/10 data-[selected=true]:text-white data-[disabled=true]:cursor-default data-[disabled=true]:opacity-60";
-const group = "px-2 pb-2 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-white/45";
+  "flex min-h-11 cursor-pointer items-center gap-3 rounded-[10px] px-3 text-[15px] text-text data-[selected=true]:bg-white/10 data-[selected=true]:text-text data-[disabled=true]:cursor-default data-[disabled=true]:opacity-60";
+const group = "px-2 pb-2 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:text-faint";
 
 /** Ctrl/⌘ + K: jump anywhere, open a dashboard, or start a question. */
 export function CommandMenu() {
@@ -61,16 +62,16 @@ export function CommandMenu() {
       onOpenChange={setCommandOpen}
       label="Command menu"
       overlayClassName="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-      contentClassName="fixed left-1/2 top-[14vh] z-50 w-[min(600px,calc(100vw-32px))] -translate-x-1/2 overflow-hidden rounded-[16px] border border-white/10 bg-[#110e22] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]"
+      contentClassName="fixed left-1/2 top-[14vh] z-50 w-[min(600px,calc(100vw-32px))] -translate-x-1/2 overflow-hidden rounded-[16px] border border-line bg-[#110e22] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)]"
     >
       <Command.Input
         value={search}
         onValueChange={setSearch}
         placeholder="Search pages and dashboards, or type a question…"
-        className="h-14 w-full border-b border-white/10 bg-transparent px-5 text-base text-white placeholder:text-white/40 focus:outline-none"
+        className="h-14 w-full border-b border-line bg-transparent px-5 text-base text-text placeholder:text-faint focus:outline-none"
       />
       <Command.List data-lenis-prevent className="max-h-[min(420px,60vh)] overflow-y-auto overscroll-contain py-2">
-        <Command.Empty className="px-5 py-6 text-sm text-white/55">Nothing found.</Command.Empty>
+        <Command.Empty className="px-5 py-6 text-sm text-muted">Nothing found.</Command.Empty>
 
         <Command.Group heading="Go to" className={group}>
           {PAGES.map(({ label, href, icon: Icon }) => (
@@ -115,7 +116,7 @@ export function CommandMenu() {
           </Command.Item>
         </Command.Group>
       </Command.List>
-      <div className="flex items-center justify-between border-t border-white/10 px-5 py-2.5 text-xs text-white/40">
+      <div className="flex items-center justify-between border-t border-line px-5 py-2.5 text-xs text-faint">
         <span>↑↓ to move · Enter to open</span>
         <span>Esc to close</span>
       </div>

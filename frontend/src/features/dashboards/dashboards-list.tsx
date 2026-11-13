@@ -1,23 +1,27 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { ArrowRight, Globe, LayoutDashboard, Plus, Sparkles } from "lucide-react";
+import { ChevronRight, Globe, LayoutDashboard, Plus, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { EmptyState } from "@/components/app/empty-state";
+import { InlineAlert } from "@/components/app/inline-alert";
+import { PageContainer } from "@/components/app/page-container";
+import { PageHeader } from "@/components/app/page-header";
+import { Badge } from "@/components/reui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useMe } from "@/features/auth/hooks";
 import { useDatasets } from "@/features/datasets/api";
 import { cn } from "@/lib/utils";
 
 import { useCreateDashboard, useDashboards, useStarterDashboard } from "./hooks";
-
-const selectClass = "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-text";
 
 /** New dashboard: blank, or built for you from a dataset's columns. */
 function NewDashboardDialog() {
@@ -101,13 +105,13 @@ function NewDashboardDialog() {
           {mode === "starter" ? (
             <Field>
               <FieldLabel htmlFor="nd-dataset">From dataset</FieldLabel>
-              <select id="nd-dataset" className={selectClass} value={datasetId} onChange={(e) => setDatasetId(e.target.value)}>
+              <NativeSelect id="nd-dataset" className="w-full" value={datasetId} onChange={(e) => setDatasetId(e.target.value)}>
                 {datasets?.map((d) => (
                   <option key={d.id} value={d.id} className="bg-surface">
                     {d.name}
                   </option>
                 ))}
-              </select>
+              </NativeSelect>
               <FieldDescription>You can rename it, and add, edit or remove any chart afterwards.</FieldDescription>
             </Field>
           ) : (
@@ -143,70 +147,70 @@ export function DashboardsList() {
   const canEdit = me?.role !== "viewer";
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-8 pt-4">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1.5">
-          <h1 className="text-[38px] font-semibold tracking-[-0.03em]">Dashboards</h1>
-          <p className="text-[15px] text-muted">Each dashboard is a feed of insights from your data, with filters that apply to every chart.</p>
-        </div>
-        {canEdit && <NewDashboardDialog />}
-      </div>
+    <PageContainer>
+      <PageHeader
+        title="Dashboards"
+        description="Each dashboard is a feed of insights from your data, with filters that apply to every chart."
+        actions={
+          <>
+            {canEdit && <NewDashboardDialog />}
+          </>
+        }
+      />
 
-      {isError && <p className="text-sm text-accent">We couldn’t load your dashboards. Refresh to try again.</p>}
+      {isError && <InlineAlert>We couldn’t load your dashboards. Refresh the page to try again.</InlineAlert>}
       {isPending && (
-        <ul className="grid gap-4 md:grid-cols-2" aria-busy>
-          {[0, 1].map((i) => (
-            <li key={i} className="h-40 animate-pulse rounded-[18px] bg-surface" />
+        <div className="flex flex-col gap-2" aria-busy>
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-[68px] rounded-lg" />
           ))}
-        </ul>
+        </div>
       )}
       {data?.length === 0 && (
-        <Empty className="border border-dashed border-line py-16">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <LayoutDashboard />
-            </EmptyMedia>
-            <EmptyTitle>No dashboards yet</EmptyTitle>
-            <EmptyDescription>Create one from a dataset and we&apos;ll pick the first charts for you.</EmptyDescription>
-          </EmptyHeader>
-          {canEdit && (
-            <EmptyContent>
-              <NewDashboardDialog />
-            </EmptyContent>
-          )}
-        </Empty>
+        <EmptyState
+          icon={<LayoutDashboard />}
+          title="No dashboards yet"
+          description="Create one from a dataset and we'll pick the first charts for you."
+          action={canEdit ? <NewDashboardDialog /> : undefined}
+        />
       )}
       {!!data?.length && (
-        <ul className="grid gap-4 md:grid-cols-2">
+        <ul className="flex flex-col divide-y divide-line overflow-hidden rounded-xl border border-line bg-surface" aria-label="Dashboards">
           {data.map((d) => (
             <li key={d.id}>
               <Link
                 href={`/dashboards/${d.id}`}
-                className="group flex min-h-40 flex-col justify-between gap-6 rounded-[18px] border border-line bg-surface p-6 transition-colors hover:border-primary/60"
+                className="group grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3.5 transition-colors hover:bg-surface-2/70 sm:px-5 md:grid-cols-[auto_minmax(0,1fr)_minmax(0,14rem)_8rem_auto]"
               >
-                <span className="flex items-start justify-between gap-3">
-                  <LayoutDashboard className="size-6 text-highlight" strokeWidth={1.7} aria-hidden />
-                  {d.shared && (
-                    <span className="inline-flex items-center gap-1 rounded-[4px] bg-line px-2 py-0.5 text-xs font-semibold text-highlight">
-                      <Globe className="size-3" aria-hidden /> Shared
-                    </span>
-                  )}
+                <span className="flex size-9 items-center justify-center rounded-lg bg-line text-highlight" aria-hidden>
+                  <LayoutDashboard className="size-[18px]" strokeWidth={1.7} />
                 </span>
-                <span className="flex items-end justify-between gap-4">
-                  <span className="flex min-w-0 flex-col gap-1">
-                    <span className="truncate text-xl font-semibold text-text">{d.name}</span>
-                    <span className="truncate text-sm text-muted">
-                      {d.kpi_count} numbers · {d.chart_count} charts{d.dataset_names.length ? ` · ${d.dataset_names.join(", ")}` : ""}
-                    </span>
-                    <span className="text-xs text-faint">Updated {formatDistanceToNow(new Date(d.updated_at), { addSuffix: true })}</span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-[15px] font-semibold text-text">{d.name}</span>
+                    {d.shared && (
+                      <Badge variant="secondary" className="shrink-0 gap-1 rounded-sm bg-line text-highlight">
+                        <Globe className="size-3" aria-hidden /> Shared
+                      </Badge>
+                    )}
                   </span>
-                  <ArrowRight className="size-5 shrink-0 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-text" aria-hidden />
+                  <span className="truncate text-[13px] text-faint">
+                    {d.kpi_count} {d.kpi_count === 1 ? "number" : "numbers"}, {d.chart_count} {d.chart_count === 1 ? "chart" : "charts"}
+                    <span className="md:hidden">{d.dataset_names.length ? `, from ${d.dataset_names.join(", ")}` : ""}</span>
+                  </span>
                 </span>
+                <span className="truncate text-[13px] text-muted max-md:hidden" title={d.dataset_names.join(", ")}>
+                  {d.dataset_names.length ? d.dataset_names.join(", ") : <span className="text-faint">No dataset</span>}
+                </span>
+                <span className="text-right text-[13px] text-faint max-md:hidden">
+                  {formatDistanceToNow(new Date(d.updated_at), { addSuffix: true })}
+                </span>
+                <ChevronRight className="size-4 text-line-strong transition-colors group-hover:text-muted" aria-hidden />
               </Link>
             </li>
           ))}
         </ul>
       )}
-    </div>
+    </PageContainer>
   );
 }

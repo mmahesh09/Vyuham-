@@ -322,20 +322,80 @@ def distinct_values(con: duckdb.DuckDBPyConnection, dataset: Dataset, column: st
 # ---------- raw SQL (groundwork for the AI round) ----------
 
 
-def run_sql(con: duckdb.DuckDBPyConnection, sql: str) -> list[dict]:
+def duckdb_message(e: duckdb.Error) -> str:
+    """First line of a DuckDB error, plus the line number DuckDB points at ("... (line 3)")."""
+    text = str(e)
+    first = text.splitlines()[0][:200] if text else "unknown error"
+    m = re.search(r"^LINE (\d+):", text, re.M)
+    return f"{first} (line {m.group(1)})" if m else first
+
+
+def run_sql(con: duckdb.DuckDBPyConnection, sql: str, params: list[Any] | None = None) -> list[dict]:
     """Run one read-only SELECT. Anything else is refused before it reaches DuckDB."""
     validate_select(sql)
     try:
-        return records(*_run(con, sql, []))
+        return records(*_run(con, sql, params or []))
     except duckdb.Error as e:
-        raise QueryError(f"The query failed: {str(e).splitlines()[0][:200]}") from e
+        raise QueryError(f"The query failed: {duckdb_message(e)}") from e
+
+
+def explain_sql(con: duckdb.DuckDBPyConnection, sql: str, params: list[Any] | None = None) -> str:
+    """DuckDB's physical plan for one read-only SELECT, as text."""
+    validate_select(sql)
+    try:
+        _, rows = _run(con, f"EXPLAIN {sql}", params or [])
+    except duckdb.Error as e:
+        raise QueryError(f"The query failed: {duckdb_message(e)}") from e
+    return "\n".join(str(r[-1]) for r in rows)
+
+
+def stream_rows(
+    con: duckdb.DuckDBPyConnection, sql: str, params: list[Any] | None = None, *, max_rows: int, timeout: float = 120.0, batch: int = 10_000
+):
+    """(column names, iterator of row-tuple batches) for exports: no MAX_ROWS cap, a longer timeout.
+
+    Stops with QueryError past `max_rows` rather than silently cutting the file short. The caller
+    must finish (or abandon) the iterator before closing the connection.
+    """
+    timer = threading.Timer(timeout, con.interrupt)
+    timer.start()
+    try:
+        cur = con.execute(sql, params or [])
+    except duckdb.InterruptException as e:
+        timer.cancel()
+        raise QueryError("The export took too long.") from e
+    except duckdb.Error as e:
+        timer.cancel()
+        raise QueryError(f"The query failed: {duckdb_message(e)}") from e
+    names = [d[0] for d in cur.description]
+
+    def batches():
+        seen = 0
+        try:
+            while True:
+                rows = cur.fetchmany(batch)
+                if not rows:
+                    return
+                seen += len(rows)
+                if seen > max_rows:
+                    raise QueryError(f"That's more than {max_rows:,} rows. Add a filter or split the export.")
+                yield rows
+        except duckdb.InterruptException as e:
+            raise QueryError("The export took too long.") from e
+        finally:
+            timer.cancel()
+
+    return names, batches()
 
 
 def validate_select(sql: str) -> None:
     try:
         statements = sqlglot.parse(sql, read="duckdb")
     except sqlglot.errors.ParseError as e:
-        raise QueryError("That isn't valid SQL.") from e
+        first = e.errors[0] if e.errors else {}
+        where = f" (line {first['line']})" if first.get("line") else ""
+        what = f": {first['description']}" if first.get("description") else ""
+        raise QueryError(f"That isn't valid SQL{what}{where}.") from e
     if len(statements) != 1 or statements[0] is None:
         raise QueryError("Only one statement is allowed.")
     tree = statements[0]
@@ -350,7 +410,10 @@ def _run_sql_chart(con: duckdb.DuckDBPyConnection, spec: dict) -> list[dict]:
     """A chart saved from SQL Lab: run the query, then name its columns the way the renderer expects
     (the group column keeps its name; each measure column becomes "<agg>_<field>").
     Dashboard filters don't apply to these: the SQL is the whole definition."""
-    rows = run_sql(con, spec["sql"])
+    from app.sql_params import Param, bind
+
+    sql, params = bind(spec["sql"], [Param(**p) for p in spec.get("params") or []])
+    rows = run_sql(con, sql, params)
     if not rows:
         return rows
     renames = {m["field"]: metric_key(m) for m in spec.get("metrics") or []}

@@ -4,6 +4,7 @@ import { Check, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -13,7 +14,6 @@ import { dashboardsApi } from "@/features/dashboards/api";
 import { useDashboards } from "@/features/dashboards/hooks";
 
 const NEW = "__new__";
-const selectClass = "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-text";
 
 /** Put an answer on an existing dashboard, or on a new one. */
 export function SaveToDashboard({ spec }: { spec: ChartSpec }) {
@@ -74,7 +74,7 @@ export function SaveToDashboard({ spec }: { spec: ChartSpec }) {
           >
             <Field>
               <FieldLabel htmlFor="std-target">Dashboard</FieldLabel>
-              <select id="std-target" className={selectClass} value={target} onChange={(e) => setTarget(e.target.value)}>
+              <NativeSelect id="std-target" className="w-full" value={target} onChange={(e) => setTarget(e.target.value)}>
                 {dashboards?.map((d) => (
                   <option key={d.id} value={d.id} className="bg-surface">
                     {d.name}
@@ -83,7 +83,7 @@ export function SaveToDashboard({ spec }: { spec: ChartSpec }) {
                 <option value={NEW} className="bg-surface">
                   + New dashboard…
                 </option>
-              </select>
+              </NativeSelect>
             </Field>
             {target === NEW && (
               <Field>

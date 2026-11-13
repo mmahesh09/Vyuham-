@@ -56,6 +56,15 @@ function useTick(live: boolean, ms: number, fn: () => void) {
   }, [live, ms]);
 }
 
+/** ResponsiveContainer that starts at a positive size, so the first (pre-measure) render does not warn about width/height -1. */
+function Fit({ children }: { children: React.ReactElement }) {
+  return (
+    <ResponsiveContainer width="100%" height="100%" initialDimension={{ width: 1, height: 1 }}>
+      {children}
+    </ResponsiveContainer>
+  );
+}
+
 const usd = (v: number) => `$${v >= 1000 ? `${(v / 1000).toFixed(1)}k` : v.toFixed(0)}`;
 
 function GlassTooltip({ active, payload, label }: TooltipContentProps<number, string>) {
@@ -122,11 +131,11 @@ function Kpi({ label, value, delta, up, spark }: { label: string; value: string;
           {delta}
         </span>
         <div className="h-8 w-20" aria-hidden>
-          <ResponsiveContainer width="100%" height="100%">
+          <Fit>
             <LineChart data={data}>
               <Line type="monotone" dataKey="v" stroke={up ? C.line : C.hot} strokeWidth={1.8} dot={false} isAnimationActive={false} />
             </LineChart>
-          </ResponsiveContainer>
+          </Fit>
         </div>
       </div>
     </div>
@@ -186,7 +195,7 @@ export function LiveDashboard() {
             </span>
           </div>
           <div className="h-[220px]" role="img" aria-label="Live area chart of revenue every 15 minutes">
-            <ResponsiveContainer width="100%" height="100%">
+            <Fit>
               <AreaChart data={stream} margin={{ top: 6, right: 4, left: -16, bottom: 0 }}>
                 <defs>
                   <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
@@ -199,13 +208,13 @@ export function LiveDashboard() {
                 <Tooltip content={(p) => <GlassTooltip {...(p as TooltipContentProps<number, string>)} />} cursor={{ stroke: "rgba(255,255,255,0.15)" }} />
                 <Area type="monotone" dataKey="v" stroke={C.line} strokeWidth={2.5} fill="url(#revFill)" isAnimationActive animationDuration={600} />
               </AreaChart>
-            </ResponsiveContainer>
+            </Fit>
           </div>
         </div>
         <div className="glass rounded-[18px] p-4">
           <p className="mb-3 text-sm text-white/70">Where orders come from</p>
           <div className="h-[220px]" role="img" aria-label="Bar chart of orders by channel">
-            <ResponsiveContainer width="100%" height="100%">
+            <Fit>
               <BarChart data={channels} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
                 <XAxis type="number" hide />
                 <YAxis type="category" dataKey="name" tick={{ fill: "#d9d2f2", fontSize: 12 }} tickLine={false} axisLine={false} width={64} />
@@ -215,7 +224,7 @@ export function LiveDashboard() {
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+            </Fit>
           </div>
         </div>
       </div>
@@ -262,7 +271,7 @@ export function StoryFeed() {
     <div ref={ref} className="flex flex-col gap-4">
       <FeedCard icon="up" tone="text-highlight" title="Revenue up 18% vs last month" note="Monthly revenue · Oct still filling in">
         <div className="h-[140px]" role="img" aria-label="Line chart of monthly revenue, January to October">
-          <ResponsiveContainer width="100%" height="100%">
+          <Fit>
             <AreaChart data={rev} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
               <defs>
                 <linearGradient id="feedFill" x1="0" y1="0" x2="0" y2="1">
@@ -274,14 +283,14 @@ export function StoryFeed() {
               <Tooltip content={(p) => <GlassTooltip {...(p as TooltipContentProps<number, string>)} />} cursor={{ stroke: "rgba(255,255,255,0.15)" }} />
               <Area type="monotone" dataKey="v" stroke={C.line} strokeWidth={2.5} fill="url(#feedFill)" animationDuration={500} />
             </AreaChart>
-          </ResponsiveContainer>
+          </Fit>
         </div>
       </FeedCard>
 
       <div className="grid gap-4 sm:grid-cols-[3fr_2fr]">
         <FeedCard icon="down" tone="text-accent" title="Ad spend 30% over average" note="No matching rise in orders">
           <div className="h-[120px]" role="img" aria-label="Bar chart of monthly ad spend, October highest">
-            <ResponsiveContainer width="100%" height="100%">
+            <Fit>
               <BarChart data={SPEND} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
                 <XAxis dataKey="m" tick={{ fill: C.axis, fontSize: 11 }} tickLine={false} axisLine={false} />
                 <Tooltip content={(p) => <GlassTooltip {...(p as TooltipContentProps<number, string>)} />} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
@@ -291,12 +300,12 @@ export function StoryFeed() {
                   ))}
                 </Bar>
               </BarChart>
-            </ResponsiveContainer>
+            </Fit>
           </div>
         </FeedCard>
         <FeedCard icon="up" tone="text-highlight" title="Halden & Co is 22%" note="Share of revenue this year">
           <div className="relative h-[120px]" role="img" aria-label="Donut chart: Halden & Co 22%, Mira Foods 16%, Ostro Labs 12%, others 50%">
-            <ResponsiveContainer width="100%" height="100%">
+            <Fit>
               <PieChart>
                 <Pie data={CLIENTS} dataKey="v" innerRadius="62%" outerRadius="92%" paddingAngle={3} stroke="none" startAngle={90} endAngle={-270}>
                   {CLIENTS.map((c, i) => (
@@ -304,7 +313,7 @@ export function StoryFeed() {
                   ))}
                 </Pie>
               </PieChart>
-            </ResponsiveContainer>
+            </Fit>
             <span className="absolute inset-0 flex items-center justify-center text-lg font-semibold text-white">22%</span>
           </div>
         </FeedCard>
@@ -335,7 +344,7 @@ export function SyncCard() {
   return (
     <div ref={ref} className="flex flex-1 flex-col justify-end gap-3">
       <div className="h-[110px]" aria-hidden>
-        <ResponsiveContainer width="100%" height="100%">
+        <Fit>
           <AreaChart data={rows} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
             <defs>
               <linearGradient id="syncFill" x1="0" y1="0" x2="0" y2="1">
@@ -345,7 +354,7 @@ export function SyncCard() {
             </defs>
             <Area type="monotone" dataKey="v" stroke={C.hot} strokeWidth={2} fill="url(#syncFill)" animationDuration={500} />
           </AreaChart>
-        </ResponsiveContainer>
+        </Fit>
       </div>
       <p className="flex items-center gap-2 text-sm text-white/60">
         <RefreshCw className={`size-3.5 text-highlight ${secs === 0 ? "animate-spin" : ""}`} strokeWidth={2.2} aria-hidden />
@@ -388,12 +397,12 @@ export function FilterDemo() {
         ))}
       </div>
       <div className="h-[110px]" role="img" aria-label={`Daily revenue for the last ${RANGES[range]} days`}>
-        <ResponsiveContainer width="100%" height="100%">
+        <Fit>
           <BarChart data={data} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
             <Tooltip content={(p) => <GlassTooltip {...(p as TooltipContentProps<number, string>)} />} cursor={{ fill: "rgba(255,255,255,0.05)" }} />
             <Bar dataKey="v" fill={C.bar} radius={[3, 3, 0, 0]} animationDuration={500} />
           </BarChart>
-        </ResponsiveContainer>
+        </Fit>
       </div>
     </div>
   );

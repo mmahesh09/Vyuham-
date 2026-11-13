@@ -4,6 +4,7 @@ import { format, parseISO } from "date-fns";
 import { Plane, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
+import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -16,7 +17,6 @@ import { useMembers } from "@/features/profile/api";
 
 import { PRIORITY_LABEL, STATUS_LABEL, STATUSES, useCreateTask, useDeleteTask, useUpdateTask, type Task, type TaskInput, type TaskPriority, type TaskStatus } from "./api";
 
-const selectClass = "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-text";
 
 type Props = {
   open: boolean;
@@ -107,7 +107,7 @@ export function TaskDialog({ open, onOpenChange, task, defaults, canEdit }: Prop
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="t-assignee">Assignee</FieldLabel>
-                <select id="t-assignee" className={selectClass} value={form.assignee_id} onChange={(e) => set({ assignee_id: e.target.value })}>
+                <NativeSelect id="t-assignee" className="w-full" value={form.assignee_id} onChange={(e) => set({ assignee_id: e.target.value })}>
                   <option value="" className="bg-surface">
                     Unassigned
                   </option>
@@ -117,17 +117,17 @@ export function TaskDialog({ open, onOpenChange, task, defaults, canEdit }: Prop
                       {m.status === "on_leave" ? " (on leave)" : ""}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
               <Field>
                 <FieldLabel htmlFor="t-priority">Priority</FieldLabel>
-                <select id="t-priority" className={selectClass} value={form.priority} onChange={(e) => set({ priority: e.target.value as TaskPriority })}>
+                <NativeSelect id="t-priority" className="w-full" value={form.priority} onChange={(e) => set({ priority: e.target.value as TaskPriority })}>
                   {(Object.keys(PRIORITY_LABEL) as TaskPriority[]).map((p) => (
                     <option key={p} value={p} className="bg-surface">
                       {PRIORITY_LABEL[p]}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
             </div>
             {onLeave && assignee && (
@@ -148,13 +148,13 @@ export function TaskDialog({ open, onOpenChange, task, defaults, canEdit }: Prop
             <div className="grid gap-4 sm:grid-cols-3">
               <Field>
                 <FieldLabel htmlFor="t-status">Status</FieldLabel>
-                <select id="t-status" className={selectClass} value={form.status} onChange={(e) => set({ status: e.target.value as TaskStatus })}>
+                <NativeSelect id="t-status" className="w-full" value={form.status} onChange={(e) => set({ status: e.target.value as TaskStatus })}>
                   {STATUSES.map((s) => (
                     <option key={s} value={s} className="bg-surface">
                       {STATUS_LABEL[s]}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
               <Field>
                 <FieldLabel htmlFor="t-start">Start</FieldLabel>
@@ -168,7 +168,7 @@ export function TaskDialog({ open, onOpenChange, task, defaults, canEdit }: Prop
             <div className="grid gap-4 sm:grid-cols-2">
               <Field>
                 <FieldLabel htmlFor="t-dataset">About dataset</FieldLabel>
-                <select id="t-dataset" className={selectClass} value={form.dataset_id} onChange={(e) => set({ dataset_id: e.target.value })}>
+                <NativeSelect id="t-dataset" className="w-full" value={form.dataset_id} onChange={(e) => set({ dataset_id: e.target.value })}>
                   <option value="" className="bg-surface">
                     None
                   </option>
@@ -177,11 +177,11 @@ export function TaskDialog({ open, onOpenChange, task, defaults, canEdit }: Prop
                       {d.name}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
               <Field>
                 <FieldLabel htmlFor="t-dashboard">About dashboard</FieldLabel>
-                <select id="t-dashboard" className={selectClass} value={form.dashboard_id} onChange={(e) => set({ dashboard_id: e.target.value })}>
+                <NativeSelect id="t-dashboard" className="w-full" value={form.dashboard_id} onChange={(e) => set({ dashboard_id: e.target.value })}>
                   <option value="" className="bg-surface">
                     None
                   </option>
@@ -190,7 +190,7 @@ export function TaskDialog({ open, onOpenChange, task, defaults, canEdit }: Prop
                       {d.name}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
             </div>
           </fieldset>

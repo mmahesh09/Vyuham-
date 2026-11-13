@@ -30,19 +30,19 @@ export function NotificationBell() {
         render={
           <button
             type="button"
-            className="relative flex size-11 shrink-0 items-center justify-center rounded-[10px] border border-line text-muted hover:text-text"
+            className="relative flex size-9 shrink-0 items-center justify-center rounded-lg border border-line bg-surface text-muted transition-colors hover:border-line-strong hover:text-text"
             aria-label={count ? `Notifications, ${count} unread` : "Notifications"}
           />
         }
       >
-        <Bell className="size-[18px]" strokeWidth={1.8} aria-hidden />
+        <Bell className="size-4" strokeWidth={1.8} aria-hidden />
         {count > 0 && (
           <span className="absolute -right-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-accent px-1 text-[11px] font-semibold text-bg">
             {count > 9 ? "9+" : count}
           </span>
         )}
       </PopoverTrigger>
-      <PopoverContent align="start" side="top" className="w-[min(24rem,calc(100vw-2rem))] gap-0 p-0">
+      <PopoverContent align="end" side="bottom" className="w-[min(24rem,calc(100vw-2rem))] gap-0 p-0">
         <div className="flex items-center justify-between border-b border-line px-3 py-2">
           <span className="text-sm font-semibold">Notifications</span>
           <Link href="/alerts?tab=history" onClick={() => setOpen(false)} className="text-xs text-highlight hover:underline">
@@ -56,7 +56,7 @@ export function NotificationBell() {
             {list.data.map((n) => (
               <li key={n.id} className="border-b border-line/60 last:border-b-0">
                 <Link href={n.link ?? "/alerts"} onClick={() => setOpen(false)} className="flex gap-2.5 px-3 py-2.5 hover:bg-surface-2">
-                  {n.kind === "digest" ? <CalendarClock className="mt-0.5 size-4 shrink-0 text-highlight" aria-hidden /> : <BellRing className="mt-0.5 size-4 shrink-0 text-[#ffaa44]" aria-hidden />}
+                  {n.kind === "digest" ? <CalendarClock className="mt-0.5 size-4 shrink-0 text-highlight" aria-hidden /> : <BellRing className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />}
                   <span className="flex min-w-0 flex-col gap-0.5">
                     <span className={`text-sm ${n.read_at ? "text-muted" : "font-semibold"}`}>{n.title}</span>
                     <span className="line-clamp-2 whitespace-pre-line text-xs text-muted">{n.body}</span>

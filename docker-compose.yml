@@ -1,3 +1,15 @@
+x-backend-env: &backend-env
+  DATABASE_URL: postgresql+psycopg://app:app@db:5432/app
+  DATA_DIR: /data
+  REDIS_URL: redis://redis:6379/0
+  WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+  APP_URL: ${BETTER_AUTH_URL:-http://localhost:3000}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  # Signs print-page and download links; must be the same for the API and the worker.
+  SIGNING_SECRET: ${SIGNING_SECRET:-dev-only-signing-secret-change-me-0123456789}
+  # The worker's browser opens the print page through the frontend container.
+  PRINT_BASE_URL: http://frontend:3000
+
 services:
   db:
     image: postgres:16-alpine
@@ -12,18 +24,63 @@ services:
       interval: 3s
       retries: 20
 
+  redis:
+    image: redis:7-alpine
+    # Job messages only; a lost queue is re-filled by the next tick, so no persistence needed.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      retries: 20
+
   backend:
-    build: ./backend
-    environment:
-      DATABASE_URL: postgresql+psycopg://app:app@db:5432/app
-      DATA_DIR: /data
+    build: { context: ./backend, target: api }
+    environment: *backend-env
     volumes: [appdata:/data]
     ports: ["8000:8000"]
     depends_on:
       db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"]
+      interval: 10s
+      start_period: 20s
+      retries: 6
+
+  # Runs background jobs and renders reports. Waits for the backend so migrations have been
+  # applied; PDF reports also need the frontend (the print page).
+  worker:
+    build: { context: ./backend, target: worker }
+    environment: *backend-env
+    volumes: [appdata:/data]
+    depends_on:
+      backend: { condition: service_healthy }
+      frontend: { condition: service_started }
+
+  # Queues a scheduler tick every minute. Exactly one beat, however many workers.
+  beat:
+    build: { context: ./backend, target: api }
+    command: ["celery", "-A", "app.worker", "beat", "--loglevel=info", "--schedule", "/tmp/celerybeat-schedule"]
+    environment: *backend-env
+    depends_on:
+      backend: { condition: service_healthy }
+
+  # Job queue dashboard; bound to localhost only.
+  flower:
+    build: { context: ./backend, target: api }
+    command: ["celery", "-A", "app.worker", "flower", "--port=5555"]
+    environment:
+      <<: *backend-env
+      FLOWER_BASIC_AUTH: ${FLOWER_BASIC_AUTH:-admin:admin}
+    ports: ["127.0.0.1:5555:5555"]
+    depends_on:
+      redis: { condition: service_healthy }
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      additional_contexts:
+        decks: ./my-deck  # open-slide decks, served at /decks
     environment:
       BACKEND_URL: http://backend:8000
       DATABASE_URL: postgresql://app:app@db:5432/app

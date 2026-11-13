@@ -8,7 +8,7 @@ reads them, so they have no ORM models here — see app/security.py.
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app import auth_tables  # noqa: F401  (Better Auth tables referenced below)
@@ -223,6 +223,8 @@ class SavedQuery(Base):
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(200))
     sql: Mapped[str] = mapped_column(Text)
+    # Values for the query's {{name}} placeholders: [{"name", "type", "value"}] (app/sql_params.py).
+    params: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
     created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
@@ -310,3 +312,75 @@ class Notification(Base):
     kind: Mapped[str] = mapped_column(String(16), default="alert")  # alert | digest
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class JobRun(Base):
+    """One scheduled run of a background job, claimed before it is queued.
+
+    The unique (kind, target_id, scheduled_for) row is the lock: two scheduler passes, or a pass
+    that runs while the previous run is still queued, can't send the same alert or digest twice.
+    `scheduled_for` vs `started_at` is the schedule lag shown in monitoring.
+    """
+
+    __tablename__ = "job_runs"
+    __table_args__ = (UniqueConstraint("kind", "target_id", "scheduled_for", name="uq_job_runs_slot"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    kind: Mapped[str] = mapped_column(String(16))  # alert | automation
+    target_id: Mapped[str] = mapped_column(String(32), index=True)
+    scheduled_for: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(String(10), default="queued")  # queued | running | retry | done | failed
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(String(500))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class Report(Base):
+    """A report definition: what to export (a dashboard, saved query or dataset) and in which format."""
+
+    __tablename__ = "reports"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    source: Mapped[str] = mapped_column(String(16))  # dashboard | saved_query | dataset
+    source_id: Mapped[str] = mapped_column(String(32))
+    format: Mapped[str] = mapped_column(String(8))  # pdf | csv | xlsx
+    # {period_days, filters: {col: value}, orientation: portrait|landscape, page_size: A4|Letter}
+    options: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class ReportRun(Base):
+    """One generated file (or an attempt at one).
+
+    It keeps its own copy of what to export, so a quick "Export" from a dashboard needs no saved
+    Report, and editing or deleting a report doesn't change the history of files already made.
+    """
+
+    __tablename__ = "report_runs"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    report_id: Mapped[str | None] = mapped_column(ForeignKey("reports.id", ondelete="SET NULL"), index=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    source: Mapped[str] = mapped_column(String(16))
+    source_id: Mapped[str] = mapped_column(String(32))
+    format: Mapped[str] = mapped_column(String(8))
+    options: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(10), default="queued")  # queued | running | retry | done | failed
+    trigger: Mapped[str] = mapped_column(String(10), default="manual")  # manual | schedule
+    automation_id: Mapped[str | None] = mapped_column(ForeignKey("automations.id", ondelete="SET NULL"))
+    file_key: Mapped[str | None] = mapped_column(String(300))
+    file_name: Mapped[str | None] = mapped_column(String(255))
+    size_bytes: Mapped[int | None] = mapped_column(Integer)
+    rows: Mapped[int | None] = mapped_column(Integer)
+    error: Mapped[str | None] = mapped_column(String(500))
+    requested_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

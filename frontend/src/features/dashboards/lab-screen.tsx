@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { PageContainer } from "@/components/app/page-container";
+import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { useMe } from "@/features/auth/hooks";
@@ -25,37 +27,41 @@ export function LabScreen() {
   const chosen = datasetId || datasets?.[0]?.id || "";
 
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-8 pt-4">
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="flex flex-col gap-1.5">
-          <h1 className="text-[38px] font-semibold tracking-[-0.03em]">Dashboard Lab</h1>
-          <p className="max-w-[62ch] text-[15px] text-muted">
+    <PageContainer>
+      <PageHeader
+        title="Dashboard Lab"
+        description={
+          <>
             Lay out any dashboard on a free-form canvas: drag charts anywhere, make them big or small. The story view keeps its own order.
-          </p>
-        </div>
-        {canEdit && !!datasets?.length && (
-          <div className="flex items-center gap-2">
-            <select
-              aria-label="Dataset for a new canvas"
-              className="h-9 rounded-md border border-input bg-transparent px-2 text-sm text-text"
-              value={chosen}
-              onChange={(e) => setDatasetId(e.target.value)}
-            >
-              {datasets.map((d) => (
-                <option key={d.id} value={d.id} className="bg-surface">
-                  {d.name}
-                </option>
-              ))}
-            </select>
-            <Button
-              disabled={!chosen || starter.isPending}
-              onClick={() => starter.mutate(chosen, { onSuccess: (d) => router.push(`/dashboards/${d.id}?layout=canvas`) })}
-            >
-              <Sparkles /> {starter.isPending ? "Building…" : "New canvas"}
-            </Button>
-          </div>
-        )}
-      </div>
+          </>
+        }
+        actions={
+          <>
+            {canEdit && !!datasets?.length && (
+              <div className="flex items-center gap-2">
+                <select
+                  aria-label="Dataset for a new canvas"
+                  className="h-9 rounded-md border border-input bg-transparent px-2 text-sm text-text"
+                  value={chosen}
+                  onChange={(e) => setDatasetId(e.target.value)}
+                >
+                  {datasets.map((d) => (
+                    <option key={d.id} value={d.id} className="bg-surface">
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  disabled={!chosen || starter.isPending}
+                  onClick={() => starter.mutate(chosen, { onSuccess: (d) => router.push(`/dashboards/${d.id}?layout=canvas`) })}
+                >
+                  <Sparkles /> {starter.isPending ? "Building…" : "New canvas"}
+                </Button>
+              </div>
+            )}
+          </>
+        }
+      />
       {starter.isError && <p className="text-sm text-accent">{starter.error.message}</p>}
 
       {isPending ? (
@@ -99,6 +105,6 @@ export function LabScreen() {
           ))}
         </ul>
       )}
-    </div>
+    </PageContainer>
   );
 }

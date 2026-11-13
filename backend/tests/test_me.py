@@ -54,4 +54,7 @@ def test_production_refuses_unsafe_defaults():
         Settings(environment="production", database_url="sqlite:///./dev.db", data_dir="/data")
     with pytest.raises(ValidationError, match="DATA_DIR"):
         Settings(environment="production", database_url="postgresql+psycopg://x@db/app", data_dir="./data")
-    assert Settings(environment="production", database_url="postgresql+psycopg://x@db/app", data_dir="/data").environment == "production"
+    with pytest.raises(ValidationError, match="SIGNING_SECRET"):
+        Settings(environment="production", database_url="postgresql+psycopg://x@db/app", data_dir="/data")
+    ok = Settings(environment="production", database_url="postgresql+psycopg://x@db/app", data_dir="/data", signing_secret="s" * 32)
+    assert ok.environment == "production"

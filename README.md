@@ -43,6 +43,29 @@ Start Docker Desktop, then:
 ```bash
 docker compose up --build
 ```
+This starts Postgres, Redis, the API, the frontend, and the background job services:
+- `worker` runs jobs: alert checks and digests now, reports later.
+- `beat` queues a `tick` every minute. Run exactly one beat.
+- `flower` is the job queue dashboard at http://localhost:5555. Its login is set by `FLOWER_BASIC_AUTH` (default `admin:admin`, local only).
+
+Health checks: `GET /health/live` (the process is up) and `GET /health/ready` (database, Redis and the data folder all work; returns 503 otherwise).
+
+## Reports
+**Reports** in the sidebar lists saved reports and their files. Every dashboard and saved SQL query has an **Export** button.
+- **PDF** (dashboards only): headless Chromium opens a print page in the app (`/print/dashboards/<token>`, using a signed 10-minute token) and prints it, so the PDF looks like the screen.
+- **Excel**: a dashboard gives a Summary sheet plus one sheet per chart; a dataset or saved query gives every row.
+- **CSV**: a dashboard gives one CSV per chart, zipped; a dataset or saved query gives every row (up to `REPORT_MAX_ROWS`).
+- **Storage**: files go under `DATA_DIR/reports`, or S3/MinIO with `REPORT_STORAGE=s3`. They're deleted after `REPORT_RETENTION_DAYS` (30).
+- **Where they run**: in Docker, files are made by the Celery worker (its image includes Chromium). Without Redis they're made inside the API after the request. For local PDFs, run `.venv/Scripts/playwright install chromium` once and keep the frontend running on `PRINT_BASE_URL` (http://localhost:3000).
+
+## Decks (open-slide)
+`my-deck/` is an [open-slide](https://github.com/open-slide/open-slide) workspace: slides are React files under `my-deck/slides/<id>/index.tsx`. Ask Claude Code inside `my-deck/` to "make slides about X" and it uses the bundled `create-slide` skill.
+```bash
+cd my-deck && npm install
+npm run dev         # write slides: http://localhost:5173/decks/
+npm run build:app   # build into frontend/public/decks; the app serves it at /decks
+```
+The sidebar's **Decks** link opens `/decks`. The Docker frontend image builds the decks itself, using the `decks` build context in docker-compose. `frontend/public/decks/` is build output and isn't committed.
 
 ## Tests
 ```bash
@@ -71,6 +94,11 @@ cd frontend && npm run lint && npm run build
 - `app/query.py` — DuckDB sandbox + chart-spec → SQL compiler (bound parameters only)
 - `app/insights.py` — plain-English insights from computed numbers, starter dashboards
 - `app/ask.py` — rule-based question parser; `app/templates.py` — dashboard templates
-- `app/alerts.py` + `app/scheduler.py` — alert checks and digests, run every minute in-process (`SCHEDULER_ENABLED=false` to turn off; run it in one process only)
+- `app/alerts.py` — alert checks and digests
+- `app/jobs.py` — background jobs: find what's due, claim it with a unique `job_runs` row (so nothing is sent twice), run it, record the outcome
+- `app/worker.py` — the Celery app and tasks (`tick` every minute from beat, `run_job` with retries, a daily `prune`)
+- `app/reports/` — report generation: `runner.py` (one run, start to finish), `tabular.py` (CSV/XLSX), `pdf.py` (Chromium), `storage.py` (local or S3); `app/signing.py` — short-lived signed links
+- `app/routers/reports.py` — saved reports, quick exports, run history, downloads, the print page API
+- `app/scheduler.py` — fallback for local dev without Redis: runs `jobs.tick` in a thread (`SCHEDULER_ENABLED=false` to turn off)
 - `app/notify.py` — delivery: in-app, email (logged until a provider is set), webhooks (https only; private/internal addresses blocked)
 - `app/routers/` — `sql_lab`, `alerts`, `datasets`, `dashboards` (+ public share), `ask`, `templates`, `team` (invites, members, tasks, leave calendar), `profile`, `presence`

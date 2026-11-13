@@ -1,8 +1,9 @@
 "use client";
 
 import { SlidersHorizontal } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
+import { NativeSelect } from "@/components/ui/native-select";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -12,12 +13,22 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Dashboard } from "./api";
 import { useDashboardMutations } from "./hooks";
 
-const selectClass = "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-text";
-
 /** Name, description, which date column each dataset filters on, and which columns get a dropdown filter. */
-export function SettingsDialog({ dashboard }: { dashboard: Dashboard }) {
+export function SettingsDialog({
+  dashboard,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  dashboard: Dashboard;
+  /** Pass to open it from elsewhere (a menu item); no trigger button is rendered then. */
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
   const { update } = useDashboardMutations(dashboard.id);
-  const [open, setOpen] = useState(false);
+  const [innerOpen, setInnerOpen] = useState(false);
+  const controlled = controlledOpen !== undefined;
+  const open = controlled ? controlledOpen : innerOpen;
+  const setOpen = (o: boolean) => (controlled ? onOpenChange?.(o) : setInnerOpen(o));
   const [name, setName] = useState(dashboard.name);
   const [description, setDescription] = useState(dashboard.description ?? "");
   const [dateFields, setDateFields] = useState(dashboard.date_fields);
@@ -26,23 +37,25 @@ export function SettingsDialog({ dashboard }: { dashboard: Dashboard }) {
   // Columns that make sensible dropdown filters: categories and text, from any dataset on the dashboard.
   const candidates = [...new Set(dashboard.datasets.flatMap((d) => d.columns.filter((c) => c.type === "category" || c.type === "text").map((c) => c.name)))];
 
+  // Start from the saved values every time it opens, however it was opened.
+  useEffect(() => {
+    if (!open) return;
+    setName(dashboard.name);
+    setDescription(dashboard.description ?? "");
+    setDateFields(dashboard.date_fields);
+    setFilters(dashboard.filter_columns);
+    update.reset();
+    // Only on opening: later edits to the dashboard shouldn't overwrite what's being typed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (o) {
-          setName(dashboard.name);
-          setDescription(dashboard.description ?? "");
-          setDateFields(dashboard.date_fields);
-          setFilters(dashboard.filter_columns);
-          update.reset();
-        }
-      }}
-    >
-      <DialogTrigger render={<Button variant="outline" size="icon" aria-label="Dashboard settings" />}>
-        <SlidersHorizontal />
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={setOpen}>
+      {!controlled && (
+        <DialogTrigger render={<Button variant="outline" size="icon" aria-label="Dashboard settings" />}>
+          <SlidersHorizontal />
+        </DialogTrigger>
+      )}
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Dashboard settings</DialogTitle>
@@ -74,9 +87,9 @@ export function SettingsDialog({ dashboard }: { dashboard: Dashboard }) {
             return (
               <Field key={d.id}>
                 <FieldLabel htmlFor={`ds-date-${d.id}`}>Date filter uses ({d.name})</FieldLabel>
-                <select
-                  id={`ds-date-${d.id}`}
-                  className={selectClass}
+                <NativeSelect
+ id={`ds-date-${d.id}`}
+                  className="w-full"
                   value={dateFields[d.id] ?? ""}
                   onChange={(e) => {
                     const next = { ...dateFields };
@@ -93,7 +106,7 @@ export function SettingsDialog({ dashboard }: { dashboard: Dashboard }) {
                       {c.name}
                     </option>
                   ))}
-                </select>
+                </NativeSelect>
               </Field>
             );
           })}

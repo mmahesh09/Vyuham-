@@ -2,13 +2,12 @@
 
 import { X } from "lucide-react";
 
+import { NativeSelect } from "@/components/ui/native-select";
+
 import type { DashboardSource } from "./api";
 import { DateRangePicker } from "./date-range-picker";
 import { useDashboardFilters } from "./filters";
 import { useFilterValues } from "./hooks";
-
-const select =
-  "min-h-11 max-w-[220px] rounded-full border border-line bg-bg px-4 text-[14px] text-text hover:bg-surface focus:border-primary focus:outline-none";
 
 function ColumnFilter({ source, column, value, onChange }: { source: DashboardSource; column: string; value: string; onChange: (v: string) => void }) {
   const { data } = useFilterValues(source, column);
@@ -18,7 +17,7 @@ function ColumnFilter({ source, column, value, onChange }: { source: DashboardSo
       <label className="sr-only" htmlFor={id}>
         {column}
       </label>
-      <select id={id} className={select} value={value} onChange={(e) => onChange(e.target.value)}>
+      <NativeSelect id={id} className="max-w-[220px]" value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">All {column}</option>
         {/* Keep a value from the URL selectable even before the list loads. */}
         {value && !data?.includes(value) && <option value={value}>{value}</option>}
@@ -27,7 +26,7 @@ function ColumnFilter({ source, column, value, onChange }: { source: DashboardSo
             {v}
           </option>
         ))}
-      </select>
+      </NativeSelect>
     </>
   );
 }
@@ -38,7 +37,7 @@ export function FilterBar({ source, columns, hasDates }: { source: DashboardSour
   const active = Object.entries(filters.f).filter(([k, v]) => v && columns.includes(k));
 
   return (
-    <div role="search" aria-label="Dashboard filters" className="flex flex-wrap items-center gap-3">
+    <div role="search" aria-label="Dashboard filters" className="flex flex-wrap items-center gap-2">
       {hasDates && <DateRangePicker from={filters.from} to={filters.to} onChange={({ from, to }) => setFilters({ from, to })} />}
       {columns.map((c) => (
         <ColumnFilter
@@ -58,7 +57,7 @@ export function FilterBar({ source, columns, hasDates }: { source: DashboardSour
         <button
           type="button"
           onClick={() => setFilters({ f: null })}
-          className="flex min-h-11 items-center gap-1.5 rounded-full px-3 text-[14px] text-muted hover:text-text"
+          className="flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13.5px] text-muted transition-colors hover:bg-surface hover:text-text"
         >
           <X className="size-4" aria-hidden />
           Clear

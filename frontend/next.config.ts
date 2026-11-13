@@ -7,8 +7,18 @@ const nextConfig: NextConfig = {
   // every other /api/* path falls through to FastAPI, so the session cookie stays
   // first-party and no CORS setup is needed. `fallback` runs after app routes, including
   // the dynamic /api/auth/[...all] route.
+  //
+  // /decks is the open-slide deck app (my-deck/, built into public/decks). Its files are served
+  // as-is; any other /decks path is one of its client-side routes, so it gets its index.html.
   async rewrites() {
-    return { beforeFiles: [], afterFiles: [], fallback: [{ source: "/api/:path*", destination: `${BACKEND_URL}/:path*` }] };
+    return {
+      beforeFiles: [{ source: "/decks", destination: "/decks/index.html" }],
+      afterFiles: [],
+      fallback: [
+        { source: "/api/:path*", destination: `${BACKEND_URL}/:path*` },
+        { source: "/decks/:path*", destination: "/decks/index.html" },
+      ],
+    };
   },
 };
 

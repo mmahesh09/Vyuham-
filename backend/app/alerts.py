@@ -1,4 +1,4 @@
-"""Evaluate alerts and run automations. Called by the scheduler loop (app/scheduler.py) and by
+"""Evaluate alerts and run automations. Called by background jobs (app/jobs.py) and by
 "Check now" / "Run now" in the app.
 
 Alerts are edge-triggered: they notify when the condition becomes true and stay quiet until it
@@ -171,18 +171,7 @@ def run_automation(db: Session, a: Automation, now: datetime | None = None) -> A
 
 
 def tick(db: Session, now: datetime | None = None) -> dict:
-    """One scheduler pass: check due alerts and run due automations."""
-    now = now or datetime.now(timezone.utc)
-    checked = ran = 0
-    for a in db.scalars(select(Alert).where(Alert.enabled.is_(True))).all():
-        if alert_due(a, now):
-            check_alert(db, a, now)
-            checked += 1
-    for a in db.scalars(select(Automation).where(Automation.enabled.is_(True))).all():
-        if automation_due(a, now):
-            try:
-                run_automation(db, a, now)
-            except QueryError:
-                pass
-            ran += 1
-    return {"alerts_checked": checked, "automations_run": ran}
+    """One scheduler pass, running due jobs here. The worker uses app.jobs.tick to queue them."""
+    from app.jobs import tick as jobs_tick  # local import: app.jobs imports this module
+
+    return jobs_tick(db, now)

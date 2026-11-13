@@ -5,6 +5,8 @@ import { BellRing, CalendarClock, Check, Globe, HelpCircle, Mail, Users } from "
 import { useEffect, useMemo, useRef } from "react";
 import { Controller, useForm, useWatch, type Resolver } from "react-hook-form";
 
+import { PageContainer } from "@/components/app/page-container";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/reui/badge";
 import { PhoneInput } from "@/components/reui/phone-input";
 import { TimePicker } from "@/components/reui/time-picker";
@@ -142,13 +144,13 @@ function ProfileEditor({ user, profile }: { user: User; profile: Profile }) {
   return (
     <TooltipProvider>
       {/* A div, not a <form>: the leave and feedback forms live inside it and forms can't nest. */}
-      <div className="mx-auto flex max-w-[1100px] flex-col gap-6 pb-24">
+      <PageContainer className="gap-6 pb-24">
         {/* ---------- Header ---------- */}
-        <section className="flex flex-col gap-6 rounded-[20px] border border-line bg-surface p-6 md:flex-row md:items-center">
+        <section className="flex flex-col gap-6 rounded-2xl border border-line bg-surface p-6 md:flex-row md:items-center">
           <StatusMenu initials={initials(values.name || user.name)} size="lg" />
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2">
-              <h1 className="truncate font-display text-[28px] font-semibold leading-tight">{values.name || user.name}</h1>
+              <h1 className="type-page-title truncate text-text">{values.name || user.name}</h1>
               <Badge variant="primary-light">{ROLE_LABEL[user.role]}</Badge>
             </div>
             <p className={cn("line-clamp-2 text-[15px]", values.job_role ? "text-muted" : "text-accent")}>
@@ -481,19 +483,19 @@ function ProfileEditor({ user, profile }: { user: User; profile: Profile }) {
             {save.isPending ? "Saving…" : "Save profile"}
           </Button>
         </div>
-      </div>
+      </PageContainer>
     </TooltipProvider>
   );
 }
 
 function ProfileSkeleton() {
   return (
-    <div className="mx-auto flex max-w-[1100px] flex-col gap-6" aria-busy>
-      <div className="h-36 animate-pulse rounded-[20px] bg-surface" />
+    <PageContainer className="gap-6" aria-busy>
+      <Skeleton className="h-36 rounded-2xl" />
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-        <div className="h-96 animate-pulse rounded-xl bg-surface" />
-        <div className="h-96 animate-pulse rounded-xl bg-surface" />
+        <Skeleton className="h-96 rounded-xl" />
+        <Skeleton className="h-96 rounded-xl" />
       </div>
-    </div>
+    </PageContainer>
   );
 }
