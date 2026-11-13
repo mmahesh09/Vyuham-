@@ -67,6 +67,9 @@ def test_alert_slot_follows_last_check(client, engine):
     ds = upload(client)
     a = client.post("/alerts", json=alert_body(ds["id"], schedule="hourly")).json()
     with Session(engine) as s:
+        # The first slot is the alert's creation time; pin it before NOON so the test doesn't depend on today's date.
+        s.get(Alert, a["id"]).created_at = NOON - timedelta(hours=1)
+        s.commit()
         assert jobs.tick(s, NOON)["alerts_checked"] == 1
         assert jobs.tick(s, NOON + timedelta(minutes=30))["alerts_checked"] == 0
         assert jobs.tick(s, NOON + timedelta(minutes=61))["alerts_checked"] == 1

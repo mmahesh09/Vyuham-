@@ -111,7 +111,7 @@ def downgrade() -> None:
     sa.Column('name', sa.VARCHAR(length=120), nullable=False),
     sa.Column('password_hash', sa.VARCHAR(length=100), nullable=False),
     sa.Column('workspace_id', sa.VARCHAR(length=32), nullable=False),
-    sa.Column('created_at', sa.DATETIME(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),  # portable type: DATETIME doesn't exist on Postgres
     sa.ForeignKeyConstraint(['workspace_id'], ['workspaces.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
