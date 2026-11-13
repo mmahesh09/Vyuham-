@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
 
 from app.config import get_settings
 from app.routers import account, alerts, ask, dashboards, datasets, health, me, presence, profile, reports, sql_lab, team, templates
@@ -38,3 +39,9 @@ app.include_router(account.router)
 app.include_router(health.router)
 app.include_router(reports.router)
 app.include_router(reports.printer)
+
+
+@app.get("/", include_in_schema=False)
+def root() -> RedirectResponse:
+    """This app is an API only; send people who open the bare URL to the interactive docs."""
+    return RedirectResponse("/docs")
