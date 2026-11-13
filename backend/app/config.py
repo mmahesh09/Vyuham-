@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 DEV_SIGNING_SECRET = "dev-only-signing-secret-change-me-0123456789"
@@ -15,6 +15,17 @@ class Settings(BaseSettings):
     # SQLite for quick local dev; docker-compose sets a Postgres URL.
     # The Next.js app (Better Auth) writes users and sessions to the same database.
     database_url: str = "sqlite:///./dev.db"
+
+    @field_validator("database_url")
+    @classmethod
+    def _psycopg_driver(cls, url: str) -> str:
+        """Managed Postgres hands out postgres:// or postgresql:// URLs; SQLAlchemy would read those as
+        psycopg2, which isn't installed. Use psycopg 3 (the same URL then works for Vercel and here)."""
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                return "postgresql+psycopg://" + url[len(prefix):]
+        return url
+
     data_dir: str = "./data"
     # Uploads (beta limits; the browser checks the same size before sending).
     max_upload_bytes: int = 10 * 1024 * 1024

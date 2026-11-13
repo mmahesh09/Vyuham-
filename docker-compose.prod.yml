@@ -1,0 +1,94 @@
+# Production on one VPS: the API, background jobs and Redis, behind Caddy (automatic HTTPS).
+# Postgres is managed and shared with the Next.js app, which runs on Vercel. See DEPLOY.md.
+#
+#   cp deploy/.env.prod.example .env.prod      # then fill it in
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# The API and the worker share the `appdata` volume: uploaded datasets live there as Parquet files
+# and both read them. Back it up (deploy/backup-data.sh); it's the only copy.
+name: vyuham
+
+x-backend-env: &backend-env
+  ENVIRONMENT: production
+  DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL (managed Postgres) in .env.prod}
+  DATA_DIR: /data
+  REDIS_URL: redis://redis:6379/0
+  WORKER_CONCURRENCY: ${WORKER_CONCURRENCY:-2}
+  # The web app's public address: links in emails, and where reports are rendered (/internal/pdf).
+  APP_URL: ${APP_URL:?set APP_URL (the Vercel address) in .env.prod}
+  PRINT_BASE_URL: ${APP_URL}
+  SIGNING_SECRET: ${SIGNING_SECRET:?set SIGNING_SECRET (32+ random characters) in .env.prod}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  EMAIL_FROM: ${EMAIL_FROM:-Vyuham <onboarding@resend.dev>}
+  PDF_RENDERER: ${PDF_RENDERER:-forme}
+  PDF_CHROMIUM_FALLBACK: ${PDF_CHROMIUM_FALLBACK:-true}
+  REPORT_STORAGE: ${REPORT_STORAGE:-local}
+  S3_BUCKET: ${S3_BUCKET:-}
+  S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-}
+  S3_REGION: ${S3_REGION:-us-east-1}
+  S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+  S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+  REACHER_URL: ${REACHER_URL:-}
+  REACHER_SECRET: ${REACHER_SECRET:-}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+
+services:
+  caddy:
+    image: caddy:2.8.4-alpine
+    environment:
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN (e.g. api.example.com) in .env.prod}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend: { condition: service_healthy }
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    # Job messages only; a lost queue is re-filled by the next tick, so no persistence needed.
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+    restart: unless-stopped
+
+  # Runs `alembic upgrade head` on start, then serves the API (only Caddy reaches it).
+  backend:
+    build: { context: ./backend, target: api }
+    environment: *backend-env
+    volumes: [appdata:/data]
+    depends_on:
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=3)"]
+      interval: 10s
+      start_period: 30s
+      retries: 6
+    restart: unless-stopped
+
+  worker:
+    build: { context: ./backend, target: worker }
+    environment: *backend-env
+    volumes: [appdata:/data]
+    depends_on:
+      backend: { condition: service_healthy }
+    restart: unless-stopped
+
+  # Queues a scheduler tick every minute. Exactly one beat.
+  beat:
+    build: { context: ./backend, target: api }
+    command: ["celery", "-A", "app.worker", "beat", "--loglevel=info", "--schedule", "/tmp/celerybeat-schedule"]
+    environment: *backend-env
+    depends_on:
+      backend: { condition: service_healthy }
+    restart: unless-stopped
+
+volumes:
+  appdata:
+  caddy_data:
+  caddy_config:
