@@ -1,6 +1,6 @@
 import type { EChartsCoreOption } from "echarts/core";
 
-import { BRAND } from "./echarts-setup";
+import { BRAND } from "./brand";
 import { ROW_FIELD, type ChartSpec, type ResultRow } from "./chart-spec";
 
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
