@@ -1,0 +1,9 @@
+# The API's public address. Caddy gets and renews the HTTPS certificate itself; point the
+# domain's DNS A/AAAA record at this server first. Only the Vercel app calls this (it proxies /api).
+{$API_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy backend:8000
+	request_body {
+		max_size 12MB # uploads are capped at 10 MB by the API; a little room for the form encoding
+	}
+}
