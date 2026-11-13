@@ -30,12 +30,19 @@ class Settings(BaseSettings):
     email_from: str = "Vyuham <onboarding@resend.dev>"
     # Public URL of the web app, for links in emails.
     app_url: str = "http://localhost:3000"
+    # Optional: check invite addresses with a self-hosted Reacher (app/email_check.py). Off when empty.
+    reacher_url: str = ""
+    reacher_secret: str = ""
 
     # Signs short-lived links: the print page a PDF report is rendered from, report downloads.
     signing_secret: str = DEV_SIGNING_SECRET
     # Where the report worker's headless browser opens the print page (in Docker: the frontend
     # container, which proxies /api to the backend).
     print_base_url: str = "http://localhost:3000"
+    # PDF reports: "forme" (the web app renders them, no browser) or "chromium" (print the page in a
+    # headless browser). With the fallback on, a Forme failure retries that report in Chromium.
+    pdf_renderer: Literal["forme", "chromium"] = "forme"
+    pdf_chromium_fallback: bool = True
     # Generated report files: "local" (under DATA_DIR/reports) or "s3" (any S3-compatible store,
     # e.g. MinIO; needs `pip install boto3`).
     report_storage: Literal["local", "s3"] = "local"

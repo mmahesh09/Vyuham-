@@ -123,7 +123,7 @@ def describe(
         prev = prev_rows[0].get(key) if prev_rows else None
         change = pct_change(cur, prev)
         if change is None:
-            note = "Pick a date range to compare with the previous period." if not has_period else "Nothing to compare in the previous period."
+            note = "Pick a date range to compare with the previous period." if not has_period else "The previous period has no data to compare with."
             return Insight(f"{label}: {compact(cur)}", "flat", note, value=cur, previous=prev)
         word = "up" if change > 0 else "down"
         return Insight(
@@ -157,11 +157,11 @@ def describe(
             change = pct_change(last.get(key), before.get(key))
             if change is not None:
                 word = "up" if change > 0 else "down"
-                so_far = f" · {bucket_label(str(rows[-1][group]))} so far: {compact(rows[-1].get(key))}" if partial else ""
+                so_far = f". {bucket_label(str(rows[-1][group]))} so far: {compact(rows[-1].get(key))}" if partial else ""
                 return Insight(
                     f"{label} {word} {abs(change):.0f}% in {bucket_label(str(last[group]))}",
                     trend_of(change),
-                    f"vs {bucket_label(str(before[group]))} ({compact(before.get(key))} → {compact(last.get(key))}){so_far}",
+                    f"From {compact(before.get(key))} in {bucket_label(str(before[group]))} to {compact(last.get(key))}{so_far}",
                 )
         return Insight(f"{label}: {compact(values[-1])} in {bucket_label(str(rows[-1][group]))}", "flat", "")
 
@@ -174,7 +174,8 @@ def describe(
         return Insight(
             f"{top[group]} leads with {share:.0f}% of {label.lower()}",
             "down" if risky else "flat",
-            "A lot depends on one group" if risky else f"{compact(top_v)} of {compact(total)} across {len(rows)} groups",
+            (f"{compact(top_v)} of {compact(total)} comes from {top[group]}, so a dip there moves the whole total"
+             if risky else f"{compact(top_v)} of {compact(total)} across {len(rows)} groups"),
         )
     return Insight(f"{top[group]} has the highest {label.lower()}: {compact(top_v)}", "flat", f"Across {len(rows)} groups")
 

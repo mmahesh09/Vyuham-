@@ -81,6 +81,15 @@ def create_invite(
 ):
     _owner(member)
     require_verified_email(user)
+    if body.email:
+        from app.email_check import check_email
+
+        # Only a definite "invalid" stops the invite; risky or unknown addresses still get one.
+        if check_email(body.email) == "invalid":
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                f"{body.email} can't receive email. Check the address for typos, or create a link without an email.",
+            )
     inv = Invite(
         token=secrets.token_urlsafe(24), workspace_id=member.workspace_id, role=body.role, email=body.email,
         created_by=member.user_id, expires_at=_now() + timedelta(days=INVITE_DAYS),

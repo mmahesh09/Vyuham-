@@ -1,9 +1,12 @@
 import { BarChart, FunnelChart, GaugeChart, LineChart, PieChart, ScatterChart, TreemapChart } from "echarts/charts";
 import { DatasetComponent, GridComponent, LegendComponent, MarkPointComponent, TooltipComponent } from "echarts/components";
 import * as echarts from "echarts/core";
+import { LegacyGridContainLabel } from "echarts/features";
 import { CanvasRenderer } from "echarts/renderers";
 
 import { outfit } from "@/lib/fonts";
+
+import { BRAND, brandTheme } from "./brand";
 
 // Register only what the app uses, so the bundle stays a fraction of full ECharts.
 echarts.use([
@@ -20,38 +23,12 @@ echarts.use([
   DatasetComponent,
   MarkPointComponent,
   CanvasRenderer,
+  // build-option.ts uses grid.containLabel so axis labels never get clipped; ECharts 6 needs this for it.
+  LegacyGridContainLabel,
 ]);
 
-export const BRAND = {
-  primary: "#705cbb",
-  accent: "#cb72d0",
-  highlight: "#cea3f5",
-  line: "#221c4a",
-  text: "#f5f2ff",
-  muted: "#b3a9d6",
-  faint: "#8f86b3",
-};
+echarts.registerTheme("brand", brandTheme(`${outfit.style.fontFamily}, system-ui, sans-serif`));
 
-const axis = {
-  axisLine: { show: false },
-  axisTick: { show: false },
-  axisLabel: { color: BRAND.faint, fontSize: 11 },
-  splitLine: { lineStyle: { color: "rgba(206,163,245,0.08)" } }, // --highlight at 8%: reads as a hairline on --surface
-};
-
-echarts.registerTheme("brand", {
-  // Same order as --chart-1..5 in globals.css.
-  color: [BRAND.highlight, BRAND.primary, BRAND.accent, "#8f86b3", "#4b3f8f"],
-  backgroundColor: "transparent",
-  textStyle: { fontFamily: `${outfit.style.fontFamily}, system-ui, sans-serif`, color: BRAND.muted },
-  categoryAxis: axis,
-  valueAxis: axis,
-  tooltip: {
-    backgroundColor: "rgba(23, 19, 46, 0.96)", // --surface-2
-    borderColor: "#2e2660", // --line-strong
-    textStyle: { color: BRAND.text, fontSize: 12 },
-  },
-  legend: { textStyle: { color: BRAND.muted } },
-});
-
+// Kept here too so existing imports of BRAND from this module keep working.
+export { BRAND };
 export { echarts };

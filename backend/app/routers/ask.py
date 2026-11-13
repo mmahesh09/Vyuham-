@@ -57,7 +57,7 @@ def ask(body: AskIn, member: WorkspaceMember = Depends(current_membership), db: 
             return AskOut(
                 answered=False,
                 question=question,
-                message="I couldn't match that to your columns yet. Try naming a column, like one of these:",
+                message="I couldn't match that to your columns. Try naming one, like these:",
                 suggestions=suggestions(datasets),
             )
         try:
