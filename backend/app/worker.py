@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 
 from celery import Celery, Task
+from celery.signals import worker_process_init
 from sqlalchemy.exc import DBAPIError, OperationalError
 
 from app import jobs
@@ -40,6 +41,14 @@ celery_app.conf.update(
         "prune-reports": {"task": "vyuham.prune_reports", "schedule": 24 * 3600.0},
     },
 )
+
+@worker_process_init.connect(weak=False)
+def _start_tracing(**_: object) -> None:
+    """Each worker process starts its own exporter after forking (OpenTelemetry threads don't survive a fork)."""
+    from app.telemetry import setup_telemetry
+
+    setup_telemetry("vyuham-worker", celery=True)
+
 
 # Database and network trouble is worth retrying; a broken alert definition is not (run_job
 # records that as a failed run instead of raising).
