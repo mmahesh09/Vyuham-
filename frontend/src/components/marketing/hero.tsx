@@ -12,6 +12,7 @@ const NAV = [
   { href: "#how-it-works", label: "How it works" },
   { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
+  { href: "/blog", label: "Blog" },
 ];
 
 const PHRASES = ["anything.", "about revenue.", "who stopped buying.", "where cash goes."];

@@ -58,6 +58,26 @@ Health checks: `GET /health/live` (the process is up) and `GET /health/ready` (d
 - **Storage**: files go under `DATA_DIR/reports`, or S3/MinIO with `REPORT_STORAGE=s3`. They're deleted after `REPORT_RETENTION_DAYS` (30).
 - **Where they run**: in Docker, files are made by the Celery worker (its image includes Chromium). Without Redis they're made inside the API after the request. For local PDFs, run `.venv/Scripts/playwright install chromium` once and keep the frontend running on `PRINT_BASE_URL` (http://localhost:3000).
 
+## Blog
+Posts are MDX files in `frontend/content/blog/<slug>.mdx`; the file name is the URL (`/blog/<slug>`), lowercase words
+joined by hyphens. Each starts with frontmatter:
+```yaml
+---
+title: "From Excel sheet to dashboard in five minutes"
+description: "One or two sentences: the list, search results and link previews use it."
+date: 2026-11-15          # YYYY-MM-DD; newest first
+updated: 2026-12-01       # optional
+author: The Vyuham team   # optional
+tags: [guides, excel]     # optional
+draft: true               # optional: drafts show in `npm run dev` only
+image: /blog/<slug>/cover.png  # optional share image; otherwise one is generated from the title
+---
+```
+Write the body in Markdown (tables and code blocks work). Two components are available: `<Callout title="Tip">…</Callout>`
+and `<Figure src="/blog/<slug>/chart.png" alt="…" width={1600} height={900} caption="…" />` (put images in
+`frontend/public/blog/<slug>/`). Pages, the sitemap and the RSS feed (`/blog/rss.xml`) are built at deploy time, so a
+post goes live when it's merged and deployed with `draft` removed. Bad frontmatter fails the build with the file name.
+
 ## Decks (open-slide)
 `my-deck/` is an [open-slide](https://github.com/open-slide/open-slide) workspace: slides are React files under `my-deck/slides/<id>/index.tsx`. Ask Claude Code inside `my-deck/` to "make slides about X" and it uses the bundled `create-slide` skill.
 ```bash

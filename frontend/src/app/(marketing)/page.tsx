@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Logo } from "@/components/layout/logo";
+import { RSS_ALTERNATE } from "@/lib/site";
 import { FinanceShowcase } from "@/components/marketing/finance-showcase";
 import { Hero } from "@/components/marketing/hero";
 import { FilterDemo, LiveDashboard, StoryFeed, SyncCard } from "@/components/marketing/live-charts";
@@ -20,7 +21,7 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: "AI Dashboard for Small Business",
   description: DESCRIPTION,
-  alternates: { canonical: "/" },
+  alternates: { canonical: "/", types: RSS_ALTERNATE },
   openGraph: {
     type: "website",
     url: "/",
@@ -685,7 +686,7 @@ export default function LandingPage() {
             </p>
           </div>
           {[
-            { title: "Product", links: [["The problem", "#problem"], ["How it works", "#how-it-works"], ["Compare to Power BI", "#compare"], ["Pricing", "#pricing"], ["FAQ", "#faq"]] },
+            { title: "Product", links: [["The problem", "#problem"], ["How it works", "#how-it-works"], ["Compare to Power BI", "#compare"], ["Pricing", "#pricing"], ["FAQ", "#faq"], ["Blog", "/blog"]] },
             { title: "Account", links: [["Join the beta", "/signup"], ["Log in", "/login"]] },
             { title: "Legal", links: [["Privacy", "/privacy"], ["Terms", "#"]] },
           ].map((col) => (

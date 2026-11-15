@@ -1,0 +1,22 @@
+import Link from "next/link";
+
+import { Logo } from "@/components/layout/logo";
+
+/** The plain header for content pages (blog, privacy): logo, the blog, and the sign-up link. */
+export function SiteHeader() {
+  return (
+    <header className="border-b border-line">
+      <div className="mx-auto flex max-w-[1080px] items-center justify-between gap-4 px-5 py-5">
+        <Logo href="/" />
+        <nav aria-label="Site" className="flex items-center gap-5 text-sm">
+          <Link href="/blog" className="text-muted hover:text-text">
+            Blog
+          </Link>
+          <Link href="/signup" className="font-medium text-highlight hover:underline">
+            Join the beta
+          </Link>
+        </nav>
+      </div>
+    </header>
+  );
+}

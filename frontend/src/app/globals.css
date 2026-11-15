@@ -648,3 +648,11 @@ details[open] mark.mark {
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
 }
+
+/* Blog code blocks (Shiki, dual theme): dark colours are inline; the light theme swaps in the
+ * --shiki-light variables Shiki writes on every token. */
+:root.light .shiki,
+:root.light .shiki span {
+  color: var(--shiki-light) !important;
+  background-color: var(--shiki-light-bg) !important;
+}
