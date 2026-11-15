@@ -59,7 +59,7 @@ def send(to: list[str] | str, subject: str, html_body: str, text_body: str) -> i
             RESEND_URL, data=payload, headers={"Authorization": f"Bearer {s.resend_api_key}", "Content-Type": "application/json"}
         )
         try:
-            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:  # fixed https Resend URL  # nosec B310
                 sent += 1 if resp.status < 300 else 0
         except urllib.error.HTTPError as e:
             log.error("[email] Resend refused a message to %s: HTTP %s %s", r, e.code, e.read()[:300])

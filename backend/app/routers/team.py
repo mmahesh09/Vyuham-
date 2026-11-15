@@ -87,7 +87,7 @@ def create_invite(
         # Only a definite "invalid" stops the invite; risky or unknown addresses still get one.
         if check_email(body.email) == "invalid":
             raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status.HTTP_422_UNPROCESSABLE_CONTENT,
                 f"{body.email} can't receive email. Check the address for typos, or create a link without an email.",
             )
     inv = Invite(
@@ -285,12 +285,12 @@ def _check_links(db: Session, member: WorkspaceMember, data: dict) -> None:
     if data.get("assignee_id"):
         ok = db.scalar(select(exists().where(WorkspaceMember.user_id == data["assignee_id"], WorkspaceMember.workspace_id == member.workspace_id)))
         if not ok:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "You can only assign tasks to people in this workspace.")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "You can only assign tasks to people in this workspace.")
     for key, model in (("dataset_id", Dataset), ("dashboard_id", Dashboard)):
         if data.get(key):
             obj = db.get(model, data[key])
             if obj is None or obj.workspace_id != member.workspace_id:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Unknown {key.split('_')[0]}")
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown {key.split('_')[0]}")
 
 
 def _can_edit(member: WorkspaceMember, task: Task | None, data: dict) -> None:
@@ -358,7 +358,7 @@ def update_task(task_id: str, body: TaskPatch, member: WorkspaceMember = Depends
     start = data.get("start_date", t.start_date)
     due = data.get("due_date", t.due_date)
     if start and due and due < start:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "The due date can't be before the start date")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "The due date can't be before the start date")
     for k, v in data.items():
         if k == "status":
             _set_status(t, v)
@@ -385,7 +385,7 @@ def order_tasks(body: OrderIn, member: WorkspaceMember = Depends(current_members
     """A kanban column after a drag: these tasks, in this order, with this status."""
     tasks = {t.id: t for t in db.scalars(select(Task).where(Task.workspace_id == member.workspace_id, Task.id.in_(body.task_ids)))}
     if set(body.task_ids) - set(tasks):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Unknown task in the new order")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Unknown task in the new order")
     for n, tid in enumerate(body.task_ids):
         t = tasks[tid]
         if t.status != body.status:

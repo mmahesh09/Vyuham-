@@ -60,7 +60,7 @@ def render_forme(token: str, out_path: str, *, landscape: bool = False, page_siz
     payload = json.dumps({"token": token, "page_size": page_size, "landscape": landscape}).encode()
     req = urllib.request.Request(forme_url(), data=payload, headers={"Content-Type": "application/json"}, method="POST")
     try:
-        with urllib.request.urlopen(req, timeout=timeout_s) as res:  # noqa: S310 (server-configured URL)
+        with urllib.request.urlopen(req, timeout=timeout_s) as res:  # noqa: S310  # server-configured URL  # nosec B310
             data = res.read()
     except urllib.error.HTTPError as e:
         detail = _error_text(e)

@@ -1,0 +1,88 @@
+# Security checks: committed secrets, vulnerable dependencies, and risky code patterns.
+# Runs on every pull request, on pushes to main, and weekly (new advisories appear without code changes).
+# Actions are pinned to full commit SHAs (tag in the comment); Dependabot keeps them current.
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 3 * * 1" # Mondays 03:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  secrets:
+    name: Secrets (gitleaks)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # scan the whole history, not just the last commit
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Personal repositories need no licence; an organisation repository needs GITLEAKS_LICENSE.
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  python-deps:
+    name: Backend dependencies (pip-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: pip install pip-audit==2.10.1
+      - name: Known vulnerabilities in backend requirements
+        run: pip-audit -r backend/requirements-dev.txt --progress-spinner off
+
+  node-deps:
+    name: Frontend dependencies (npm audit)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      # Fails on high or critical advisories; moderate ones in dev tooling are left to Dependabot.
+      - run: npm audit --audit-level=high
+
+  bandit:
+    name: Backend code (Bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: pip install bandit==1.9.4
+      # Medium+ severity and confidence. Reviewed exceptions are marked `# nosec <id>` with the reason.
+      - run: bandit -r backend/app -ll -ii
+
+  semgrep:
+    name: Code patterns (Semgrep)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.13"
+      - run: pip install semgrep==1.182.1
+      # Registry rules, no Semgrep account needed. Fails only on ERROR-severity findings.
+      # Vendored UI kits and demo components are excluded (see .semgrepignore).
+      - run: >-
+          semgrep scan
+          --config p/python --config p/javascript --config p/typescript --config p/react
+          --severity ERROR --error --metrics off
+          backend/app frontend/src

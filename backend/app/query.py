@@ -101,11 +101,11 @@ def connect(workspace_id: str, datasets: list[Dataset]) -> duckdb.DuckDBPyConnec
             f"TRY_CAST({quote(c['name'])} AS {CAST.get(c['type'], 'VARCHAR')}) AS {quote(c['name'])}" for c in d.columns
         )
         literal = path.replace("'", "''")  # server-built path (hex ids); escaped anyway
-        con.execute(f"CREATE VIEW {view_name(d.id)} AS SELECT {cols} FROM read_parquet('{literal}')")
+        con.execute(f"CREATE VIEW {view_name(d.id)} AS SELECT {cols} FROM read_parquet('{literal}')")  # server-built names and path  # nosec B608
     # Friendly names for SQL Lab: SELECT * FROM sales
     present = [d for d in datasets if os.path.exists(os.path.join(folder, f"{d.id}.parquet"))]
     for ds_id, alias in table_names(present).items():
-        con.execute(f"CREATE VIEW {quote(alias)} AS SELECT * FROM {view_name(ds_id)}")
+        con.execute(f"CREATE VIEW {quote(alias)} AS SELECT * FROM {view_name(ds_id)}")  # quoted identifiers  # nosec B608
     return con
 
 
@@ -299,7 +299,7 @@ def page_rows(
         like = " OR ".join(f"CAST({quote(c)} AS VARCHAR) ILIKE ?" for c in cols)
         where = f"{where} AND ({like})" if where else f" WHERE ({like})"
         params.extend([f"%{q.strip()}%"] * len(cols))
-    total = con.execute(f"SELECT COUNT(*) FROM {view_name(dataset.id)}{where}", params).fetchone()[0]
+    total = con.execute(f"SELECT COUNT(*) FROM {view_name(dataset.id)}{where}", params).fetchone()[0]  # values are bound  # nosec B608
     order = ""
     if sort:
         _need(cols, sort)

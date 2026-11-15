@@ -30,7 +30,7 @@ def _read_capped(file: UploadFile, limit: int) -> bytes:
         size += len(chunk)
         if size > limit:
             raise HTTPException(
-                status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                status.HTTP_413_CONTENT_TOO_LARGE,
                 f"This file is over {limit // (1024 * 1024)} MB. The beta limit is {limit // (1024 * 1024)} MB.",
             )
         chunks.append(chunk)
@@ -61,7 +61,7 @@ def upload_dataset(
     try:
         result = ingest(raw, filename, sheet=sheet or None, max_rows=s.max_upload_rows)
     except IngestError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
 
     base = Path(filename).stem.strip()[:150] or "Untitled"
     if result.sheet and len(result.sheets) > 1:
@@ -132,12 +132,12 @@ def dataset_rows(
         if not isinstance(parsed, list):
             raise ValueError
     except ValueError:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Filters must be a JSON list") from None
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Filters must be a JSON list") from None
     con = connect(member.workspace_id, [dataset])
     try:
         rows, total = page_rows(con, dataset, page, size, sort, direction, parsed, q)
     except QueryError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     finally:
         con.close()
     return RowsOut(rows=rows, total=total, page=page, size=size)
@@ -169,7 +169,7 @@ def update_dataset(
         known = {c["name"] for c in dataset.columns}
         unknown = set(body.column_types) - known
         if unknown:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"Unknown column: {sorted(unknown)[0]}")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown column: {sorted(unknown)[0]}")
         # New list so SQLAlchemy sees the JSON change.
         dataset.columns = [{**c, "type": body.column_types.get(c["name"], c["type"])} for c in dataset.columns]
     db.commit()
@@ -208,7 +208,7 @@ def replace_file(
     try:
         result = ingest(raw, filename, sheet=sheet or None, max_rows=s.max_upload_rows)
     except IngestError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     dataset.file_size = write_parquet(result.frame, parquet_path(member.workspace_id, dataset.id))
     dataset.source_filename = filename[:255]
     dataset.source_kind = Path(filename).suffix.lower().lstrip(".")

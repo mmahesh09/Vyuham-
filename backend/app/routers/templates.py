@@ -42,7 +42,7 @@ def apply_template(
     try:
         charts, date_fields, filters = build(template_id, ds, body.mapping)
     except TemplateError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     name = (body.name or "").strip() or f"{TEMPLATES[template_id]['name']} · {ds.name}"
     d = Dashboard(
         workspace_id=member.workspace_id, name=name[:200], description=f"{TEMPLATES[template_id]['name']} template, from {ds.name}",

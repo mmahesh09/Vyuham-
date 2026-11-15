@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # Uploads (beta limits; the browser checks the same size before sending).
     max_upload_bytes: int = 10 * 1024 * 1024
     max_upload_rows: int = 1_000_000
+    # An .xlsx is a zip: a 10 MB file can unpack to gigabytes and take the API down. Refuse workbooks
+    # whose contents add up to more than this, before opening them.
+    max_xlsx_uncompressed_bytes: int = 150 * 1024 * 1024
+    # Per-account / per-address request limits (app/ratelimit.py).
+    rate_limit_enabled: bool = True
     # Background jobs (alerts, automations, reports) run on a Celery worker fed by Redis.
     # Without REDIS_URL (local dev), the API runs them in a thread instead: one process only.
     redis_url: str = ""

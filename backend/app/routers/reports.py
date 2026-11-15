@@ -127,7 +127,7 @@ def _source_name(db: Session, member: WorkspaceMember, source: str, source_id: s
 
 def _check(db: Session, member: WorkspaceMember, body: ExportIn) -> str:
     if body.format == "pdf" and body.source != "dashboard":
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "PDF reports are for dashboards. Use CSV or Excel for queries and datasets.")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "PDF reports are for dashboards. Use CSV or Excel for queries and datasets.")
     if body.source == "saved_query":
         _editor(member, "Exporting SQL Lab queries")
     return _source_name(db, member, body.source, body.source_id)

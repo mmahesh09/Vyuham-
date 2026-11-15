@@ -63,19 +63,19 @@ def set_presence(body: PresenceIn, member: WorkspaceMember = Depends(current_mem
 
     if body.status == "on_leave" and body.leave is None:
         if previous is None:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Add the leave type, dates and your backup")
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Add the leave type, dates and your backup")
     elif body.leave:
         backup = body.leave.backup_user_id
         if backup:
             if backup == member.user_id:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "You can't be your own backup")
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "You can't be your own backup")
             same_ws = db.scalar(
                 select(WorkspaceMember).where(
                     WorkspaceMember.user_id == backup, WorkspaceMember.workspace_id == member.workspace_id
                 )
             )
             if same_ws is None:
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Your backup must be in this workspace")
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Your backup must be in this workspace")
         if previous:  # replacing an active leave: keep the old one in history
             previous.status = "cancelled" if previous.start_date > date.today() else "ended"
         leave = LeaveRecord(user_id=member.user_id, workspace_id=member.workspace_id, **body.leave.model_dump())

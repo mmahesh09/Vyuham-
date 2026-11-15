@@ -24,7 +24,7 @@ TIMEOUT_SECONDS = 10
 
 def _post(url: str, payload: dict, headers: dict[str, str]) -> dict:
     req = urllib.request.Request(url, data=json.dumps(payload).encode(), headers={"Content-Type": "application/json", **headers}, method="POST")
-    with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as res:  # noqa: S310 (server-configured URL)
+    with urllib.request.urlopen(req, timeout=TIMEOUT_SECONDS) as res:  # noqa: S310  # server-configured URL  # nosec B310
         return json.loads(res.read())
 
 

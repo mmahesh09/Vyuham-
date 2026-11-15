@@ -1,0 +1,44 @@
+# OWASP ZAP baseline: a passive scan of the running app (headers, cookies, information leaks).
+# It only reads pages and never attacks, and it runs against a throwaway copy of the stack started
+# in the job, never against production. Manual or weekly; results are attached to the run as a report.
+name: ZAP baseline
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "41 4 * * 1" # Mondays 04:41 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  zap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Start the web app (Postgres, Redis, API, frontend)
+        run: docker compose up -d --build --wait db redis backend frontend
+
+      - name: Wait for the frontend
+        run: |
+          for i in $(seq 1 60); do
+            curl -fsS -o /dev/null http://localhost:3000/ && exit 0
+            sleep 5
+          done
+          docker compose logs frontend backend | tail -100
+          exit 1
+
+      - name: ZAP baseline scan
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
+        with:
+          target: http://localhost:3000
+          rules_file_name: .zap/rules.tsv
+          # Report in the run summary only; don't open or update GitHub issues.
+          allow_issue_writing: false
+          cmd_options: "-a"
+
+      - name: Stop the stack
+        if: always()
+        run: docker compose down -v
