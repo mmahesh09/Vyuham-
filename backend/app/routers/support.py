@@ -163,12 +163,14 @@ def report_problem(body: ProblemReport, request: Request, user: AuthUser = Depen
     agent = (request.headers.get("user-agent") or "")[:200]
     if agent:
         context.append(f"Browser: {agent}")
-    content = body.description.strip() + ("\n\n---\n" + "\n".join(context) if context else "")
+    note = "Problem report from the customer (sent from Vyuham's Report a problem form):\n\n" + body.description.strip()
+    if context:
+        note += "\n\n---\n" + "\n".join(context)
 
     identifier = chatwoot.identifier_for(member.workspace_id, user.id)
     try:
         contact = chatwoot.ensure_contact(identifier, user.name, user.email if s.chatwoot_share_email else None, member.workspace_id)
-        conversation_id = chatwoot.create_conversation(contact, content, labels=["problem-report"])
+        conversation_id = chatwoot.create_conversation(contact, note, labels=["problem-report"])
     except chatwoot.ChatwootError as e:
         raise _unavailable(e) from None
     times.append(now)

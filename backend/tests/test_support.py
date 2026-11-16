@@ -58,7 +58,7 @@ class FakeChatwoot:
             "id": len(self.conversations) + 101, "contact_id": contact_id, "inbox_id": inbox_id, "status": status,
             "created_at": 1700000000, "last_activity_at": 1700000100, "unread_count": 1,
             "meta": {"sender": {"identifier": self.contacts[contact_id]["identifier"]}},
-            "messages": messages or [{"content": "hello", "message_type": 0, "private": False}],
+            "messages": messages if messages is not None else [{"content": "hello", "message_type": 0, "private": False}],
         }
         self.conversations.append(conv)
         return conv
@@ -76,8 +76,13 @@ class FakeChatwoot:
             self.contacts[cid].update({k: body.get(k) for k in ("name", "email", "custom_attributes")})
             return {"payload": {"contact": self.contacts[cid]}}
         if (method, path) == ("POST", "/conversations"):
-            conv = self.add_conversation(body["contact_id"], body["inbox_id"], [{"content": body["message"]["content"], "message_type": 0}])
+            assert "message" not in body, "the API must not post the customer's words as an agent message"
+            conv = self.add_conversation(body["contact_id"], body["inbox_id"], [])
             return {"id": conv["id"]}
+        if m := re.fullmatch(r"/conversations/(\d+)/messages", path):
+            conv = next(c for c in self.conversations if c["id"] == int(m[1]))
+            conv["messages"].append({"content": body["content"], "message_type": 1, "private": body.get("private", False)})
+            return {"id": len(conv["messages"])}
         if method == "POST" and re.fullmatch(r"/conversations/\d+/labels", path):
             return {"payload": body["labels"]}
         raise AssertionError(f"unexpected call {method} {path}")
@@ -188,7 +193,9 @@ def test_report_creates_labelled_conversation_with_safe_context(client, engine, 
     assert res.status_code == 201
     contact = next(c for c in cw.contacts.values() if c["identifier"] == f"vyuham:{ws}:u1")
     assert contact["custom_attributes"] == {"workspace_id": ws}
-    content = cw.conversations[-1]["messages"][0]["content"]
+    note = cw.conversations[-1]["messages"][0]
+    assert note["private"] is True and note["content"].startswith("Problem report from the customer")
+    content = note["content"]
     assert "Page: /s/[token]" in content and "SECRETTOKEN" not in content and "token=abc" not in content
     assert "App version: abc123" in content and "Browser: TestBrowser/1.0" in content
     assert ("POST", f"/conversations/{res.json()['conversation_id']}/labels") in cw.calls

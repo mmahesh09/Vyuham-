@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 import { useSupportConfig, useSupportIdentity } from "./api";
@@ -21,6 +22,13 @@ declare global {
 }
 
 const SCRIPT_ID = "chatwoot-sdk";
+
+let lastAppPage: string | undefined;
+
+/** The last in-app page visited before Help & Support (path only: no query string, which can hold tokens). */
+export function previousAppPage() {
+  return lastAppPage;
+}
 
 /** Opens the support chat. Returns false when the widget isn't loaded (not configured, or blocked). */
 export function openSupportChat(): boolean {
@@ -46,6 +54,11 @@ export function SupportWidget() {
   const { data: config } = useSupportConfig();
   const enabled = config?.enabled === true;
   const { data: identity } = useSupportIdentity(enabled);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (pathname && pathname !== "/support") lastAppPage = pathname;
+  }, [pathname]);
 
   useEffect(() => {
     if (!config?.enabled || !identity) return;

@@ -11,7 +11,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Textarea } from "@/components/ui/textarea";
 
 import { useReportProblem, useSupportConfig, useSupportConversations, type SupportConversation } from "./api";
-import { openSupportChat } from "./widget";
+import { openSupportChat, previousAppPage } from "./widget";
 
 const STATUS: Record<SupportConversation["status"], { label: string; variant: "primary-light" | "secondary" }> = {
   open: { label: "Open", variant: "primary-light" },
@@ -88,15 +88,6 @@ function Conversations() {
   );
 }
 
-function sameSitePreviousPage(): string | undefined {
-  try {
-    const ref = new URL(document.referrer);
-    return ref.origin === window.location.origin ? ref.pathname : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 function ReportProblem() {
   const [description, setDescription] = useState("");
   const report = useReportProblem();
@@ -121,7 +112,7 @@ function ReportProblem() {
         e.preventDefault();
         report.mutate({
           description: description.trim(),
-          page: sameSitePreviousPage(),
+          page: previousAppPage(),
           release: process.env.NEXT_PUBLIC_APP_RELEASE || undefined,
           error_id: Sentry.lastEventId() || undefined, // links the report to the GlitchTip error, if one just happened
         });

@@ -158,11 +158,17 @@ def contact_conversations(contact_id: int) -> list[dict]:
     return list((res or {}).get("payload") or [])
 
 
-def create_conversation(contact: Contact, content: str, labels: list[str]) -> int:
-    """Start a conversation in the support inbox. Returns its number (display id)."""
+def create_conversation(contact: Contact, note: str, labels: list[str]) -> int:
+    """Open a conversation for the customer in the support inbox, with `note` for agents. Returns its number.
+
+    Chatwoot only lets the API post *as the customer* in API-type inboxes, never in a website inbox
+    (messages/message_builder.rb). Posting the text as a normal message would show the customer's
+    words as an agent's reply, so it goes in as a private note that names its author instead.
+    """
     s = get_settings()
-    res = _request("POST", "/conversations", {"source_id": contact.source_id, "inbox_id": s.chatwoot_inbox_id, "contact_id": contact.id, "message": {"content": content}})
+    res = _request("POST", "/conversations", {"source_id": contact.source_id, "inbox_id": s.chatwoot_inbox_id, "contact_id": contact.id, "status": "open"})
     display_id = int((res or {})["id"])
+    _request("POST", f"/conversations/{display_id}/messages", {"content": note, "private": True})
     if labels:
         try:
             _request("POST", f"/conversations/{display_id}/labels", {"labels": labels})
