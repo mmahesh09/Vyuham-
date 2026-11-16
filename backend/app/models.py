@@ -310,3 +310,13 @@ class Notification(Base):
     kind: Mapped[str] = mapped_column(String(16), default="alert")  # alert | digest
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     read_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ChatwootWebhookDelivery(Base):
+    """Chatwoot webhook deliveries already processed, so a retried delivery is handled once."""
+
+    __tablename__ = "chatwoot_webhook_deliveries"
+
+    delivery_id: Mapped[str] = mapped_column(String(100), primary_key=True)
+    event: Mapped[str] = mapped_column(String(64))
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
