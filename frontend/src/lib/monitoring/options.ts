@@ -29,7 +29,10 @@ function isExpected(hint: EventHint): boolean {
   if (err instanceof ApiError && err.status < 500) return true;
   // Next.js uses thrown errors for redirect() and notFound(); they are control flow, not crashes.
   const digest = (err as { digest?: unknown } | null)?.digest;
-  return typeof digest === "string" && (digest.startsWith("NEXT_REDIRECT") || digest.startsWith("NEXT_HTTP_ERROR_FALLBACK") || digest === "NEXT_NOT_FOUND");
+  if (typeof digest === "string" && (digest.startsWith("NEXT_REDIRECT") || digest.startsWith("NEXT_HTTP_ERROR_FALLBACK") || digest === "NEXT_NOT_FOUND")) return true;
+  // In production the browser only receives a redacted copy of a server component crash. The server
+  // already reported the real error (same digest), so the copy would be a duplicate issue.
+  return typeof digest === "string" && err instanceof Error && err.message.startsWith("An error occurred in the Server Components render");
 }
 
 export function sharedOptions(dsn: string | undefined) {
