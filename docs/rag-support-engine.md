@@ -100,7 +100,7 @@ module: `sql_other`, `chart_config`, `automation_failed`, `report_failed` or `ot
 | Global approval needs an explicit privacy check | `approve()` on a global article requires `confirm_no_customer_data=true` |
 | Tenant knowledge stays private | `scope='tenant'` rows carry `workspace_id` (enforced by `CHECK`). Retrieval matches `workspace_id = current workspace` only. |
 | Edits re-trigger review | Editing an article sets it back to `pending` and deletes its embedding |
-| Only Vyuham staff review | `/support/knowledge/*` require a **verified** email listed in `SUPPORT_STAFF_EMAILS`; anyone else gets 404 |
+| Only Vyuham staff review | `/support/knowledge/*` require a **verified** email in `SUPPORT_STAFF_EMAILS` or `SUPPORT_ADMIN_EMAILS`; anyone else gets 404. Approving, rejecting, editing or archiving a **global** article requires an administrator (403 for staff). Every change is audited (see [support-admin-dashboard.md](support-admin-dashboard.md)). |
 
 Lifecycle:
 
@@ -238,7 +238,7 @@ All paths are under `/api` from the browser (Next.js forwards them to FastAPI).
 | `POST /support/assistant/sessions/{id}/feedback` | `{resolved, comment?}` | Once per session |
 | `POST /support/assistant/sessions/{id}/escalate` | `{message?, include_diagnostics}` | Chatwoot conversation labelled `ai-escalation`; diagnostics only when `include_diagnostics=true` |
 
-**Staff** (verified email in `SUPPORT_STAFF_EMAILS`; others get 404):
+**Staff and administrators** (verified email in `SUPPORT_STAFF_EMAILS` / `SUPPORT_ADMIN_EMAILS`; others get 404; global approve/reject/edit/archive need an administrator):
 
 | Method & path | Body |
 |---|---|
@@ -270,7 +270,8 @@ Backend settings (placeholders in `backend/.env.example`; keep secrets in your h
 | `SUPPORT_AI_WORKER_ENABLED` | `true` | Background worker in this process |
 | `SUPPORT_AI_ASKS_PER_HOUR` | `20` | Per user |
 | `SUPPORT_AI_ERRORS_PER_MINUTE` | `30` | Per user |
-| `SUPPORT_STAFF_EMAILS` | empty | Comma-separated staff reviewers (must be verified addresses) |
+| `SUPPORT_STAFF_EMAILS` | empty | Comma-separated support staff (must be verified addresses) |
+| `SUPPORT_ADMIN_EMAILS` | empty | Comma-separated administrators: staff permissions plus global knowledge decisions |
 
 Changing the embedding provider or model: embeddings are stored with their model name, and search
 only uses embeddings of the current model. Re-embed by enqueueing `embed_article` for approved
@@ -348,7 +349,7 @@ staff reviewer:
 ## 13. Operating it
 
 1. **Enable pgvector**, run `alembic upgrade head`.
-2. **Set keys:** `ANTHROPIC_API_KEY`, `EMBEDDING_PROVIDER=voyage`, `VOYAGE_API_KEY`, `SUPPORT_STAFF_EMAILS`.
+2. **Set keys:** `ANTHROPIC_API_KEY`, `EMBEDDING_PROVIDER=voyage`, `VOYAGE_API_KEY`, `SUPPORT_ADMIN_EMAILS`, `SUPPORT_STAFF_EMAILS`.
 3. **Seed knowledge:** write global articles for the most common errors. `support_error_groups`
    ordered by `count` shows what customers hit most. Approve each one after testing the steps.
 4. **Review queue:** `GET /support/knowledge?status=pending` regularly, especially
@@ -363,8 +364,8 @@ staff reviewer:
 
 ## 14. Limitations and next steps
 
-- **No staff UI yet.** Review uses the API (curl, an internal tool, or Chatwoot macros). A small
-  admin screen is the natural next step.
+- **Staff UI:** knowledge review, error triage and metrics are in the internal dashboard,
+  [support-admin-dashboard.md](support-admin-dashboard.md).
 - **Embedding quality in development.** The `hash` provider is lexical; tune
   `SUPPORT_AI_MIN_SIMILARITY` once Voyage embeddings are in use.
 - **Answers are not streamed.** The browser polls every 1.5 s while the background job runs.
