@@ -44,6 +44,7 @@ class ErrorIn(BaseModel):
     error_type: str | None = Field(default=None, max_length=120)
     http_status: int | None = Field(default=None, ge=100, le=599)
     details: dict[str, Any] | None = None
+    app_version: str | None = Field(default=None, max_length=80, pattern=r"^[A-Za-z0-9._@+-]+$")
 
     @field_validator("details")
     @classmethod
@@ -57,7 +58,7 @@ def _ingest(db: Session, user: AuthUser, member: WorkspaceMember, e: ErrorIn):
     ratelimit.check_error_limit(db, user.id)
     return ingest_error(
         db, workspace_id=member.workspace_id, user_id=user.id, module=e.module, message=e.message,
-        error_type=e.error_type, http_status=e.http_status, details=e.details,
+        error_type=e.error_type, http_status=e.http_status, details=e.details, app_version=e.app_version,
     )
 
 

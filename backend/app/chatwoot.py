@@ -175,3 +175,32 @@ def create_conversation(contact: Contact, note: str, labels: list[str]) -> int:
         except ChatwootError as e:  # the conversation exists; a missing label is not worth failing for
             log.warning("Couldn't label Chatwoot conversation %s: %s", display_id, e)
     return display_id
+
+
+def get_conversation(display_id: int) -> dict | None:
+    """One conversation in the account, or None if it doesn't exist."""
+    try:
+        return _request("GET", f"/conversations/{int(display_id)}")
+    except ChatwootError as e:
+        if e.status == 404:
+            return None
+        raise
+
+
+def conversation_identifier(conv: dict) -> str | None:
+    return ((conv.get("meta") or {}).get("sender") or {}).get("identifier")
+
+
+def open_conversations(limit: int = 25) -> dict:
+    """Open conversations in the Vyuham support inbox: total count and the newest few (ids and status only)."""
+    s = get_settings()
+    res = _request("GET", f"/conversations?status=open&inbox_id={s.chatwoot_inbox_id}&page=1")
+    data = (res or {}).get("data") or {}
+    meta = data.get("meta") or {}
+    rows = [
+        {"id": c.get("id"), "status": c.get("status"), "created_at": c.get("created_at"), "last_activity_at": c.get("last_activity_at") or c.get("timestamp"),
+         "labels": c.get("labels") or [], "workspace_id": (parse_identifier(conversation_identifier(c)) or (None, None))[0]}
+        for c in (data.get("payload") or [])[:limit]
+        if c.get("inbox_id") in (None, s.chatwoot_inbox_id)
+    ]
+    return {"count": meta.get("all_count", len(rows)), "conversations": rows}

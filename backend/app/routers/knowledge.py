@@ -1,6 +1,7 @@
-"""Knowledge review for Vyuham support staff (SUPPORT_STAFF_EMAILS, verified addresses only).
+"""Knowledge review for Vyuham support staff and administrators (see support_ai/access.py).
 
-Customers can't call any of these. Approval rules live in support_ai/approval.py.
+Customers can't call any of these (404). Approval rules, the admin-only rules for global articles and
+the audit log live in support_ai/approval.py, so they hold whichever route calls them.
 """
 
 from __future__ import annotations
@@ -12,20 +13,13 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
 from app.db import get_db
 from app.models import Workspace
-from app.security import AuthUser, current_user
 from app.support_ai import approval
+from app.support_ai.access import Actor, require_support_staff
 from app.support_ai.models import KnowledgeArticle
 
 router = APIRouter(prefix="/support/knowledge", tags=["knowledge"])
-
-
-def require_staff(user: AuthUser = Depends(current_user)) -> AuthUser:
-    if not (user.email_verified and user.email.lower() in get_settings().staff_emails):
-        raise HTTPException(status.HTTP_404_NOT_FOUND)  # don't reveal that the endpoint exists
-    return user
 
 
 class ArticleFields(BaseModel):
@@ -66,13 +60,15 @@ def _run(fn, *args, **kwargs):
         return fn(*args, **kwargs)
     except approval.ApprovalError as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from None
+    except approval.NotAllowed as e:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, str(e)) from None
 
 
 @router.get("")
 def list_articles(
     status_: Literal["pending", "approved", "rejected", "archived"] | None = Query(default="pending", alias="status"),
     scope: Literal["global", "tenant"] | None = None,
-    _: AuthUser = Depends(require_staff),
+    _: Actor = Depends(require_support_staff),
     db: Session = Depends(get_db),
 ):
     stmt = select(KnowledgeArticle).order_by(KnowledgeArticle.created_at.desc()).limit(200)
@@ -80,25 +76,27 @@ def list_articles(
         stmt = stmt.where(KnowledgeArticle.status == status_)
     if scope:
         stmt = stmt.where(KnowledgeArticle.scope == scope)
-    return {"articles": [_out(a) for a in db.scalars(stmt)]}
+    rows = db.scalars(stmt).all()
+    names = dict(db.execute(select(Workspace.id, Workspace.name).where(Workspace.id.in_({a.workspace_id for a in rows if a.workspace_id}))).all()) if rows else {}
+    return {"articles": [{**_out(a), "workspace": names.get(a.workspace_id)} for a in rows]}
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create(body: ArticleIn, staff: AuthUser = Depends(require_staff), db: Session = Depends(get_db)):
+def create(body: ArticleIn, staff: Actor = Depends(require_support_staff), db: Session = Depends(get_db)):
     if body.workspace_id and db.get(Workspace, body.workspace_id) is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Unknown workspace")
     fields = body.model_dump(exclude={"scope", "workspace_id"}, exclude_none=True)
-    return _out(_run(approval.create_article, db, staff.id, scope=body.scope, workspace_id=body.workspace_id, **fields))
+    return _out(_run(approval.create_article, db, staff, scope=body.scope, workspace_id=body.workspace_id, **fields))
 
 
 @router.get("/{article_id}")
-def get(article_id: str, _: AuthUser = Depends(require_staff), db: Session = Depends(get_db)):
+def get(article_id: str, _: Actor = Depends(require_support_staff), db: Session = Depends(get_db)):
     return _out(_get(db, article_id))
 
 
 @router.patch("/{article_id}")
-def edit(article_id: str, body: ArticleFields, staff: AuthUser = Depends(require_staff), db: Session = Depends(get_db)):
-    return _out(_run(approval.edit_article, db, staff.id, _get(db, article_id), **body.model_dump(exclude_none=True)))
+def edit(article_id: str, body: ArticleFields, staff: Actor = Depends(require_support_staff), db: Session = Depends(get_db)):
+    return _out(_run(approval.edit_article, db, staff, _get(db, article_id), **body.model_dump(exclude_none=True)))
 
 
 class ApproveIn(BaseModel):
@@ -108,8 +106,8 @@ class ApproveIn(BaseModel):
 
 
 @router.post("/{article_id}/approve")
-def approve(article_id: str, body: ApproveIn, staff: AuthUser = Depends(require_staff), db: Session = Depends(get_db)):
-    return _out(_run(approval.approve, db, staff.id, _get(db, article_id), tested=body.tested, test_notes=body.test_notes, confirm_no_customer_data=body.confirm_no_customer_data))
+def approve(article_id: str, body: ApproveIn, staff: Actor = Depends(require_support_staff), db: Session = Depends(get_db)):
+    return _out(_run(approval.approve, db, staff, _get(db, article_id), tested=body.tested, test_notes=body.test_notes, confirm_no_customer_data=body.confirm_no_customer_data))
 
 
 class RejectIn(BaseModel):
@@ -117,13 +115,13 @@ class RejectIn(BaseModel):
 
 
 @router.post("/{article_id}/reject")
-def reject(article_id: str, body: RejectIn, staff: AuthUser = Depends(require_staff), db: Session = Depends(get_db)):
-    return _out(approval.reject(db, staff.id, _get(db, article_id), body.note))
+def reject(article_id: str, body: RejectIn, staff: Actor = Depends(require_support_staff), db: Session = Depends(get_db)):
+    return _out(_run(approval.reject, db, staff, _get(db, article_id), body.note))
 
 
 @router.post("/{article_id}/archive")
-def archive(article_id: str, staff: AuthUser = Depends(require_staff), db: Session = Depends(get_db)):
-    return _out(approval.archive(db, staff.id, _get(db, article_id)))
+def archive(article_id: str, staff: Actor = Depends(require_support_staff), db: Session = Depends(get_db)):
+    return _out(_run(approval.archive, db, staff, _get(db, article_id)))
 
 
 class PromoteIn(ArticleFields):
@@ -134,6 +132,6 @@ class PromoteIn(ArticleFields):
 
 
 @router.post("/{article_id}/promote", status_code=status.HTTP_201_CREATED)
-def promote(article_id: str, body: PromoteIn, staff: AuthUser = Depends(require_staff), db: Session = Depends(get_db)):
+def promote(article_id: str, body: PromoteIn, staff: Actor = Depends(require_support_staff), db: Session = Depends(get_db)):
     """Write a new, generalized global article based on a workspace one. It starts pending."""
-    return _out(_run(approval.promote, db, staff.id, _get(db, article_id), **body.model_dump(exclude_none=True)))
+    return _out(_run(approval.promote, db, staff, _get(db, article_id), **body.model_dump(exclude_none=True)))

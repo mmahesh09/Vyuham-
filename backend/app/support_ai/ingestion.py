@@ -7,6 +7,7 @@ the payload, so one customer can't file errors into another's workspace.
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timezone
 
 from sqlalchemy import select
@@ -30,6 +31,7 @@ def ingest_error(
     error_type: str | None = None,
     http_status: int | None = None,
     details: dict | None = None,
+    app_version: str | None = None,
 ) -> SupportErrorGroup:
     """Record one occurrence and return its group. Commits."""
     safe_message = redact_text(message, mask_quoted=True)
@@ -53,7 +55,11 @@ def ingest_error(
                 raise
     group.count += 1
     group.last_seen = now
-    db.add(SupportErrorEvent(workspace_id=workspace_id, group_id=group.id, user_id=user_id, message=safe_message, details=safe_details, created_at=now))
+    if group.status == "resolved":  # it happened again after being marked resolved: a regression
+        group.status, group.regressed_at = "open", now
+        log.info("error regressed workspace=%s group=%s", workspace_id, group.id)
+    version = re.sub(r"[^A-Za-z0-9._@+-]", "", app_version or "")[:80] or None
+    db.add(SupportErrorEvent(workspace_id=workspace_id, group_id=group.id, user_id=user_id, message=safe_message, details=safe_details, app_version=version, created_at=now))
     db.commit()
     log.info("error ingested workspace=%s group=%s category=%s", workspace_id, group.id, group.category)
     return group

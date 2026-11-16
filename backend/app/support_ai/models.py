@@ -81,6 +81,13 @@ class SupportErrorGroup(Base):
     count: Mapped[int] = mapped_column(Integer, default=1)
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # Triage by Vyuham support staff.
+    status: Mapped[str] = mapped_column(String(10), default="open", index=True)  # open | resolved
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolved_by: Mapped[str | None] = mapped_column(String(64))
+    resolution_note: Mapped[str | None] = mapped_column(String(1000))
+    regressed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # reopened by a new occurrence
+    chatwoot_conversation_id: Mapped[int | None] = mapped_column(Integer)
 
 
 class SupportErrorEvent(Base):
@@ -94,6 +101,7 @@ class SupportErrorEvent(Base):
     user_id: Mapped[str] = mapped_column(String(64), ForeignKey("user.id", ondelete="CASCADE"), index=True)
     message: Mapped[str] = mapped_column(String(2000))
     details: Mapped[dict] = mapped_column(JSON, default=dict)
+    app_version: Mapped[str | None] = mapped_column(String(80), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
 
 
@@ -209,3 +217,21 @@ class SupportJob(Base):
     last_error: Mapped[str | None] = mapped_column(String(500))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class SupportAuditLog(Base):
+    """Append-only record of staff actions on knowledge and errors. No code path updates or deletes rows."""
+
+    __tablename__ = "support_audit_log"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    actor_id: Mapped[str] = mapped_column(String(64))
+    actor_email: Mapped[str] = mapped_column(String(320))
+    actor_role: Mapped[str] = mapped_column(String(10))
+    action: Mapped[str] = mapped_column(String(40), index=True)
+    target_type: Mapped[str] = mapped_column(String(20))  # article | error_group | session
+    target_id: Mapped[str] = mapped_column(String(32), index=True)
+    workspace_id: Mapped[str | None] = mapped_column(String(32))  # tenant the target belongs to, if any
+    changes: Mapped[dict] = mapped_column(JSON, default=dict)  # {field: [before, after]}, redacted
+    note: Mapped[str | None] = mapped_column(String(1000))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)

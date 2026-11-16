@@ -49,7 +49,8 @@ def ai(monkeypatch):
     s = get_settings()
     monkeypatch.setattr(s, "anthropic_api_key", "test-key-not-real")
     monkeypatch.setattr(s, "embedding_provider", "hash")
-    monkeypatch.setattr(s, "support_staff_emails", "staff@acme.co")
+    monkeypatch.setattr(s, "support_staff_emails", "")
+    monkeypatch.setattr(s, "support_admin_emails", "staff@acme.co")  # the reviewer in these tests is an administrator
     monkeypatch.setattr(s, "support_ai_min_similarity", 0.05)
     fake = FakeClaude()
     monkeypatch.setattr(generation, "_get_client", lambda: fake)
@@ -303,7 +304,7 @@ def test_unverified_staff_email_is_not_staff(world, client, engine, monkeypatch)
     from app.config import get_settings
 
     add_user(engine, uid="staff2", token="tok-staff2")  # email staff2@acme.co, not verified
-    monkeypatch.setattr(get_settings(), "support_staff_emails", "staff@acme.co,staff2@acme.co")
+    monkeypatch.setattr(get_settings(), "support_staff_emails", "staff2@acme.co")
     as_user(client, "staff2")
     assert client.get("/support/knowledge").status_code == 404
 

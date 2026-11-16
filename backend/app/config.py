@@ -54,10 +54,16 @@ class Settings(BaseSettings):
     support_ai_errors_per_minute: int = 30
     # Vyuham support staff who may review and approve knowledge (comma-separated emails, verified addresses only).
     support_staff_emails: str = ""
+    # Vyuham administrators: everything staff can do, plus approving, rejecting and editing *global* knowledge.
+    support_admin_emails: str = ""
 
     @property
     def staff_emails(self) -> set[str]:
         return {e.strip().lower() for e in self.support_staff_emails.split(",") if e.strip()}
+
+    @property
+    def admin_emails(self) -> set[str]:
+        return {e.strip().lower() for e in self.support_admin_emails.split(",") if e.strip()}
 
     @property
     def chatwoot_enabled(self) -> bool:

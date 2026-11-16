@@ -4,7 +4,7 @@ from fastapi import FastAPI
 
 from app.config import get_settings
 from app.db import SessionLocal
-from app.routers import account, alerts, ask, assistant, dashboards, datasets, knowledge, me, presence, profile, sql_lab, support, team, templates
+from app.routers import account, alerts, ask, assistant, dashboards, datasets, knowledge, me, presence, profile, sql_lab, support, support_admin, team, templates
 from app.scheduler import Scheduler
 from app.support_ai.jobs import Worker as SupportAiWorker
 
@@ -43,6 +43,7 @@ app.include_router(account.router)
 app.include_router(support.router)
 app.include_router(assistant.router)
 app.include_router(knowledge.router)
+app.include_router(support_admin.router)
 
 
 @app.get("/health")
