@@ -320,3 +320,6 @@ class ChatwootWebhookDelivery(Base):
     delivery_id: Mapped[str] = mapped_column(String(100), primary_key=True)
     event: Mapped[str] = mapped_column(String(64))
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+from app.support_ai import models as _support_ai_models  # noqa: E402,F401  (registers the AI support tables)

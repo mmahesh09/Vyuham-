@@ -19,7 +19,7 @@ jobs:
         db: [sqlite, postgres]
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16  # PostgreSQL 16 + pgvector
         env:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app

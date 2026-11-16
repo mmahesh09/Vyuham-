@@ -4,6 +4,7 @@ import os
 from datetime import datetime, timedelta, timezone
 
 os.environ.setdefault("SCHEDULER_ENABLED", "false")  # tests drive alerts.tick() directly
+os.environ.setdefault("SUPPORT_AI_WORKER_ENABLED", "false")  # tests run support jobs with process_pending()
 
 import pytest
 from fastapi.testclient import TestClient
@@ -24,6 +25,8 @@ def engine():
     url = os.environ.get("TEST_DATABASE_URL")
     if url:
         eng = create_engine(url)
+        with eng.begin() as conn:  # the AI support engine stores embeddings with pgvector
+            conn.exec_driver_sql("CREATE EXTENSION IF NOT EXISTS vector")
         Base.metadata.drop_all(eng)
         Base.metadata.create_all(eng)
         yield eng

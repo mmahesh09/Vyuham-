@@ -38,6 +38,27 @@ class Settings(BaseSettings):
     chatwoot_help_center_url: str = ""  # Chatwoot help center (portal) for "Help documentation"
     chatwoot_share_email: bool = True  # lets agents follow up by email after the customer leaves
 
+    # AI troubleshooting assistant (docs/rag-support-engine.md).
+    anthropic_api_key: str = ""  # server-side only; without it the assistant answers from approved articles alone
+    support_ai_model: str = "claude-opus-5-5"
+    support_ai_effort: Literal["low", "medium", "high", "xhigh", "max"] = "medium"
+    # Embeddings for knowledge articles. Claude has no embeddings endpoint; Voyage AI is Anthropic's
+    # recommended provider. "hash" is a deterministic offline embedding for development and tests only.
+    embedding_provider: Literal["voyage", "hash"] = "hash"
+    voyage_api_key: str = ""
+    voyage_model: str = "voyage-3.5"
+    support_ai_min_similarity: float = 0.25
+    support_ai_max_articles: int = 5
+    support_ai_worker_enabled: bool = True  # background job worker (off in tests; run in one process only)
+    support_ai_asks_per_hour: int = 20
+    support_ai_errors_per_minute: int = 30
+    # Vyuham support staff who may review and approve knowledge (comma-separated emails, verified addresses only).
+    support_staff_emails: str = ""
+
+    @property
+    def staff_emails(self) -> set[str]:
+        return {e.strip().lower() for e in self.support_staff_emails.split(",") if e.strip()}
+
     @property
     def chatwoot_enabled(self) -> bool:
         return bool(self.chatwoot_base_url and self.chatwoot_account_id and self.chatwoot_inbox_id and self.chatwoot_website_token)
@@ -55,6 +76,10 @@ class Settings(BaseSettings):
                     raise ValueError("CHATWOOT_BASE_URL must use https in production")
                 if not (self.chatwoot_hmac_token and self.chatwoot_webhook_secret and self.chatwoot_api_token):
                     raise ValueError("Chatwoot in production needs CHATWOOT_HMAC_TOKEN, CHATWOOT_WEBHOOK_SECRET and CHATWOOT_API_TOKEN")
+            if self.embedding_provider == "hash" and self.anthropic_api_key:
+                raise ValueError("EMBEDDING_PROVIDER=hash is for development only; use voyage in production")
+        if self.embedding_provider == "voyage" and not self.voyage_api_key:
+            raise ValueError("EMBEDDING_PROVIDER=voyage needs VOYAGE_API_KEY")
         return self
 
 
