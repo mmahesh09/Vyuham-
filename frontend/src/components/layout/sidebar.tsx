@@ -1,6 +1,6 @@
 "use client";
 
-import { BellRing, Code2, Command, Compass, Database, House, LayoutDashboard, LayoutGrid, LayoutTemplate, LogOut, UserRound, Users } from "lucide-react";
+import { BellRing, Code2, Command, Compass, Database, House, LayoutDashboard, LayoutGrid, LayoutTemplate, LifeBuoy, LogOut, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -23,6 +23,7 @@ const NAV = [
   { href: "/alerts", label: "Alerts", icon: BellRing },
   { href: "/team", label: "Team", icon: Users },
   { href: "/profile", label: "Profile", icon: UserRound },
+  { href: "/support", label: "Help & Support", icon: LifeBuoy },
 ];
 
 export function Sidebar({ workspaceName, userName }: { workspaceName: string; userName: string }) {

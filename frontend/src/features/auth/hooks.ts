@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 
+import { resetSupportChat } from "@/features/support/widget";
 import { api, ApiError, type User } from "@/lib/api/client";
 import { authClient } from "@/lib/auth-client";
 import type { SocialProvider } from "@/lib/auth";
@@ -101,6 +102,7 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => unwrap(authClient.signOut()),
     onSettled: () => {
+      resetSupportChat(); // the next person on this device must not see this chat
       queryClient.clear();
       router.replace("/login");
       router.refresh();

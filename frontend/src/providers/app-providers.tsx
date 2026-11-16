@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 
 import { authKeys } from "@/features/auth/hooks";
 import { CommandMenu } from "@/features/command/command-menu";
+import { SupportWidget } from "@/features/support/widget";
 import { GuidedTour } from "@/features/tour/guided-tour";
 import type { User } from "@/lib/api/client";
 
@@ -26,6 +27,7 @@ export function AppProviders({ user, children }: { user: User; children: React.R
       {children}
       <CommandMenu />
       <GuidedTour />
+      <SupportWidget />
     </NuqsAdapter>
   );
 }

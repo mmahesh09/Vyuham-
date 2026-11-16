@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Bell, BellRing, CalendarClock } from "lucide-react";
+import { Bell, BellRing, CalendarClock, LifeBuoy } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -56,7 +56,7 @@ export function NotificationBell() {
             {list.data.map((n) => (
               <li key={n.id} className="border-b border-line/60 last:border-b-0">
                 <Link href={n.link ?? "/alerts"} onClick={() => setOpen(false)} className="flex gap-2.5 px-3 py-2.5 hover:bg-surface-2">
-                  {n.kind === "digest" ? <CalendarClock className="mt-0.5 size-4 shrink-0 text-highlight" aria-hidden /> : <BellRing className="mt-0.5 size-4 shrink-0 text-[#ffaa44]" aria-hidden />}
+                  {n.kind === "support" ? <LifeBuoy className="mt-0.5 size-4 shrink-0 text-highlight" aria-hidden /> : n.kind === "digest" ? <CalendarClock className="mt-0.5 size-4 shrink-0 text-highlight" aria-hidden /> : <BellRing className="mt-0.5 size-4 shrink-0 text-[#ffaa44]" aria-hidden />}
                   <span className="flex min-w-0 flex-col gap-0.5">
                     <span className={`text-sm ${n.read_at ? "text-muted" : "font-semibold"}`}>{n.title}</span>
                     <span className="line-clamp-2 whitespace-pre-line text-xs text-muted">{n.body}</span>
