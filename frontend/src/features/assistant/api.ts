@@ -44,7 +44,7 @@ export type ThreadSummary = { thread_id: string; module: AssistantModule; title:
 
 export type Article = { id: string; title: string; scope: "global" | "tenant"; symptoms: string; root_cause: string; resolution: string; verified: boolean };
 
-export type ErrorReport = { module: AssistantModule; message: string; error_type?: string; http_status?: number; details?: Record<string, unknown> };
+export type ErrorReport = { module: AssistantModule; message: string; error_type?: string; http_status?: number; details?: Record<string, unknown>; app_version?: string };
 
 export const assistantKeys = {
   session: (id: string) => ["assistant", "session", id] as const,

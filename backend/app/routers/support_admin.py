@@ -87,6 +87,7 @@ def overview(days: int = Query(default=30, ge=1, le=365), _: Actor = Depends(req
             SupportErrorGroup.fingerprint,
             func.max(SupportErrorGroup.module),
             func.max(SupportErrorGroup.category),
+            func.max(SupportErrorGroup.error_type),
             func.max(SupportErrorGroup.normalized_message),
             func.count(SupportErrorEvent.id),
             func.count(distinct(SupportErrorGroup.workspace_id)),
@@ -100,8 +101,8 @@ def overview(days: int = Query(default=30, ge=1, le=365), _: Actor = Depends(req
         .limit(10)
     ).all()
     top_errors = [
-        {"fingerprint": fp, "module": m, "category": c, "message": msg, "events": n, "workspaces": ws, "last_seen": _iso(last), "open_groups": int(open_ or 0)}
-        for fp, m, c, msg, n, ws, last, open_ in top
+        {"fingerprint": fp, "module": m, "category": c, "error_type": et, "message": msg, "events": n, "workspaces": ws, "last_seen": _iso(last), "open_groups": int(open_ or 0)}
+        for fp, m, c, et, msg, n, ws, last, open_ in top
     ]
 
     day = func.date(SupportErrorEvent.created_at)

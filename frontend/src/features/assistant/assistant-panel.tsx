@@ -56,7 +56,7 @@ function useDiagnostics(module: AssistantModule, dashboardId: string | undefined
   const serverData = server.data && Object.keys(server.data).length > 1 ? server.data : null;
   const context = wanted ? { ...(serverData ?? {}), ...(recent.length ? { recent_errors: recent.slice(0, 5) } : {}) } : null;
   const latest = recent[0];
-  const error = latest ? { module, message: latest.message, error_type: `HTTP ${latest.status}`, http_status: latest.status, details: latest.sql ? { sql: latest.sql, path: latest.path } : { path: latest.path } } : undefined;
+  const error = latest ? { module, message: latest.message, error_type: `HTTP ${latest.status}`, http_status: latest.status, details: latest.sql ? { sql: latest.sql, path: latest.path } : { path: latest.path }, app_version: process.env.NEXT_PUBLIC_APP_RELEASE || undefined } : undefined;
   return { recent, context, error, loading: server.isFetching, hasAnything: recent.length > 0 || module === "dashboard" || module === "automations" || module === "reports" };
 }
 

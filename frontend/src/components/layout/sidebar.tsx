@@ -1,12 +1,13 @@
 "use client";
 
-import { BellRing, Code2, Command, Compass, Database, House, LayoutDashboard, LayoutGrid, LayoutTemplate, LifeBuoy, LogOut, Sparkles, UserRound, Users } from "lucide-react";
+import { BellRing, Code2, Command, Compass, Database, House, LayoutDashboard, LayoutGrid, LayoutTemplate, LifeBuoy, LogOut, ShieldCheck, Sparkles, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Logo } from "@/components/layout/logo";
 import { NotificationBell } from "@/features/alerts/notification-bell";
 import { useAssistantStore } from "@/features/assistant/store";
+import { useSupportAdminRole } from "@/features/support-admin/api";
 import { useLogout } from "@/features/auth/hooks";
 import { StatusMenu } from "@/features/presence/status-menu";
 import { TeamStatusPopover } from "@/features/profile/team-status-popover";
@@ -33,6 +34,9 @@ export function Sidebar({ workspaceName, userName }: { workspaceName: string; us
   const openCommand = useUiStore((s) => s.openCommand);
   const startTour = useTour((s) => s.start);
   const openAssistant = useAssistantStore((s) => s.openAssistant);
+  // Only decides whether to show the link; /admin/support and its API check access on the server.
+  const { data: supportRole } = useSupportAdminRole();
+  const nav = supportRole ? [...NAV, { href: "/admin/support", label: "Support admin", icon: ShieldCheck }] : NAV;
 
   return (
     <nav
@@ -41,7 +45,7 @@ export function Sidebar({ workspaceName, userName }: { workspaceName: string; us
     >
       <Logo href="/home" />
       <ul className="flex flex-col gap-1 max-md:flex-row max-md:flex-wrap">
-        {NAV.map(({ href, label, icon: Icon }) => {
+        {nav.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || pathname.startsWith(`${href}/`);
           return (
             <li key={href}>
