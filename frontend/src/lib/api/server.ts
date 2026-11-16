@@ -1,5 +1,6 @@
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
 import { cookies } from "next/headers";
 import { cache } from "react";
 
@@ -26,11 +27,15 @@ export const getSession = cache(async (): Promise<SessionResult> => {
   let res: Response;
   try {
     res = await fetch(`${BACKEND_URL}/me`, { headers: { cookie: cookieHeader }, cache: "no-store" });
-  } catch {
+  } catch (error) {
+    Sentry.captureException(error, { level: "warning", tags: { check: "session", backend: "unreachable" } });
     return { status: "backend-unavailable", detail: `Couldn't connect to the API at ${BACKEND_URL}.` };
   }
   if (res.status === 401) return { status: "signed-out" };
-  if (!res.ok) return { status: "backend-unavailable", detail: `The API at ${BACKEND_URL} answered ${res.status}.` };
+  if (!res.ok) {
+    Sentry.captureMessage("Backend failed the session check", { level: "warning", tags: { check: "session", api_status: res.status } });
+    return { status: "backend-unavailable", detail: `The API at ${BACKEND_URL} answered ${res.status}.` };
+  }
   return { status: "signed-in", user: (await res.json()) as User };
 });
 

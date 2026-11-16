@@ -1,8 +1,9 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
 import { useQueryClient } from "@tanstack/react-query";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { authKeys } from "@/features/auth/hooks";
 import { CommandMenu } from "@/features/command/command-menu";
@@ -14,6 +15,11 @@ export function AppProviders({ user, children }: { user: User; children: React.R
   const queryClient = useQueryClient();
   // Seed the cache once with the user the server already loaded, so useMe() never refetches on mount.
   useState(() => queryClient.setQueryData(authKeys.me, user));
+  // Error reports carry only the opaque user id, never email or name, so GlitchTip can count affected users.
+  useEffect(() => {
+    Sentry.setUser({ id: user.id });
+    return () => Sentry.setUser(null);
+  }, [user.id]);
 
   return (
     <NuqsAdapter>

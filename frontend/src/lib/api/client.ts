@@ -1,3 +1,5 @@
+import * as Sentry from "@sentry/nextjs";
+
 export type Workspace = { id: string; name: string };
 export type Role = "owner" | "editor" | "viewer";
 export type User = {
@@ -39,7 +41,13 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     } catch {
       /* non-JSON error body */
     }
-    throw new ApiError(res.status, message);
+    const error = new ApiError(res.status, message);
+    // Server faults are bugs worth tracking even when the UI shows a friendly message.
+    // 4xx are expected (validation, signed out) and stay out of GlitchTip.
+    if (res.status >= 500) {
+      Sentry.captureException(error, { tags: { api_status: res.status, api_method: (init.method ?? "GET").toUpperCase() }, extra: { api_path: path } });
+    }
+    throw error;
   }
   return (res.status === 204 ? undefined : await res.json()) as T;
 }

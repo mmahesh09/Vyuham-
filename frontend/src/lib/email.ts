@@ -1,5 +1,7 @@
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
+
 /**
  * Transactional email for Better Auth (password reset, email verification) through Resend.
  * Without RESEND_API_KEY the message is printed to the server console, so local dev needs no setup.
@@ -36,5 +38,9 @@ export async function sendEmail(to: string, subject: string, html: string, text:
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
     body: JSON.stringify({ from: process.env.EMAIL_FROM ?? "Vyuham <onboarding@resend.dev>", to: [to], subject, html, text }),
   });
-  if (!res.ok) console.error(`[email] Resend refused a message to ${to}: HTTP ${res.status} ${(await res.text()).slice(0, 300)}`);
+  if (!res.ok) {
+    console.error(`[email] Resend refused a message to ${to}: HTTP ${res.status} ${(await res.text()).slice(0, 300)}`);
+    // No recipient, subject or response body: they can contain personal data.
+    Sentry.captureMessage("Email provider refused a message", { level: "error", tags: { email_provider: "resend", api_status: res.status } });
+  }
 }
