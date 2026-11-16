@@ -1,11 +1,12 @@
 "use client";
 
-import { BellRing, Code2, Command, Compass, Database, House, LayoutDashboard, LayoutGrid, LayoutTemplate, LifeBuoy, LogOut, UserRound, Users } from "lucide-react";
+import { BellRing, Code2, Command, Compass, Database, House, LayoutDashboard, LayoutGrid, LayoutTemplate, LifeBuoy, LogOut, Sparkles, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Logo } from "@/components/layout/logo";
 import { NotificationBell } from "@/features/alerts/notification-bell";
+import { useAssistantStore } from "@/features/assistant/store";
 import { useLogout } from "@/features/auth/hooks";
 import { StatusMenu } from "@/features/presence/status-menu";
 import { TeamStatusPopover } from "@/features/profile/team-status-popover";
@@ -31,6 +32,7 @@ export function Sidebar({ workspaceName, userName }: { workspaceName: string; us
   const logout = useLogout();
   const openCommand = useUiStore((s) => s.openCommand);
   const startTour = useTour((s) => s.start);
+  const openAssistant = useAssistantStore((s) => s.openAssistant);
 
   return (
     <nav
@@ -59,6 +61,14 @@ export function Sidebar({ workspaceName, userName }: { workspaceName: string; us
         })}
       </ul>
       <div className="mt-auto flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => openAssistant()}
+        className="flex min-h-9 items-center gap-2 rounded-[10px] px-3 text-[13px] text-faint hover:text-text"
+      >
+        <Sparkles className="size-4" strokeWidth={1.8} aria-hidden />
+        Ask AI support
+      </button>
       <button
         type="button"
         onClick={startTour}

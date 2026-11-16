@@ -1,5 +1,7 @@
 import * as Sentry from "@sentry/nextjs";
 
+import { recordApiError } from "@/lib/api/recent-errors";
+
 export type Workspace = { id: string; name: string };
 export type Role = "owner" | "editor" | "viewer";
 export type User = {
@@ -42,6 +44,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
       /* non-JSON error body */
     }
     const error = new ApiError(res.status, message);
+    recordApiError(path, init, res.status, message); // in-memory only; the AI assistant may offer it as context
     // Server faults are bugs worth tracking even when the UI shows a friendly message.
     // 4xx are expected (validation, signed out) and stay out of GlitchTip.
     if (res.status >= 500) {

@@ -156,7 +156,7 @@ def enforce_grounding(raw: Answer, hits: list[Hit]) -> dict:
     uncertainty = raw.uncertainty.strip()
     if not hits and CONFIDENCE_ORDER.index(confidence) > CONFIDENCE_ORDER.index("low"):
         confidence = "low"
-    if confidence != "high" and not uncertainty:
+    if not uncertainty and (confidence in ("low", "insufficient_evidence") or not cited):
         uncertainty = "There isn't enough verified information to be sure. Treat these steps as suggestions."
     return {
         "summary": raw.summary.strip(),

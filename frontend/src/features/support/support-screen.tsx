@@ -2,13 +2,14 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { formatDistanceToNow } from "date-fns";
-import { BookOpen, Bug, Check, ExternalLink, MessageCircle, MessagesSquare } from "lucide-react";
+import { BookOpen, Bug, Check, ExternalLink, MessageCircle, MessagesSquare, Sparkles } from "lucide-react";
 import { useState } from "react";
 
 import { Badge } from "@/components/reui/badge";
 import { Button } from "@/components/ui/button";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Textarea } from "@/components/ui/textarea";
+import { useAssistantStore } from "@/features/assistant/store";
 
 import { useReportProblem, useSupportConfig, useSupportConversations, type SupportConversation } from "./api";
 import { openSupportChat, previousAppPage } from "./widget";
@@ -134,6 +135,20 @@ function ReportProblem() {
   );
 }
 
+function AssistantCard() {
+  const openAssistant = useAssistantStore((s) => s.openAssistant);
+  return (
+    <Card icon={Sparkles} title="Ask the AI assistant">
+      <p className="text-sm text-muted">
+        Get an explanation of an error and steps to try, right away. It tells you which steps are fixes our team has tested and which are only suggestions.
+      </p>
+      <Button className="self-start" onClick={() => openAssistant()}>
+        <Sparkles /> Ask the assistant
+      </Button>
+    </Card>
+  );
+}
+
 export function SupportScreen() {
   const { data: config, isPending } = useSupportConfig();
   const helpUrl = config?.help_center_url;
@@ -144,6 +159,8 @@ export function SupportScreen() {
         <h1 className="text-[38px] font-semibold tracking-[-0.03em]">Help & Support</h1>
         <p className="text-[15px] text-muted">Chat with us, check on your conversations, read the guides or tell us about a problem.</p>
       </div>
+
+      <AssistantCard />
 
       {isPending ? null : !config?.enabled ? (
         <p className="rounded-2xl border border-line p-5 text-sm text-muted">
