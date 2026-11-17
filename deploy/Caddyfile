@@ -2,8 +2,34 @@
 # domain's DNS A/AAAA record at this server first. Only the Vercel app calls this (it proxies /api).
 {$API_DOMAIN} {
 	encode zstd gzip
-	reverse_proxy backend:8000
-	request_body {
-		max_size 12MB # uploads are capped at 10 MB by the API; a little room for the form encoding
+
+	# Observability (docker compose --profile observability). Without the profile these return 502 and
+	# the API is unaffected. See docs/observability.md.
+
+	# Telemetry from the Next.js app on Vercel, forwarded to the Collector's authenticated receiver.
+	# Refused unless the bearer token matches OTEL_COLLECTOR_TOKEN (and never when that token is empty).
+	@otel_ok {
+		path /otel/*
+		header Authorization "Bearer {$OTEL_COLLECTOR_TOKEN}"
+		not header Authorization "Bearer "
+	}
+	handle @otel_ok {
+		uri strip_prefix /otel
+		reverse_proxy otel-collector:4319
+	}
+	handle /otel/* {
+		respond 401
+	}
+
+	# Grafana, with its own sign-in (served from the /grafana sub-path).
+	handle /grafana* {
+		reverse_proxy grafana:3000
+	}
+
+	handle {
+		reverse_proxy backend:8000
+		request_body {
+			max_size 12MB # uploads are capped at 10 MB by the API; a little room for the form encoding
+		}
 	}
 }

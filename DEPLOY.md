@@ -82,7 +82,21 @@ restart: `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d`.
      that error sees the fix on the error screen.
   Without a DSN, nothing is sent anywhere and the app behaves exactly as before.
 
+## 7. Observability (optional): OpenTelemetry + Grafana
+Traces, metrics and logs go to a self-hosted Grafana stack (Collector, Tempo, Prometheus, Loki, Grafana),
+all on this server under the compose profile `observability`. It's off until you turn it on. The stack
+needs about 1–2 GB of memory, so use an 8 GB server. Full guide: [docs/observability.md](docs/observability.md).
+
+1. In `.env.prod`: `OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318`, `OTEL_COLLECTOR_TOKEN=<random>`,
+   `GRAFANA_ADMIN_PASSWORD=<random>`.
+2. `docker compose -f docker-compose.prod.yml --env-file .env.prod --profile observability up -d --build`
+3. Sign in at `https://<API_DOMAIN>/grafana`.
+4. In Vercel, set `OTEL_EXPORTER_OTLP_ENDPOINT=https://<API_DOMAIN>/otel`,
+   `OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer <OTEL_COLLECTOR_TOKEN>` and `OTEL_SERVICE_NAME=vyuham-web`,
+   then redeploy.
+
 ## Updating
 ```sh
 cd /opt/vyuham && git pull && docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```
+With the observability stack on, add `--profile observability` to that command.

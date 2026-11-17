@@ -17,6 +17,7 @@ import duckdb
 from app.insights import AMOUNT_HINT, ENTITY_HINT, ID_HINT, metric_label
 from app.models import Dataset
 from app.query import ROW_KEY, Filters, distinct_values
+from app.telemetry import count, span
 
 WORD = re.compile(r"[a-z0-9]+")
 COUNT_WORDS = {"orders", "order", "transactions", "transaction", "rows", "records", "sales_count", "deals", "invoices", "count", "number"}
@@ -212,7 +213,18 @@ def _parse_one(question: str, ds: Dataset, con: duckdb.DuckDBPyConnection, today
 
 
 def parse_question(question: str, datasets: list[Dataset], con: duckdb.DuckDBPyConnection, today: date | None = None) -> Parsed | None:
-    """Best interpretation across the workspace's datasets, or None if nothing matched."""
+    """Best interpretation across the workspace's datasets, or None if nothing matched.
+
+    Traced as `vyuham.ask.parse`: how many datasets were tried and whether it matched, never the question.
+    """
+    with span("vyuham.ask.parse", **{"vyuham.ask.datasets": len(datasets), "vyuham.ask.words": len(words(question))}) as s:
+        parsed = _parse_question(question, datasets, con, today)
+        s.set_attribute("vyuham.ask.matched", parsed is not None)
+        count("vyuham.ask.questions", matched=parsed is not None)
+        return parsed
+
+
+def _parse_question(question: str, datasets: list[Dataset], con: duckdb.DuckDBPyConnection, today: date | None = None) -> Parsed | None:
     today = today or date.today()
     best: Parsed | None = None
     for ds in datasets:

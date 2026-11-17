@@ -1,0 +1,132 @@
+# OpenTelemetry Collector for Vyuham (docker-compose.prod.yml, profile "observability").
+#
+# Everything Vyuham sends goes through here first, so privacy and sampling are enforced in one place:
+#   API / worker / beat  --OTLP (private Docker network, no auth)-->  otlp/internal  :4318 / :4317
+#   Next.js on Vercel    --OTLP over HTTPS via Caddy /otel, bearer token-->  otlp/public  :4319
+# then: drop health checks -> strip secrets and customer SQL -> keep errors + slow traces + a sample -> batch
+#   traces -> Tempo     metrics -> Prometheus (OTLP receiver)     logs -> Loki (OTLP endpoint)
+# See docs/observability.md.
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  bearertokenauth:
+    token: ${env:OTEL_COLLECTOR_TOKEN}
+
+receivers:
+  otlp/internal:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+      grpc:
+        endpoint: 0.0.0.0:4317
+  otlp/public:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4319
+        auth:
+          authenticator: bearertokenauth
+
+processors:
+  # First: refuse data rather than run the server out of memory.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+
+  # Health and readiness probes run every few seconds and say nothing useful.
+  filter/health:
+    error_mode: ignore
+    traces:
+      span:
+        - 'IsMatch(attributes["url.path"], "^/health")'
+        - 'IsMatch(attributes["http.target"], "^/health")'
+
+  # Second line of defence: the apps already avoid these, the Collector removes them again.
+  attributes/redact:
+    actions:
+      - { key: http.request.header.authorization, action: delete }
+      - { key: http.request.header.cookie, action: delete }
+      - { key: http.response.header.set-cookie, action: delete }
+      - { key: http.request.header.x-api-key, action: delete }
+      - { key: url.query, action: delete }
+      - { key: url.full, action: delete } # may carry query strings; url.path and http.route stay
+      - { key: http.url, action: delete }
+      - { key: enduser.id, action: delete }
+      - { key: user.email, action: delete }
+      - { pattern: "(?i).*(password|passwd|secret|token|api[_-]?key).*", action: delete }
+
+  # SQL text is kept only for the app's own database (placeholders, never values). Anything else
+  # (DuckDB over customer data, customer databases) loses db.statement entirely.
+  transform/sql:
+    error_mode: ignore
+    trace_statements:
+      - context: span
+        statements:
+          - delete_key(attributes, "db.statement") where attributes["db.system"] != "postgresql" and attributes["db.system"] != "sqlite"
+          - delete_key(attributes, "db.query.text") where attributes["db.system"] != "postgresql" and attributes["db.system"] != "sqlite"
+      # Exception messages and stack traces: mask emails and key=value credentials.
+      - context: spanevent
+        statements:
+          - replace_pattern(attributes["exception.message"], "[\\w.+-]+@[\\w-]+\\.[\\w.-]+", "[email]")
+          - replace_pattern(attributes["exception.stacktrace"], "[\\w.+-]+@[\\w-]+\\.[\\w.-]+", "[email]")
+          - replace_pattern(attributes["exception.message"], "(?i)(password|secret|token|api[_-]?key)\\s*[=:]\\s*\\S+", "$$1=[redacted]")
+          - replace_pattern(attributes["exception.stacktrace"], "(?i)(password|secret|token|api[_-]?key)\\s*[=:]\\s*\\S+", "$$1=[redacted]")
+
+  # Keep every trace with an error, every trace slower than 2 s, and a sample of the rest.
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 20000
+    policies:
+      - name: errors
+        type: status_code
+        status_code: { status_codes: [ERROR] }
+      - name: slow
+        type: latency
+        latency: { threshold_ms: 2000 }
+      - name: sample
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: ${env:OTEL_SAMPLE_PERCENT:-10}
+
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+
+exporters:
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true # private Docker network
+  otlphttp/prometheus:
+    endpoint: http://prometheus:9090/api/v1/otlp
+    tls:
+      insecure: true
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+    tls:
+      insecure: true
+
+service:
+  extensions: [health_check, bearertokenauth]
+  telemetry:
+    metrics:
+      readers:
+        - pull:
+            exporter:
+              prometheus:
+                host: 0.0.0.0
+                port: 8888
+  pipelines:
+    traces:
+      receivers: [otlp/internal, otlp/public]
+      processors: [memory_limiter, filter/health, attributes/redact, transform/sql, tail_sampling, batch]
+      exporters: [otlp/tempo]
+    metrics:
+      receivers: [otlp/internal, otlp/public]
+      processors: [memory_limiter, attributes/redact, batch]
+      exporters: [otlphttp/prometheus]
+    logs:
+      receivers: [otlp/internal, otlp/public]
+      processors: [memory_limiter, attributes/redact, batch]
+      exporters: [otlphttp/loki]

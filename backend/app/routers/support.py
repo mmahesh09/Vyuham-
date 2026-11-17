@@ -201,7 +201,14 @@ def _parse_glitchtip(payload: dict) -> list[dict]:
         title = str(att.get("title") or "").strip()[:300]
         if not (m and title):
             continue
-        out.append({"issue_id": m.group(1), "title": title, "culprit": (str(att.get("text") or "")[:300] or None), "url": link or None})
+        culprit = str(att.get("text") or "")[:300] or None
+        fields = {str(f.get("title") or "").lower(): str(f.get("value") or "") for f in att.get("fields") or [] if isinstance(f, dict)}
+        out.append({
+            "issue_id": m.group(1), "title": title, "culprit": culprit, "url": link or None,
+            "release": fields.get("release", "")[:100] or None,
+            # GlitchTip culprits look like "app.routers.datasets in upload_dataset"; keep the module part.
+            "module": (culprit.split(" in ")[0].strip()[:200] or None) if culprit else None,
+        })
     return out
 
 
@@ -228,12 +235,16 @@ async def glitchtip_webhook(request: Request, db: Session = Depends(get_db)):
     for issue in _parse_glitchtip(payload):
         g = db.scalar(select(ErrorGroup).where(ErrorGroup.glitchtip_issue_id == issue["issue_id"]))
         if g is None:
-            g = ErrorGroup(glitchtip_issue_id=issue["issue_id"], title=issue["title"], culprit=issue["culprit"], url=issue["url"])
+            g = ErrorGroup(
+                glitchtip_issue_id=issue["issue_id"], title=issue["title"], culprit=issue["culprit"], url=issue["url"],
+                release=issue["release"], module=issue["module"],
+            )
             db.add(g)
             new_groups.append(g)
         else:
             g.count += 1
             g.last_seen = _now()
+            g.release = issue["release"] or g.release
             if g.status == "fixed":  # it came back
                 g.status = "known"
     db.commit()

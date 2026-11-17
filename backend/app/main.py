@@ -12,10 +12,12 @@ from app.ratelimit import RateLimitMiddleware
 from app.errors import setup_error_tracking
 from app.routers import account, alerts, ask, dashboards, datasets, health, kb, me, presence, profile, reports, sql_lab, status_page, support, team, templates
 from app.scheduler import Scheduler
-from app.telemetry import setup_telemetry
+from app.telemetry import configure_logging, count, current_trace_id, record_error, scrub, setup_telemetry
 
 
 log = logging.getLogger("app.main")
+# uvicorn only configures its own loggers; give the app's a handler (with the trace id on every line).
+configure_logging()
 
 
 @asynccontextmanager
@@ -70,7 +72,20 @@ app.include_router(status_page.admin)
 @app.exception_handler(Exception)
 async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
     """A 500 the person can act on: a reference to quote to support, and the fix when staff have written one up."""
-    ref = capture(exc)
+    endpoint = request.scope.get("endpoint")
+    module = getattr(endpoint, "__module__", None) or "app"
+    # Mark the request's span as failed with a scrubbed exception, and count it by category and module.
+    from opentelemetry import trace
+
+    category = record_error(trace.get_current_span(), exc)
+    count("vyuham.errors", category=category, module=module)
+    ref = capture(exc, module=module)
+    # Starlette re-raises this same exception after the response; the OpenTelemetry middleware then records
+    # it on the request span. Scrub its message first so emails and credentials never reach telemetry.
+    try:
+        exc.args = (scrub(str(exc)),)
+    except Exception:  # some exception types don't allow it; the Collector scrubs again
+        pass
     help_link = None
     try:
         gen = app.dependency_overrides.get(get_db, get_db)()
@@ -84,7 +99,7 @@ async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
     except Exception:  # the help lookup must never turn one error into two
         log.exception("help lookup for an unhandled error failed")
     return JSONResponse(
-        {"detail": "Something went wrong on our side. We have been notified.", "error_ref": ref, "help": help_link},
+        {"detail": "Something went wrong on our side. We have been notified.", "error_ref": ref, "help": help_link, "trace_id": current_trace_id()},
         status_code=500,
     )
 

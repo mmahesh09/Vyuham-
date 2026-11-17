@@ -33,6 +33,7 @@ from app.schemas import (
     ShareOut,
 )
 from app.security import current_membership
+from app.telemetry import count, span
 
 router = APIRouter(tags=["dashboards"])
 public = APIRouter(prefix="/public", tags=["public"])
@@ -114,6 +115,16 @@ def _all_datasets(db: Session, workspace_id: str) -> dict[str, Dataset]:
 
 
 def _view(db: Session, d: Dashboard, date_from: date | None, date_to: date | None, equals: dict[str, str]) -> DashboardViewOut:
+    """Every chart's rows and insight. Traced as `vyuham.dashboard.view` (counts only, no data)."""
+    with span("vyuham.dashboard.view", **{"vyuham.workspace_id": d.workspace_id, "vyuham.dashboard.charts": len(d.charts)}) as s:
+        view = _view_impl(db, d, date_from, date_to, equals)
+        failed = sum(1 for c in view.charts if c.error)
+        s.set_attribute("vyuham.dashboard.failed_charts", failed)
+        count("vyuham.dashboard.views", outcome="partial" if failed else "ok")
+        return view
+
+
+def _view_impl(db: Session, d: Dashboard, date_from: date | None, date_to: date | None, equals: dict[str, str]) -> DashboardViewOut:
     if date_from and date_to and date_from > date_to:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "The start date is after the end date")
     datasets = _all_datasets(db, d.workspace_id) if any(c.spec.get("sql") for c in d.charts) else _datasets(db, d)

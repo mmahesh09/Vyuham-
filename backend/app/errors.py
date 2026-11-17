@@ -76,12 +76,24 @@ def identify(user_id: str, workspace_id: str | None = None) -> None:
         sentry_sdk.set_tag("workspace_id", workspace_id)
 
 
-def capture(exc: BaseException) -> str:
-    """Report an exception; returns a reference the user can quote to support (the GlitchTip event id when on)."""
+def capture(exc: BaseException, module: str | None = None) -> str:
+    """Report an exception; returns a reference the user can quote to support (the GlitchTip event id when on).
+
+    The event is tagged with the OpenTelemetry trace id (when tracing is on) and the code module, so staff
+    can jump from an error in GlitchTip to the whole request in Grafana.
+    """
+    from app.telemetry import classify, current_trace_id
+
     if _started:
         import sentry_sdk
 
-        event_id = sentry_sdk.capture_exception(exc)
+        with sentry_sdk.new_scope() as scope:
+            if trace_id := current_trace_id():
+                scope.set_tag("trace_id", trace_id)
+            if module:
+                scope.set_tag("module", module)
+            scope.set_tag("error_category", classify(exc))
+            event_id = sentry_sdk.capture_exception(exc)
         if event_id:
             return event_id
     ref = uuid.uuid4().hex

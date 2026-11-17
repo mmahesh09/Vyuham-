@@ -20,6 +20,11 @@ export async function register() {
     const backend = process.env.BACKEND_URL;
     registerOTel({
       serviceName: process.env.OTEL_SERVICE_NAME || "vyuham-web",
+      // Same labels as the backend, so Grafana can split by environment and deploy.
+      attributes: {
+        "deployment.environment": process.env.VERCEL_ENV || process.env.NODE_ENV || "development",
+        ...(process.env.VERCEL_GIT_COMMIT_SHA ? { "service.version": process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 12) } : {}),
+      },
       instrumentationConfig: { fetch: { propagateContextUrls: backend ? [backend] : [] } },
     });
   }

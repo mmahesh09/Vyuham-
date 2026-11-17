@@ -203,6 +203,24 @@ def _convert(values: pd.Series, kind: str, fmt: str | None) -> pd.Series:
 
 
 def ingest(raw: bytes, filename: str, sheet: str | None = None, max_rows: int = 1_000_000) -> IngestResult:
+    """Parse and type an uploaded file. Traced as `vyuham.ingest`: file kind, size, rows and columns only."""
+    from app.telemetry import count, span
+
+    kind = Path(filename).suffix.lower().lstrip(".") or "unknown"
+    with span("vyuham.ingest", **{"vyuham.ingest.kind": kind, "vyuham.ingest.bytes": len(raw)}) as s:
+        try:
+            result = _ingest(raw, filename, sheet, max_rows)
+        except IngestError:
+            count("vyuham.ingest.files", kind=kind, outcome="rejected")
+            raise
+        s.set_attribute("vyuham.ingest.rows", len(result.frame))
+        s.set_attribute("vyuham.ingest.columns", len(result.columns))
+        count("vyuham.ingest.files", kind=kind, outcome="ok")
+        count("vyuham.ingest.rows", len(result.frame), kind=kind)
+        return result
+
+
+def _ingest(raw: bytes, filename: str, sheet: str | None = None, max_rows: int = 1_000_000) -> IngestResult:
     ext = Path(filename).suffix.lower()
     if ext == ".csv":
         frame, sheets, chosen = _read_csv(raw), [], None

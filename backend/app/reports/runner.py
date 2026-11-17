@@ -21,6 +21,7 @@ from app.models import Dashboard, ReportRun
 from app.query import QueryError
 from app.reports import pdf, tabular
 from app.reports.storage import get_storage
+from app.telemetry import count, span, timed
 
 log = logging.getLogger("app.reports")
 
@@ -87,6 +88,29 @@ def _build(db: Session, run: ReportRun, out_dir: str) -> tabular.Built:
 
 
 def generate(db: Session, run_id: str) -> ReportRun | None:
+    """Build one report file. Traced as `vyuham.report.render`: format, rows, size and outcome only."""
+    with span("vyuham.report.render") as s, timed("vyuham.report.duration") as m:
+        try:
+            run = _generate(db, run_id)
+        except Exception:
+            m["outcome"] = "retry"
+            count("vyuham.report.renders", outcome="retry")
+            raise
+        if run is not None:
+            s.set_attribute("vyuham.workspace_id", run.workspace_id)
+            s.set_attribute("vyuham.report.format", run.format)
+            s.set_attribute("vyuham.report.source", run.source)
+            s.set_attribute("vyuham.report.status", run.status)
+            if run.rows is not None:
+                s.set_attribute("vyuham.report.rows", run.rows)
+            if run.size_bytes is not None:
+                s.set_attribute("vyuham.report.bytes", run.size_bytes)
+            m["format"], m["outcome"] = run.format, run.status
+            count("vyuham.report.renders", format=run.format, outcome=run.status)
+        return run
+
+
+def _generate(db: Session, run_id: str) -> ReportRun | None:
     run = db.get(ReportRun, run_id)
     if run is None or run.status in FINISHED:
         return run

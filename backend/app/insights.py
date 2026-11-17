@@ -13,6 +13,7 @@ import duckdb
 
 from app.models import Dataset
 from app.query import ROW_KEY, Filters, metric_key, quote, run_spec, view_name
+from app.telemetry import span
 
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
@@ -183,10 +184,15 @@ def describe(
 def chart_insight(
     con: duckdb.DuckDBPyConnection, spec: dict, dataset: Dataset, filters: Filters | None
 ) -> tuple[list[dict], Insight]:
-    rows = run_spec(con, spec, dataset, filters)
-    prev = None if spec.get("sql") else previous_period(filters)  # SQL charts ignore dashboard filters
-    prev_rows = run_spec(con, spec, dataset, prev) if prev else None
-    return rows, describe(spec, rows, prev_rows, dataset, has_period=prev is not None)
+    # Traced as `vyuham.insights`: the chart kind and whether it compared periods, never the data.
+    with span("vyuham.insights", **{"vyuham.chart.type": str(spec.get("type") or "unknown"), "vyuham.chart.sql": bool(spec.get("sql"))}) as s:
+        rows = run_spec(con, spec, dataset, filters)
+        prev = None if spec.get("sql") else previous_period(filters)  # SQL charts ignore dashboard filters
+        prev_rows = run_spec(con, spec, dataset, prev) if prev else None
+        insight = describe(spec, rows, prev_rows, dataset, has_period=prev is not None)
+        s.set_attribute("vyuham.insights.compared", prev is not None)
+        s.set_attribute("vyuham.insights.trend", insight.trend)
+        return rows, insight
 
 
 # ---------- starter dashboards ----------

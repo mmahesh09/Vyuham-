@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from app.alerts import SCHEDULE_EVERY, _aware, alert_due, automation_due, check_alert, last_occurrence, run_automation
 from app.models import Alert, Automation, JobRun
 from app.query import QueryError
+from app.telemetry import count, record, span
 
 log = logging.getLogger("app.jobs")
 
@@ -74,6 +75,28 @@ def claim(db: Session, d: Due) -> JobRun | None:
 
 
 def run_job(db: Session, job_id: str, now: datetime | None = None) -> JobRun | None:
+    """Run one claimed job (see `_run_job`). Traced as `vyuham.job` with its kind, status, attempts and lag."""
+    with span("vyuham.job") as s:
+        try:
+            run = _run_job(db, job_id, now)
+        except Exception:
+            failed = db.get(JobRun, job_id)
+            count("vyuham.jobs", kind=failed.kind if failed else "unknown", status="retry")
+            raise
+        if run is not None:
+            s.set_attribute("vyuham.job.kind", run.kind)
+            s.set_attribute("vyuham.job.status", run.status)
+            s.set_attribute("vyuham.job.attempts", run.attempts)
+            count("vyuham.jobs", kind=run.kind, status=run.status)
+            started, scheduled = _aware(run.started_at), _aware(run.scheduled_for)
+            if started and scheduled:
+                lag = max(0.0, (started - scheduled).total_seconds())
+                s.set_attribute("vyuham.job.lag_seconds", round(lag, 3))
+                record("vyuham.job.lag", lag, kind=run.kind)
+        return run
+
+
+def _run_job(db: Session, job_id: str, now: datetime | None = None) -> JobRun | None:
     """Run one claimed job. Safe to call again for the same job (e.g. a redelivered message).
 
     A broken definition (deleted dataset, bad filter) is the user's to fix, so it is recorded and

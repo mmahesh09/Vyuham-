@@ -26,5 +26,8 @@ opentelemetry-exporter-otlp-proto-http==1.45.2
 opentelemetry-instrumentation-fastapi==0.66b2
 opentelemetry-instrumentation-celery==0.66b2
 opentelemetry-instrumentation-sqlalchemy==0.66b2
+opentelemetry-instrumentation-urllib==0.66b2
+opentelemetry-instrumentation-redis==0.66b2
+opentelemetry-instrumentation-logging==0.66b2
 # Error tracking (app/errors.py): only used when SENTRY_DSN is set; events go to a self-hosted GlitchTip.
 sentry-sdk[fastapi,celery]==2.66.1

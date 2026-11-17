@@ -16,6 +16,10 @@ x-backend-env: &backend-env
   # Error tracking: a DSN from GlitchTip (below) and the secret on its webhook URL. Off when empty.
   SENTRY_DSN: ${SENTRY_DSN:-}
   GLITCHTIP_WEBHOOK_SECRET: ${GLITCHTIP_WEBHOOK_SECRET:-}
+  # Telemetry: off unless set. With `--profile observability`, use OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+  OTEL_SEMCONV_STABILITY_OPT_IN: http
+  OTEL_LOGS_EXPORTER: ${OTEL_LOGS_EXPORTER:-none}
 
 services:
   db:
@@ -138,6 +142,16 @@ services:
       SERVER_ROLE: all_in_one
       GLITCHTIP_ENABLE_UPTIME: "False"
     volumes: [glitchtip-uploads:/code/uploads]
+
+  # Observability for local development: Grafana, Tempo, Prometheus, Loki and a Collector in one container
+  # (grafana/otel-lgtm). Start with:
+  #   OTEL_EXPORTER_OTLP_ENDPOINT=http://lgtm:4318 docker compose --profile observability up
+  # Grafana: http://localhost:3001 (admin / admin, local only). Production uses separate services instead
+  # (docker-compose.prod.yml), with the privacy and sampling rules in deploy/otel-collector.yaml.
+  lgtm:
+    image: grafana/otel-lgtm:0.11.4
+    profiles: ["observability"]
+    ports: ["3001:3000", "4317:4317", "4318:4318"]
 
 volumes:
   pgdata:

@@ -27,6 +27,7 @@ from sqlglot import exp
 
 from app.config import get_settings
 from app.models import Dataset
+from app.telemetry import span, timed
 
 AGGS = {"sum": "SUM", "count": "COUNT", "avg": "AVG", "min": "MIN", "max": "MAX", "count_distinct": "COUNT_DISTINCT"}
 NUMERIC_AGGS = {"sum", "avg"}
@@ -109,18 +110,31 @@ def connect(workspace_id: str, datasets: list[Dataset]) -> duckdb.DuckDBPyConnec
     return con
 
 
-def _run(con: duckdb.DuckDBPyConnection, sql: str, params: list[Any]) -> tuple[list[str], list[tuple]]:
-    """Execute with a wall-clock timeout."""
-    timer = threading.Timer(TIMEOUT_SECONDS, con.interrupt)
-    timer.start()
-    try:
-        cur = con.execute(sql, params)
-        names = [d[0] for d in cur.description]
-        return names, cur.fetchmany(MAX_ROWS)
-    except duckdb.InterruptException as e:
-        raise QueryError("That query took too long. Try a shorter date range or fewer groups.") from e
-    finally:
-        timer.cancel()
+def _run(con: duckdb.DuckDBPyConnection, sql: str, params: list[Any], op: str = "sql") -> tuple[list[str], list[tuple]]:
+    """Execute with a wall-clock timeout.
+
+    Traced as `vyuham.query` with the kind of query (`op`), row count and outcome only: the SQL text
+    and its parameters are customer data and are never put on the span.
+    """
+    with span("vyuham.query", **{"vyuham.query.op": op, "db.system": "duckdb"}) as s, timed("vyuham.query.duration", op=op) as m:
+        timer = threading.Timer(TIMEOUT_SECONDS, con.interrupt)
+        timer.start()
+        try:
+            cur = con.execute(sql, params)
+            names = [d[0] for d in cur.description]
+            rows = cur.fetchmany(MAX_ROWS)
+            s.set_attribute("vyuham.query.rows", len(rows))
+            s.set_attribute("vyuham.query.truncated", len(rows) >= MAX_ROWS)
+            m["outcome"] = "ok"
+            return names, rows
+        except duckdb.InterruptException as e:
+            m["outcome"] = "timeout"
+            raise QueryError("That query took too long. Try a shorter date range or fewer groups.") from e
+        except Exception:
+            m["outcome"] = "error"
+            raise
+        finally:
+            timer.cancel()
 
 
 def to_json(v: Any) -> Any:
@@ -273,7 +287,7 @@ def run_spec(con: duckdb.DuckDBPyConnection, spec: dict, dataset: Dataset, dash:
         return _run_sql_chart(con, spec)
     sql, params = compile_spec(spec, dataset, dash)
     try:
-        return records(*_run(con, sql, params))
+        return records(*_run(con, sql, params, op="chart"))
     except duckdb.Error as e:
         raise QueryError("We couldn't calculate this chart. Check the columns and filters.") from e
 
@@ -306,7 +320,7 @@ def page_rows(
         order = f" ORDER BY {quote(sort)} {'DESC' if direction == 'desc' else 'ASC'} NULLS LAST"
     size = max(1, min(size, 500))
     sql = f"SELECT * FROM {view_name(dataset.id)}{where}{order} LIMIT {size} OFFSET {max(0, page) * size}"
-    return records(*_run(con, sql, params)), int(total)
+    return records(*_run(con, sql, params, op="rows")), int(total)
 
 
 def distinct_values(con: duckdb.DuckDBPyConnection, dataset: Dataset, column: str, limit: int = 200) -> list[str]:
@@ -316,7 +330,8 @@ def distinct_values(con: duckdb.DuckDBPyConnection, dataset: Dataset, column: st
         f"SELECT CAST({c} AS VARCHAR) AS v, COUNT(*) AS n FROM {view_name(dataset.id)} "
         f"WHERE {c} IS NOT NULL GROUP BY 1 ORDER BY n DESC, v LIMIT {int(limit)}"
     )
-    return [r[0] for r in con.execute(sql).fetchall()]
+    with span("vyuham.query", **{"vyuham.query.op": "values", "db.system": "duckdb"}):
+        return [r[0] for r in con.execute(sql).fetchall()]
 
 
 # ---------- raw SQL (groundwork for the AI round) ----------
@@ -343,7 +358,7 @@ def explain_sql(con: duckdb.DuckDBPyConnection, sql: str, params: list[Any] | No
     """DuckDB's physical plan for one read-only SELECT, as text."""
     validate_select(sql)
     try:
-        _, rows = _run(con, f"EXPLAIN {sql}", params or [])
+        _, rows = _run(con, f"EXPLAIN {sql}", params or [], op="explain")
     except duckdb.Error as e:
         raise QueryError(f"The query failed: {duckdb_message(e)}") from e
     return "\n".join(str(r[-1]) for r in rows)

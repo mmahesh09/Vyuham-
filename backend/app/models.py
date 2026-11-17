@@ -427,6 +427,12 @@ class ErrorGroup(Base):
     kb_article_id: Mapped[str | None] = mapped_column(ForeignKey("kb_articles.id", ondelete="SET NULL"))
     first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    # Groundwork for error intelligence: which release and code module it comes from, and the latest trace.
+    # `release` and `module` come from the GlitchTip webhook; `last_trace_id` is filled by a future job that
+    # reads event details (where the trace_id tag lives) from GlitchTip's API.
+    release: Mapped[str | None] = mapped_column(String(100))
+    module: Mapped[str | None] = mapped_column(String(200))
+    last_trace_id: Mapped[str | None] = mapped_column(String(32))
 
 
 class SupportTicket(Base):

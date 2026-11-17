@@ -1,0 +1,10 @@
+# Loads the dashboards in /var/lib/grafana/dashboards/vyuham (deploy/observability/grafana/dashboards).
+apiVersion: 1
+providers:
+  - name: vyuham
+    folder: Vyuham
+    type: file
+    disableDeletion: true
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards/vyuham
