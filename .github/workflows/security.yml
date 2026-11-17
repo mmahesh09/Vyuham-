@@ -1,6 +1,6 @@
 # Security checks: committed secrets, vulnerable dependencies, and risky code patterns.
 # Runs on every pull request, on pushes to main, and weekly (new advisories appear without code changes).
-# Actions are pinned to full commit SHAs (tag in the comment); Dependabot keeps them current.
+# Actions are pinned to full commit SHAs (tag in the comment); Renovate keeps them current (renovate.json).
 name: Security
 
 on:
@@ -86,3 +86,82 @@ jobs:
           --config p/python --config p/javascript --config p/typescript --config p/react
           --severity ERROR --error --metrics off
           backend/app frontend/src
+
+  trivy-fs:
+    name: Vulnerabilities and misconfig (Trivy, repository)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write # upload results to code scanning
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Scan dependencies, Dockerfiles and compose files
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: sarif
+          output: trivy-fs.sarif
+      - uses: github/codeql-action/upload-sarif@1fc58d04a4d4374f921bdac573c3811c240f9c26 # v4.39.2
+        if: always() && hashFiles('trivy-fs.sarif') != ''
+        with:
+          sarif_file: trivy-fs.sarif
+          category: trivy-fs
+      - name: Fail on fixable critical/high vulnerabilities
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          skip-setup-trivy: true
+
+  images:
+    name: Images (Trivy scan + Syft SBOM)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build the API and web images
+        run: |
+          docker build --target api -t vyuham-api:ci backend
+          docker build --build-context decks=./my-deck -t vyuham-web:ci frontend
+      - name: Scan the API image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: vyuham-api:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: Scan the web image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: vyuham-web:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+          skip-setup-trivy: true
+      # Software bill of materials: every package in each image, as SPDX JSON (workflow artifacts).
+      - name: SBOM for the API image
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: vyuham-api:ci
+          format: spdx-json
+          output-file: sbom-api.spdx.json
+          upload-artifact: false
+      - name: SBOM for the web image
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: vyuham-web:ci
+          format: spdx-json
+          output-file: sbom-web.spdx.json
+          upload-artifact: false
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom
+          path: sbom-*.spdx.json
+          retention-days: 90
