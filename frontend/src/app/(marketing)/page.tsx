@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { RSS_ALTERNATE } from "@/lib/site";
+import { LogoMark } from "@/components/layout/logo";
 import { Hero } from "@/components/marketing/hero";
+import { INTEGRATION_LOGOS } from "@/components/marketing/integration-logos";
 import { LazyFilterDemo, LazyFinanceShowcase, LazyLiveDashboard, LazyStoryFeed, LazySyncCard } from "@/components/marketing/lazy-demos";
 import { MapSection } from "@/components/marketing/map-section";
 import { MessySheet } from "@/components/marketing/messy-sheet";
@@ -12,6 +14,7 @@ import { ColumnsShot } from "@/components/marketing/product-shots";
 import { Reveal } from "@/components/marketing/reveal";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { body, container, delay, h2, quiet, sectionY } from "@/components/marketing/tokens";
+import { IntegrationGrid } from "@/components/ui/integration-grid";
 import { Mark } from "@/components/ui/mark";
 
 const SITE_NAME = "Vyuham";
@@ -286,6 +289,30 @@ export default function LandingPage() {
               </div>
             ))}
           </dl>
+        </section>
+
+        {/* Where the data comes from: files and exports today, database connections next */}
+        <section aria-labelledby="sources-heading" className="pt-[clamp(72px,10vw,128px)]">
+          <div className={`${container} flex flex-col items-center gap-10 text-center`}>
+            <div data-animate className="flex max-w-[64ch] flex-col items-center gap-5">
+              <h2 id="sources-heading" className={h2}>
+                Your data, <span className={quiet}>wherever it lives.</span>
+              </h2>
+              <p className={body}>
+                Upload the Excel and CSV exports you already get from your shop, your accounts and your CRM.{" "}
+                <Mark>Direct connections to PostgreSQL and MySQL</Mark>, including Supabase, PlanetScale, Amazon RDS and
+                Google Cloud SQL, are coming next.
+              </p>
+            </div>
+            <div data-animate style={delay(100)} className="dark w-full max-w-[1100px]">
+              <IntegrationGrid
+                logos={INTEGRATION_LOGOS}
+                columns={7}
+                mark={<LogoMark className="size-[62%]" />}
+                label="Vyuham reads CSV and Excel files, including exports from Google Sheets, Stripe, Shopify, QuickBooks, HubSpot, Xero, Salesforce and Airtable. Direct connections to PostgreSQL, MySQL, Supabase, Amazon RDS, PlanetScale, MariaDB and Google Cloud are coming next."
+              />
+            </div>
+          </div>
         </section>
 
         {/* 1 · The problem — black */}
