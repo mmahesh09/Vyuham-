@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-import { getAllPosts } from "@/lib/blog";
+import { getAllPosts, getAllTags } from "@/lib/blog";
 import { SITE_URL } from "@/lib/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -16,6 +16,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "monthly" as const,
       priority: 0.6,
     })),
+    ...(await getAllTags()).map((t) => ({
+      url: `${SITE_URL}/blog/tag/${encodeURIComponent(t)}`,
+      lastModified: newest,
+      changeFrequency: "weekly" as const,
+      priority: 0.4,
+    })),
+    { url: `${SITE_URL}/help`, lastModified, changeFrequency: "weekly", priority: 0.6 },
+    { url: `${SITE_URL}/status`, lastModified, changeFrequency: "daily", priority: 0.4 },
     { url: `${SITE_URL}/signup`, lastModified, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/login`, lastModified, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/privacy`, lastModified, changeFrequency: "yearly", priority: 0.3 },

@@ -678,7 +678,7 @@ export default function LandingPage() {
       </main>
 
       <footer>
-        <div className={`${container} grid gap-10 py-14 text-sm sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr]`}>
+        <div className={`${container} grid gap-10 py-14 text-sm sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr]`}>
           <div className="flex flex-col items-start gap-3">
             <Logo />
             <p className="max-w-[32ch] px-2.5 font-light text-white/55">
@@ -687,6 +687,7 @@ export default function LandingPage() {
           </div>
           {[
             { title: "Product", links: [["The problem", "#problem"], ["How it works", "#how-it-works"], ["Compare to Power BI", "#compare"], ["Pricing", "#pricing"], ["FAQ", "#faq"], ["Blog", "/blog"]] },
+            { title: "Support", links: [["Help center", "/help"], ["Contact support", "/support/new"], ["System status", "/status"]] },
             { title: "Account", links: [["Join the beta", "/signup"], ["Log in", "/login"]] },
             { title: "Legal", links: [["Privacy", "/privacy"], ["Terms", "#"]] },
           ].map((col) => (

@@ -7,6 +7,7 @@ import rehypeShiki from "@shikijs/rehype";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 
+import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { mdxComponents } from "@/features/blog/mdx-components";
 import { formatDate, getAllPosts, getPost } from "@/lib/blog";
@@ -123,6 +124,7 @@ export default async function BlogPost({ params }: Params) {
           </Link>
         </aside>
       </main>
+      <SiteFooter />
     </div>
   );
 }
