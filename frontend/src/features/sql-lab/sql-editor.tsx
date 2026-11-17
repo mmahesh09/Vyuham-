@@ -250,5 +250,5 @@ export const SqlEditor = forwardRef<SqlEditorHandle, Props>(function SqlEditor(
     },
   }));
 
-  return <div ref={host} className="h-full min-h-[220px]" />;
+  return <div ref={host} className="h-full min-h-[120px]" />;
 });

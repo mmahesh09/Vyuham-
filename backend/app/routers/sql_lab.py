@@ -52,6 +52,17 @@ class ExplainOut(BaseModel):
     plan: str
 
 
+class JoinHintOut(BaseModel):
+    left_table: str
+    left_column: str
+    right_table: str
+    right_column: str
+    overlap: float
+    normalized: bool
+    cardinality: str
+    sql: str
+
+
 class SavedIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     sql: str = Field(min_length=1, max_length=10_000)
@@ -74,6 +85,15 @@ def schema(member: WorkspaceMember = Depends(current_membership), db: Session = 
     datasets = _datasets(db, member)
     names = table_names(datasets)
     return [TableOut(table=names[d.id], dataset_id=d.id, dataset_name=d.name, row_count=d.row_count, columns=d.columns) for d in datasets]
+
+
+@router.get("/schema/joins", response_model=list[JoinHintOut])
+def schema_joins(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+    """Columns in different datasets that look like the same thing, with how many values overlap."""
+    from app.joins import find_joins
+
+    _editor(member)
+    return [h.as_dict() for h in find_joins(member.workspace_id, _datasets(db, member))]
 
 
 @router.post("/run", response_model=RunOut)
