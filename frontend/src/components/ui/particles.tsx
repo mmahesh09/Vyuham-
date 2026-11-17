@@ -1,39 +1,18 @@
 "use client"
 
-import React, {
-  useEffect,
-  useRef,
-  useState,
-  type ComponentPropsWithoutRef,
-} from "react"
+import React, { useEffect, useRef, type ComponentPropsWithoutRef } from "react"
 
 import { cn } from "@/lib/utils"
 
-interface MousePosition {
-  x: number
-  y: number
-}
-
-function MousePosition(): MousePosition {
-  const [mousePosition, setMousePosition] = useState<MousePosition>({
-    x: 0,
-    y: 0,
-  })
-
-  useEffect(() => {
-    const handleMouseMove = (event: MouseEvent) => {
-      setMousePosition({ x: event.clientX, y: event.clientY })
-    }
-
-    window.addEventListener("mousemove", handleMouseMove)
-
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove)
-    }
-  }, [])
-
-  return mousePosition
-}
+/*
+ * Performance changes from the Magic UI original (it blocked the main thread for seconds on the landing page):
+ * - the canvas is drawn at most at 1.5x pixel density (the dots are tiny; 3x on phones was pure cost);
+ * - it animates at ~30 fps instead of every frame;
+ * - it stops while scrolled out of view or while the tab is hidden;
+ * - the mouse position lives in a ref, so moving the mouse no longer re-renders the component.
+ */
+const MAX_DPR = 1.5
+const FRAME_MS = 1000 / 30
 
 interface ParticlesProps extends ComponentPropsWithoutRef<"div"> {
   className?: string
@@ -93,22 +72,36 @@ export const Particles: React.FC<ParticlesProps> = ({
   const canvasContainerRef = useRef<HTMLDivElement>(null)
   const context = useRef<CanvasRenderingContext2D | null>(null)
   const circles = useRef<Circle[]>([])
-  const mousePosition = MousePosition()
+  const mousePosition = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const mouse = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
   const canvasSize = useRef<{ w: number; h: number }>({ w: 0, h: 0 })
-  const dpr = typeof window !== "undefined" ? window.devicePixelRatio : 1
+  const dpr = typeof window !== "undefined" ? Math.min(window.devicePixelRatio || 1, MAX_DPR) : 1
   const rafID = useRef<number | null>(null)
+  const lastFrame = useRef(0)
+  const running = useRef(false)
   const resizeTimeout = useRef<NodeJS.Timeout | null>(null)
   const initCanvasRef = useRef<() => void>(() => {})
   const onMouseMoveRef = useRef<() => void>(() => {})
-  const animateRef = useRef<() => void>(() => {})
+  const animateRef = useRef<(now: number) => void>(() => {})
 
   useEffect(() => {
     if (canvasRef.current) {
       context.current = canvasRef.current.getContext("2d")
     }
     initCanvasRef.current()
-    animateRef.current()
+
+    let inView = true
+    const start = () => {
+      if (running.current || !inView || document.hidden) return
+      running.current = true
+      rafID.current = window.requestAnimationFrame(animateRef.current)
+    }
+    const stop = () => {
+      running.current = false
+      if (rafID.current != null) window.cancelAnimationFrame(rafID.current)
+      rafID.current = null
+    }
+    start()
 
     const handleResize = () => {
       if (resizeTimeout.current) {
@@ -118,23 +111,36 @@ export const Particles: React.FC<ParticlesProps> = ({
         initCanvasRef.current()
       }, 200)
     }
+    const handleMouseMove = (event: MouseEvent) => {
+      mousePosition.current = { x: event.clientX, y: event.clientY }
+      onMouseMoveRef.current()
+    }
+    const handleVisibility = () => (document.hidden ? stop() : start())
+    const io =
+      typeof IntersectionObserver !== "undefined" && canvasContainerRef.current
+        ? new IntersectionObserver(([entry]) => {
+            inView = entry.isIntersecting
+            if (inView) start()
+            else stop()
+          })
+        : null
+    if (io && canvasContainerRef.current) io.observe(canvasContainerRef.current)
 
     window.addEventListener("resize", handleResize)
+    window.addEventListener("mousemove", handleMouseMove, { passive: true })
+    document.addEventListener("visibilitychange", handleVisibility)
 
     return () => {
-      if (rafID.current != null) {
-        window.cancelAnimationFrame(rafID.current)
-      }
+      stop()
+      io?.disconnect()
       if (resizeTimeout.current) {
         clearTimeout(resizeTimeout.current)
       }
       window.removeEventListener("resize", handleResize)
+      window.removeEventListener("mousemove", handleMouseMove)
+      document.removeEventListener("visibilitychange", handleVisibility)
     }
   }, [color])
-
-  useEffect(() => {
-    onMouseMoveRef.current()
-  }, [mousePosition.x, mousePosition.y])
 
   useEffect(() => {
     initCanvasRef.current()
@@ -149,8 +155,8 @@ export const Particles: React.FC<ParticlesProps> = ({
     if (canvasRef.current) {
       const rect = canvasRef.current.getBoundingClientRect()
       const { w, h } = canvasSize.current
-      const x = mousePosition.x - rect.left - w / 2
-      const y = mousePosition.y - rect.top - h / 2
+      const x = mousePosition.current.x - rect.left - w / 2
+      const y = mousePosition.current.y - rect.top - h / 2
       const inside = x < w / 2 && x > -w / 2 && y < h / 2 && y > -h / 2
       if (inside) {
         mouse.current.x = x
@@ -254,7 +260,16 @@ export const Particles: React.FC<ParticlesProps> = ({
     return remapped > 0 ? remapped : 0
   }
 
-  const animate = () => {
+  const animate = (now: number) => {
+    if (!running.current) return
+    // ~30 fps: skip frames that come too soon after the last drawn one.
+    if (now - lastFrame.current < FRAME_MS) {
+      rafID.current = window.requestAnimationFrame(animateRef.current)
+      return
+    }
+    // Keep the drift speed of the original 60 fps loop.
+    const step = lastFrame.current ? Math.min((now - lastFrame.current) / (1000 / 60), 3) : 1
+    lastFrame.current = now
     clearContext()
     circles.current.forEach((circle: Circle, i: number) => {
       // Handle the alpha value
@@ -276,8 +291,8 @@ export const Particles: React.FC<ParticlesProps> = ({
       } else {
         circle.alpha = circle.targetAlpha * remapClosestEdge
       }
-      circle.x += circle.dx + vx
-      circle.y += circle.dy + vy
+      circle.x += (circle.dx + vx) * step
+      circle.y += (circle.dy + vy) * step
       circle.translateX +=
         (mouse.current.x / (staticity / circle.magnetism) - circle.translateX) /
         ease

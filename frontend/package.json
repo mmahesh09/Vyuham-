@@ -7,7 +7,8 @@
     "build": "next build --turbopack",
     "start": "next start",
     "lint": "eslint",
-    "ui:tokens": "node scripts/brand-tokens.mjs"
+    "ui:tokens": "node scripts/brand-tokens.mjs",
+    "map:dots": "node scripts/world-dots.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -72,7 +73,6 @@
     "shiki": "^4.6.0",
     "sonner": "^2.0.8",
     "sql-formatter": "15.9.0",
-    "svg-dotted-map": "^2.0.1",
     "tailwind-merge": "^3.3.1",
     "tw-animate-css": "^1.4.0",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
@@ -90,6 +90,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.29",
+    "svg-dotted-map": "^2.0.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   },

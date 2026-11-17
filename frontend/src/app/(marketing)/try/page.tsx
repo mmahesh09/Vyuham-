@@ -3,8 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Announcement } from "@/components/marketing/announcement";
-import { FinanceShowcase } from "@/components/marketing/finance-showcase";
-import { FilterDemo, StoryFeed, SyncCard } from "@/components/marketing/live-charts";
+import { LazyFilterDemo, LazyFinanceShowcase, LazyStoryFeed, LazySyncCard } from "@/components/marketing/lazy-demos";
 import { MapSection } from "@/components/marketing/map-section";
 import { ColumnsShot } from "@/components/marketing/product-shots";
 import { Reveal } from "@/components/marketing/reveal";
@@ -24,12 +23,12 @@ const QUESTIONS: TryQuestion[] = [
   {
     q: "Are we selling more than last month?",
     answer: "Yes. Revenue is up 18% on last month, and the last week is ahead of a normal week too.",
-    panel: <FilterDemo />,
+    panel: <LazyFilterDemo />,
   },
   {
     q: "What changed this month?",
     answer: "Revenue is up, ad spend is 30% over average, and one client now brings in 22% of revenue.",
-    panel: <StoryFeed />,
+    panel: <LazyStoryFeed />,
   },
   {
     q: "Where do our best customers live?",
@@ -39,7 +38,7 @@ const QUESTIONS: TryQuestion[] = [
   {
     q: "Is the sheet still up to date?",
     answer: "Yes. The Google Sheet synced a few minutes ago, and the dashboard refreshes every hour.",
-    panel: <SyncCard />,
+    panel: <LazySyncCard />,
   },
 ];
 
@@ -99,7 +98,7 @@ export default function TryPage() {
               <p className={`${body} max-w-[40ch]`}>Hover the charts, switch the period, flip the currency.</p>
             </div>
             <div data-animate style={delay(100)}>
-              <FinanceShowcase />
+              <LazyFinanceShowcase />
             </div>
             <p className="mt-4 text-center text-[13px] text-white/40">Sample data.</p>
           </div>

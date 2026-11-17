@@ -3,9 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { RSS_ALTERNATE } from "@/lib/site";
-import { FinanceShowcase } from "@/components/marketing/finance-showcase";
 import { Hero } from "@/components/marketing/hero";
-import { FilterDemo, LiveDashboard, StoryFeed, SyncCard } from "@/components/marketing/live-charts";
+import { LazyFilterDemo, LazyFinanceShowcase, LazyLiveDashboard, LazyStoryFeed, LazySyncCard } from "@/components/marketing/lazy-demos";
 import { MapSection } from "@/components/marketing/map-section";
 import { MessySheet } from "@/components/marketing/messy-sheet";
 import { ParticlesBackground } from "@/components/marketing/particles-background";
@@ -404,7 +403,7 @@ export default function LandingPage() {
             </div>
 
             <div data-animate className="mt-20" style={delay(100)}>
-              <LiveDashboard />
+              <LazyLiveDashboard />
               <p className="mt-4 text-center text-[13px] text-white/40">Sample data. The dashboard keeps updating as your data does.</p>
             </div>
           </div>
@@ -479,7 +478,7 @@ export default function LandingPage() {
               </p>
             </div>
             <div data-animate style={delay(120)}>
-              <StoryFeed />
+              <LazyStoryFeed />
             </div>
           </div>
         </section>
@@ -498,7 +497,7 @@ export default function LandingPage() {
               </p>
             </div>
             <div data-animate style={delay(100)}>
-              <FinanceShowcase />
+              <LazyFinanceShowcase />
             </div>
             <p className="mt-4 text-center text-[13px] text-white/40">Sample data.</p>
           </div>
@@ -520,7 +519,7 @@ export default function LandingPage() {
                     <Mark>Nobody exports anything.</Mark>
                   </p>
                 </div>
-                <SyncCard />
+                <LazySyncCard />
               </div>
               <div data-animate style={delay(80)} className="flex min-h-[300px] flex-col gap-5 rounded-[16px] border border-white/10 bg-black/40 p-6 sm:p-8">
                 <div>
@@ -529,7 +528,7 @@ export default function LandingPage() {
                     Date and category filters apply to <Mark>every chart on the page</Mark>. Try it.
                   </p>
                 </div>
-                <FilterDemo />
+                <LazyFilterDemo />
               </div>
               <div data-animate className="flex flex-col justify-between gap-8 rounded-[16px] bg-accent p-6 text-[#160f0a] sm:p-8 md:col-span-2 md:flex-row md:items-end md:p-10">
                 <div>

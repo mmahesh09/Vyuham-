@@ -1,4 +1,5 @@
-import type { Marker } from "@/components/ui/dotted-map";
+/** A point on the world map. */
+export type Marker = { lat: number; lng: number; size?: number };
 
 /* Sample data: where a small agency's revenue comes from. Shares add up to 100. */
 export type CityMarker = Marker & { city: string; share: number; label?: boolean };
