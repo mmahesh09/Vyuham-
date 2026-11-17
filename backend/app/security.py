@@ -82,6 +82,9 @@ def current_membership(user: AuthUser = Depends(current_user), db: Session = Dep
     stmt = select(WorkspaceMember).where(WorkspaceMember.user_id == user.id)
     member = db.scalar(stmt)
     if member:
+        from app.errors import identify
+
+        identify(user.id, member.workspace_id)
         return member
     name = (user.company or "").strip() or f"{user.name.split(' ')[0] or 'My'}'s workspace"
     member = WorkspaceMember(user_id=user.id, role="owner", workspace=Workspace(name=name[:120]))
@@ -94,3 +97,20 @@ def current_membership(user: AuthUser = Depends(current_user), db: Session = Dep
         if member is None:
             raise
     return member
+
+
+def is_staff(user: AuthUser) -> bool:
+    """Vyuham support staff (SUPPORT_STAFF_EMAILS). In production the address must be confirmed."""
+    from app.config import get_settings
+
+    s = get_settings()
+    if s.environment == "production" and not user.email_verified:
+        return False
+    return user.email.lower() in s.staff_emails
+
+
+def require_staff(user: AuthUser = Depends(current_user)) -> AuthUser:
+    """Staff-only routes answer 404 to everyone else, so they don't advertise themselves."""
+    if not is_staff(user):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Not Found")
+    return user

@@ -70,6 +70,24 @@ class Settings(BaseSettings):
     report_retention_days: int = 30
     report_max_rows: int = 1_000_000
 
+    # Support: Vyuham staff who can see every ticket, write help articles and post incidents.
+    # Comma-separated emails, matched against the signed-in (Better Auth) address.
+    support_staff_emails: str = ""
+    # Error tracking with the Sentry SDK, sent to a self-hosted GlitchTip (MIT). Off when empty.
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.0
+    release: str = ""
+    # Shared secret GlitchTip sends with its webhook (?secret=... on the webhook URL). Webhook is off when empty.
+    glitchtip_webhook_secret: str = ""
+    # Status page: where the scheduler pings the API's /health/live. Empty = the check runs inside
+    # the API process (no-Redis dev), so a finished check already proves the API is up.
+    status_api_url: str = ""
+    status_retention_days: int = 90
+
+    @property
+    def staff_emails(self) -> set[str]:
+        return {e.strip().lower() for e in self.support_staff_emails.split(",") if e.strip()}
+
     @model_validator(mode="after")
     def _production_is_safe(self):
         """Fail at startup rather than run production on development defaults."""

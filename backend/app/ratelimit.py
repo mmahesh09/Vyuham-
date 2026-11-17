@@ -44,6 +44,12 @@ RULES: list[tuple[str, str, str]] = [
     ("*", "/print/", "120/minute"),  # print token pages (the PDF renderer loads a few per report)
     ("*", "/invites/", "30/minute"),
     ("POST", "/sql/", "60/minute"),
+    ("POST", "/support/webhooks/", "120/minute"),  # GlitchTip; checked by shared secret
+    ("POST", "/support/", "20/minute"),  # new tickets and replies
+    ("GET", "/support/errors/", "60/minute"),  # error-screen help lookup, no sign-in
+    ("POST", "/kb/", "30/minute"),  # helpful votes, deflections
+    ("GET", "/kb/", "120/minute"),  # public help center and search-as-you-type
+    ("GET", "/status", "60/minute"),  # public status page
 ]
 DEFAULT = "300/minute"
 

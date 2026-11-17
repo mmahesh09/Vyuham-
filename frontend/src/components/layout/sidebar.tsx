@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   LayoutGrid,
   LayoutTemplate,
+  LifeBuoy,
   LogOut,
   MoreHorizontal,
   PanelLeftClose,
@@ -61,6 +62,7 @@ export const NAV_GROUPS: { label?: string; items: NavItem[] }[] = [
     ],
   },
   { label: "Team", items: [{ href: "/team", label: "Team", icon: Users }] },
+  { label: "Help", items: [{ href: "/support", label: "Help & support", icon: LifeBuoy }] },
 ];
 
 const COLLAPSE_KEY = "vyuham:sidebar-collapsed";

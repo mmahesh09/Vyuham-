@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import UserProfile, WorkspaceMember
 from app.schemas import UserOut, WorkspaceOut
-from app.security import AuthUser, current_membership, current_user
+from app.security import AuthUser, current_membership, current_user, is_staff
 
 router = APIRouter(tags=["me"])
 
@@ -23,5 +23,6 @@ def me(
         role=member.role,
         job_role=profile.job_role if profile else None,
         email_verified=user.email_verified,
+        is_staff=is_staff(user),
         workspace=WorkspaceOut.model_validate(member.workspace),
     )

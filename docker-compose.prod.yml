@@ -18,6 +18,10 @@ x-backend-env: &backend-env
   APP_URL: ${APP_URL:?set APP_URL (the Vercel address) in .env.prod}
   PRINT_BASE_URL: ${APP_URL}
   SIGNING_SECRET: ${SIGNING_SECRET:?set SIGNING_SECRET (32+ random characters) in .env.prod}
+  SUPPORT_STAFF_EMAILS: ${SUPPORT_STAFF_EMAILS:-}
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  GLITCHTIP_WEBHOOK_SECRET: ${GLITCHTIP_WEBHOOK_SECRET:-}
+  STATUS_API_URL: http://backend:8000
   RESEND_API_KEY: ${RESEND_API_KEY:-}
   EMAIL_FROM: ${EMAIL_FROM:-Vyuham <onboarding@resend.dev>}
   PDF_RENDERER: ${PDF_RENDERER:-forme}
