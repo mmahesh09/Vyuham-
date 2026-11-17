@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import type { BuilderState } from "./builder/types";
 import type { Param } from "./params";
 
 /**
@@ -19,6 +20,9 @@ export type Tab = {
   savedId: string | null;
   savedSql: string | null;
   savedParams: Param[] | null;
+  /** "builder": the visual builder writes `sql` and `params`; missing means SQL. */
+  mode?: "sql" | "builder";
+  builder?: BuilderState;
 };
 
 export type HistoryEntry = {

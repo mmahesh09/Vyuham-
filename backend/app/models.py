@@ -225,6 +225,9 @@ class SavedQuery(Base):
     sql: Mapped[str] = mapped_column(Text)
     # Values for the query's {{name}} placeholders: [{"name", "type", "value"}] (app/sql_params.py).
     params: Mapped[list[dict]] = mapped_column(JSON, default=list, server_default="[]")
+    # The visual builder's state when the query was made in Builder mode (frontend/src/features/sql-lab/builder),
+    # so it reopens there. The SQL above is always what runs.
+    builder_state: Mapped[dict | None] = mapped_column(JSON)
     created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
@@ -260,7 +263,8 @@ class Alert(Base):
 
 
 class Automation(Base):
-    """A scheduled job, e.g. send a dashboard's headlines every Monday at 9:00."""
+    """A scheduled job: a dashboard's headlines every Monday at 9:00 (kind "dashboard_digest"), or a saved
+    SQL Lab query exported and emailed on a schedule (kind "saved_query")."""
 
     __tablename__ = "automations"
 
@@ -269,6 +273,9 @@ class Automation(Base):
     name: Mapped[str] = mapped_column(String(200))
     kind: Mapped[str] = mapped_column(String(24), default="dashboard_digest")
     dashboard_id: Mapped[str | None] = mapped_column(ForeignKey("dashboards.id", ondelete="CASCADE"))
+    saved_query_id: Mapped[str | None] = mapped_column(ForeignKey("saved_queries.id", ondelete="CASCADE"), index=True)
+    # saved_query: {"format": "csv" | "xlsx", "only_if_rows": bool}
+    options: Mapped[dict | None] = mapped_column(JSON, default=dict)
     schedule: Mapped[str] = mapped_column(String(8), default="weekly")  # daily | weekly | monthly
     hour: Mapped[int] = mapped_column(Integer, default=9)  # 0-23, in `timezone`
     weekday: Mapped[int] = mapped_column(Integer, default=0)  # 0 = Monday, for weekly

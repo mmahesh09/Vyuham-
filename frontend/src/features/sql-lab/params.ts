@@ -18,7 +18,17 @@ export type JoinHint = {
 };
 export type Cell = string | number | boolean | null;
 export type RunResult = { columns: string[]; rows: Record<string, Cell>[]; row_count: number; truncated: boolean; elapsed_ms: number };
-export type Saved = { id: string; name: string; sql: string; params: Param[]; updated_at: string };
+export type Saved = {
+  id: string;
+  name: string;
+  sql: string;
+  params: Param[];
+  updated_at: string;
+  /** Builder mode's state when the query was built visually (reopens in Builder). */
+  builder_state?: import("./builder/types").BuilderState | null;
+  /** "Daily at 09:00 (UTC)" when the query runs on a schedule. */
+  schedule?: string | null;
+};
 
 const PARAM_RE = /\{\{\s*([A-Za-z_][A-Za-z0-9_]{0,39})\s*\}\}/g;
 /** For CodeMirror decorations and the formatter: the same pattern as a source string. */

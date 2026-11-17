@@ -2,7 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import {
+  Blocks,
   Calendar,
+  CalendarClock,
   ChevronRight,
   Database,
   ExternalLink,
@@ -314,6 +316,16 @@ function SavedList({ saved, filter, activeSavedId, onOpenSaved, onDeleteSaved }:
               <span className="block truncate text-[13px] text-text">{q.name}</span>
               <span className="block truncate font-mono text-[11px] text-faint">{q.sql.replace(/\s+/g, " ")}</span>
             </button>
+            {q.schedule && (
+              <span className="shrink-0 text-highlight" title={`Scheduled: ${q.schedule}`} aria-label={`Scheduled: ${q.schedule}`}>
+                <CalendarClock className="size-3.5" />
+              </span>
+            )}
+            {q.builder_state && (
+              <span className="shrink-0 text-faint" title="Built with the visual builder" aria-label="Built with the visual builder">
+                <Blocks className="size-3.5" />
+              </span>
+            )}
             {q.params.length > 0 && <span className="shrink-0 rounded bg-accent/15 px-1.5 text-[10px] text-accent">{q.params.length} param</span>}
             <Button variant="ghost" size="icon-xs" aria-label={`Delete ${q.name}`} className="opacity-60 group-hover:opacity-100" onClick={() => onDeleteSaved(q.id)}>
               <Trash2 />

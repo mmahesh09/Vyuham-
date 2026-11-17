@@ -231,7 +231,12 @@ def _validate_automation(db: Session, member: WorkspaceMember, body: AutomationI
 
 @router.get("/automations", response_model=list[AutomationOut])
 def list_automations(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    return db.scalars(select(Automation).where(Automation.workspace_id == member.workspace_id).order_by(Automation.created_at.desc())).all()
+    # Scheduled SQL Lab queries are managed in SQL Lab (routers/sql_lab.py), not here.
+    return db.scalars(
+        select(Automation)
+        .where(Automation.workspace_id == member.workspace_id, Automation.kind != "saved_query")
+        .order_by(Automation.created_at.desc())
+    ).all()
 
 
 @router.post("/automations", response_model=AutomationOut, status_code=status.HTTP_201_CREATED)

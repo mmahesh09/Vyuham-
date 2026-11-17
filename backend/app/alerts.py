@@ -140,10 +140,85 @@ def automation_due(a: Automation, now: datetime) -> bool:
     return occ >= created and (last is None or last < occ)
 
 
+PREVIEW_ROWS = 10
+PREVIEW_CELL = 40
+
+
+def _cell(v) -> str:
+    text = "" if v is None else str(v)
+    return text if len(text) <= PREVIEW_CELL else text[: PREVIEW_CELL - 1] + "…"
+
+
+def run_saved_query(db: Session, a: Automation, now: datetime) -> AlertEvent:
+    """A scheduled SQL Lab query: export it (CSV or Excel), then send a short preview and a download link.
+
+    Uses the report runner, so the file is stored, listed under Reports and pruned like any other report.
+    With `only_if_rows`, an empty result sends nothing (it's still logged in the automation's history).
+    """
+    from app.models import ReportRun, SavedQuery
+    from app.reports import runner, tabular
+    from app.routers.reports import DOWNLOAD_LINK_SECONDS, download_link
+
+    q = db.get(SavedQuery, a.saved_query_id) if a.saved_query_id else None
+    if q is None or q.workspace_id != a.workspace_id:
+        a.last_run_at, a.last_status = now, "The saved query was deleted."
+        db.commit()
+        raise QueryError("The saved query was deleted.")
+    opts = a.options or {}
+    fmt = opts.get("format") if opts.get("format") in ("csv", "xlsx") else "csv"
+
+    run = ReportRun(
+        workspace_id=a.workspace_id, name=q.name, source="saved_query", source_id=q.id, format=fmt, options={},
+        trigger="schedule", automation_id=a.id, requested_by=a.created_by,
+    )
+    db.add(run)
+    db.commit()
+    run = runner.generate(db, run.id)  # unexpected errors propagate, so the job is retried
+    if run is None or run.status != "done":
+        reason = (run.error if run else None) or "The export failed."
+        a.last_run_at, a.last_status = now, f"Failed: {reason}"[:500]
+        db.commit()
+        raise QueryError(reason)
+
+    rows = run.rows or 0
+    title = f"{q.name} · {now.astimezone(_zone(a.timezone)):%b %d, %H:%M}"
+    if rows == 0 and opts.get("only_if_rows"):
+        event = AlertEvent(workspace_id=a.workspace_id, automation_id=a.id, title=title, body="No rows; nothing was sent.", delivery={})
+        db.add(event)
+        a.last_run_at, a.last_status = now, "No rows; nothing sent"
+        db.commit()
+        return event
+
+    # The first rows, as plain text lines, so the email is useful without opening the file.
+    sql, params, datasets, _ = tabular._query_source(db, "saved_query", q.id, a.workspace_id)
+    con = connect(a.workspace_id, datasets)
+    try:
+        from app.query import _run
+
+        names, sample = _run(con, f"SELECT * FROM ({sql}) AS q LIMIT {PREVIEW_ROWS}", params, op="schedule")  # validated SELECT, bound params  # nosec B608
+    finally:
+        con.close()
+    lines = [" | ".join(names)] + [" | ".join(_cell(v) for v in r) for r in sample]
+    more = f"\n…and {rows - len(sample):,} more rows in the file." if rows > len(sample) else ""
+    days = DOWNLOAD_LINK_SECONDS // 86400
+    body = (
+        f"{rows:,} rows.\n\n" + "\n".join(lines) + more
+        + f"\n\nDownload the full {fmt.upper()} (link works for {days} days): {download_link(run)}"
+    )
+    delivery = deliver(db, a.workspace_id, a.channels or {}, title, body, "/reports", "digest")
+    event = AlertEvent(workspace_id=a.workspace_id, automation_id=a.id, title=title, body=body, delivery=delivery)
+    db.add(event)
+    a.last_run_at, a.last_status = now, f"Sent ({rows:,} rows)"
+    db.commit()
+    return event
+
+
 def run_automation(db: Session, a: Automation, now: datetime | None = None) -> AlertEvent:
     from app.routers.dashboards import _view  # local import: routers import this module's siblings
 
     now = now or datetime.now(timezone.utc)
+    if a.kind == "saved_query":
+        return run_saved_query(db, a, now)
     d = db.get(Dashboard, a.dashboard_id) if a.dashboard_id else None
     if d is None:
         a.last_run_at, a.last_status = now, "The dashboard was deleted."

@@ -2,7 +2,7 @@
 
 import type { SQLNamespace } from "@codemirror/lang-sql";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { FileCode2, Keyboard, Loader2, PanelBottom, PanelLeft, Play, Plus, Save, Sparkles, Wand2, X } from "lucide-react";
+import { Blocks, CalendarClock, Code2, FileCode2, Keyboard, Loader2, PanelBottom, PanelLeft, Play, Plus, Save, Sparkles, Wand2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
 
@@ -14,10 +14,14 @@ import { ExportMenu } from "@/features/reports/export-menu";
 import { api } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
+import { BuilderPanel } from "./builder/builder-panel";
+import { compile } from "./builder/compile";
+import { emptyBuilder, type BuilderState } from "./builder/types";
 import { Explorer } from "./explorer/explorer";
 import { ParamField } from "./param-field";
-import { exampleSql, paramsFor, quoteIdent, sampleQueries, type Param, type RunResult, type Saved, type Table } from "./params";
+import { exampleSql, paramsFor, quoteIdent, sampleQueries, type JoinHint, type Param, type RunResult, type Saved, type Table } from "./params";
 import { ResultsPanel, type Output, type Pane } from "./results-panel";
+import { ScheduleDialog } from "./schedule-dialog";
 import { ShortcutsDialog } from "./shortcuts-dialog";
 import { SqlEditor, type SqlEditorHandle } from "./sql-editor";
 import { isDirty, useLabState, type Tab } from "./use-lab-state";
@@ -56,6 +60,13 @@ export function SqlWorkspace() {
   const allowed = me?.role !== "viewer";
   const schema = useQuery({ queryKey: ["sql", "schema"], queryFn: () => api<Table[]>("/sql/schema"), enabled: allowed });
   const saved = useQuery({ queryKey: ["sql", "saved"], queryFn: () => api<Saved[]>("/sql/saved"), enabled: allowed });
+  // Same query (and cache) as the explorer's Relationships section; the builder offers these joins.
+  const joins = useQuery({
+    queryKey: ["sql", "joins"],
+    queryFn: () => api<JoinHint[]>("/sql/schema/joins"),
+    enabled: allowed && (schema.data?.length ?? 0) > 1,
+    staleTime: 60_000,
+  });
   const lab = useLabState(me?.workspace.id);
   const { active, openTab, updateTab } = lab;
   const desktop = useIsDesktop();
@@ -73,6 +84,7 @@ export function SqlWorkspace() {
   const [name, setName] = useState("");
   const [notice, setNotice] = useState<string | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   // First visit: one tab with a query that works on the first dataset.
   useEffect(() => {
@@ -89,6 +101,31 @@ export function SqlWorkspace() {
       ),
     [schema.data],
   );
+
+  const inBuilder = active?.mode === "builder" && !!active.builder;
+  const compiled = useMemo(
+    () => (inBuilder && active?.builder ? compile(active.builder, schema.data ?? []) : null),
+    [inBuilder, active?.builder, schema.data],
+  );
+
+  /** Builder edits recompile into the tab's SQL and params, so Run, Save, history and export work as usual. */
+  const setBuilder = useCallback(
+    (tabId: string, next: BuilderState) => {
+      const c = compile(next, schema.data ?? []);
+      updateTab(tabId, { builder: next, sql: c.sql, params: c.params });
+    },
+    [schema.data, updateTab],
+  );
+
+  /** Builder mode: this tab if it's empty, otherwise a new tab (typed SQL is never thrown away). */
+  const openBuilder = useCallback(() => {
+    const first = schema.data?.[0]?.table;
+    if (!first) return;
+    const state = emptyBuilder(first);
+    const c = compile(state, schema.data ?? []);
+    if (active && !active.sql.trim() && !active.savedId) updateTab(active.id, { mode: "builder", builder: state, sql: c.sql, params: c.params });
+    else openTab({ title: "Builder query", sql: c.sql, params: c.params, mode: "builder", builder: state });
+  }, [schema.data, active, updateTab, openTab]);
 
   const out = active ? outputs[active.id] : undefined;
   const setOut = (id: string, o: Output) => setOutputs((all) => ({ ...all, [id]: o }));
@@ -115,11 +152,17 @@ export function SqlWorkspace() {
   });
 
   const doRun = useCallback(() => {
-    if (!active || !editor.current) return;
+    if (!active) return;
+    if (active.mode === "builder") {
+      if (compiled?.problems.length) return setNotice(compiled.problems[0]);
+      run.mutate({ tabId: active.id, sql: active.sql, params: active.params, firstLine: 1 });
+      return;
+    }
+    if (!editor.current) return;
     const r = editor.current.runnable();
     if (!r.sql.trim()) return;
     run.mutate({ tabId: active.id, sql: r.sql, params: paramsFor(r.sql, active.params), firstLine: r.firstLine });
-  }, [active, run]);
+  }, [active, run, compiled]);
 
   /** New tab with this SQL; with `andRun`, run it straight away (no editor needed). */
   const openSql = useCallback(
@@ -141,7 +184,12 @@ export function SqlWorkspace() {
 
   const save = useMutation({
     mutationFn: (tab: Tab) => {
-      const body = JSON.stringify({ name: name.trim() || (tab.savedId ? tab.title : "Untitled query"), sql: tab.sql, params: paramsFor(tab.sql, tab.params) });
+      const body = JSON.stringify({
+        name: name.trim() || (tab.savedId ? tab.title : "Untitled query"),
+        sql: tab.sql,
+        params: paramsFor(tab.sql, tab.params),
+        builder_state: tab.mode === "builder" ? tab.builder ?? null : null,
+      });
       return tab.savedId ? api<Saved>(`/sql/saved/${tab.savedId}`, { method: "PUT", body }) : api<Saved>("/sql/saved", { method: "POST", body });
     },
     onSuccess: (q, tab) => {
@@ -167,7 +215,11 @@ export function SqlWorkspace() {
   const openSaved = (q: Saved) => {
     const existing = lab.tabs.find((t) => t.savedId === q.id);
     if (existing) lab.setActive(existing.id);
-    else openTab({ title: q.name, sql: q.sql, params: q.params, savedId: q.id, savedSql: q.sql, savedParams: q.params });
+    else
+      openTab({
+        title: q.name, sql: q.sql, params: q.params, savedId: q.id, savedSql: q.sql, savedParams: q.params,
+        ...(q.builder_state ? { mode: "builder" as const, builder: q.builder_state } : {}),
+      });
     if (!desktop) setMobileView("query");
   };
 
@@ -218,6 +270,7 @@ export function SqlWorkspace() {
     return <p className="mx-auto max-w-[720px] pt-16 text-muted">SQL Lab is for owners and editors. Ask an owner for editor access if you need it.</p>;
 
   const pending = run.isPending && run.variables?.tabId === active?.id;
+  const savedSchedule = saved.data?.find((q) => q.id === active?.savedId)?.schedule ?? null;
   const errorLine = errorLineOf(out);
   const dirty = active ? isDirty(active) : false;
 
@@ -273,6 +326,29 @@ export function SqlWorkspace() {
       <Button variant="ghost" size="icon-xs" className="mb-1 ml-1" aria-label="New query tab" onClick={() => openTab({ sql: "" })}>
         <Plus />
       </Button>
+      <div className="mb-1 ml-auto flex shrink-0 gap-0.5 rounded-[8px] border border-line p-0.5" role="radiogroup" aria-label="Query mode">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={!inBuilder}
+          onClick={() => active && inBuilder && updateTab(active.id, { mode: "sql", builder: undefined })}
+          title={inBuilder ? "Edit this query as SQL (the builder stops following it)" : "SQL mode"}
+          className={cn("flex items-center gap-1 rounded-[6px] px-2 py-0.5 text-[12px]", !inBuilder ? "bg-surface-2 text-text" : "text-muted hover:text-text")}
+        >
+          <Code2 className="size-3.5" aria-hidden /> SQL
+        </button>
+        <button
+          type="button"
+          role="radio"
+          aria-checked={inBuilder}
+          onClick={() => !inBuilder && openBuilder()}
+          disabled={!schema.data?.length}
+          title="Build a query by picking columns, filters and totals"
+          className={cn("flex items-center gap-1 rounded-[6px] px-2 py-0.5 text-[12px] disabled:opacity-50", inBuilder ? "bg-surface-2 text-text" : "text-muted hover:text-text")}
+        >
+          <Blocks className="size-3.5" aria-hidden /> Builder
+        </button>
+      </div>
     </div>
   );
 
@@ -281,9 +357,11 @@ export function SqlWorkspace() {
       <Button size="sm" onClick={doRun} disabled={pending || !active.sql.trim()} title="Run (Ctrl/⌘+Enter)">
         {pending ? <Loader2 className="animate-spin" /> : <Play />} {hasSelection ? "Run selection" : "Run"}
       </Button>
-      <Button variant="ghost" size="sm" onClick={format} disabled={!active.sql.trim()} title="Format (Shift+Alt+F)">
-        <Wand2 /> Format
-      </Button>
+      {!inBuilder && (
+        <Button variant="ghost" size="sm" onClick={format} disabled={!active.sql.trim()} title="Format (Shift+Alt+F)">
+          <Wand2 /> Format
+        </Button>
+      )}
       <div className="ml-auto flex items-center gap-1.5">
         <Input
           aria-label="Query name"
@@ -295,7 +373,18 @@ export function SqlWorkspace() {
         <Button variant="outline" size="sm" onClick={doSave} disabled={save.isPending || !active.sql.trim()} title="Save (Ctrl/⌘+S)">
           <Save /> {active.savedId ? "Update" : "Save"}
         </Button>
-        {/* Exports run the saved query, so save edits first. */}
+        {/* Exports and schedules run the saved query, so save edits first. */}
+        {active.savedId && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setScheduleOpen(true)}
+            disabled={dirty}
+            title={dirty ? "Save your changes first" : savedSchedule ?? "Run this query on a schedule and send the result"}
+          >
+            <CalendarClock className={savedSchedule ? "text-highlight" : undefined} /> <span className="max-sm:sr-only">{savedSchedule ? "Scheduled" : "Schedule"}</span>
+          </Button>
+        )}
         {active.savedId && <ExportMenu source="saved_query" sourceId={active.savedId} disabled={dirty} />}
       </div>
     </div>
@@ -306,6 +395,18 @@ export function SqlWorkspace() {
       {tabs}
       {active ? (
         <>
+          {inBuilder && active.builder && compiled ? (
+            <div className="min-h-0 flex-1 bg-bg/40">
+              <BuilderPanel
+                state={active.builder}
+                tables={schema.data ?? []}
+                joins={joins.data ?? []}
+                compiled={compiled}
+                onChange={(next) => setBuilder(active.id, next)}
+                onOpenInSql={() => updateTab(active.id, { mode: "sql", builder: undefined })}
+              />
+            </div>
+          ) : (
           <div className="min-h-0 flex-1 bg-bg/40">
             <SqlEditor
               ref={editor}
@@ -318,7 +419,8 @@ export function SqlWorkspace() {
               errorLine={errorLine}
             />
           </div>
-          {params.length > 0 && (
+          )}
+          {!inBuilder && params.length > 0 && (
             <div className="flex flex-wrap items-end gap-3 border-t border-line bg-surface-2/40 px-3 py-2.5" aria-label="Query parameters">
               {params.map((p) => (
                 <ParamField key={p.name} param={p} onChange={(patch) => setParam(p.name, patch)} onEnter={doRun} />
@@ -486,6 +588,7 @@ export function SqlWorkspace() {
       )}
 
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+      {active?.savedId && <ScheduleDialog open={scheduleOpen} onOpenChange={setScheduleOpen} savedId={active.savedId} name={active.title} />}
     </div>
   );
 }

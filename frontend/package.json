@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "ui:tokens": "node scripts/brand-tokens.mjs",
-    "map:dots": "node scripts/world-dots.mjs"
+    "map:dots": "node scripts/world-dots.mjs",
+    "test:unit": "node --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
