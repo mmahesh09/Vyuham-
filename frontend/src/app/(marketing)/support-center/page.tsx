@@ -17,6 +17,7 @@ import {
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Announcement } from "@/components/marketing/announcement";
 import { Reveal } from "@/components/marketing/reveal";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteNav } from "@/components/marketing/site-nav";
@@ -112,9 +113,7 @@ export default async function SupportCenterPage() {
           <div className="glow glow--violet left-1/2 top-[30%] h-[420px] w-[min(760px,95vw)] -translate-x-1/2" />
 
           <div className={`${container} flex flex-col items-center text-center`}>
-            <p className="eyebrow">
-              Support center <b>· Real people</b>
-            </p>
+            <Announcement>Support center · Real people</Announcement>
             <h1 className="mt-6 max-w-[18ch] text-balance text-[clamp(36px,6vw,72px)] font-semibold leading-[1.02] tracking-[-0.04em] text-white">
               How can we help <span className="font-extralight text-highlight">you today?</span>
             </h1>

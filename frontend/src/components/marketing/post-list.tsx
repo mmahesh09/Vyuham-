@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Announcement } from "@/components/marketing/announcement";
 import { formatDate, type PostMeta } from "@/lib/blog";
 
 function PostByline({ post }: { post: PostMeta }) {
@@ -43,7 +44,7 @@ export function FeaturedPost({ post }: { post: PostMeta }) {
       href={`/blog/${post.slug}`}
       className="group mt-10 flex flex-col gap-3 rounded-[18px] border border-line bg-surface p-7 transition-colors hover:border-highlight/50"
     >
-      <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-highlight">Latest</p>
+      <Announcement size="sm">Latest</Announcement>
       <h2 className="font-display text-[clamp(26px,4vw,32px)] font-semibold leading-tight text-text transition-colors group-hover:text-highlight">
         {post.title}
       </h2>

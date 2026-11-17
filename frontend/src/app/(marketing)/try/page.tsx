@@ -2,6 +2,7 @@ import { ArrowRight, FileSpreadsheet, MessageSquareText, Share2 } from "lucide-r
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { Announcement } from "@/components/marketing/announcement";
 import { FinanceShowcase } from "@/components/marketing/finance-showcase";
 import { FilterDemo, StoryFeed, SyncCard } from "@/components/marketing/live-charts";
 import { MapSection } from "@/components/marketing/map-section";
@@ -58,9 +59,7 @@ export default function TryPage() {
         <section className="relative isolate pb-16 pt-[clamp(48px,8vw,96px)]">
           <div className="glow glow--violet left-1/2 top-0 h-[360px] w-[min(640px,90vw)] -translate-x-1/2" />
           <div className={`${container} flex flex-col items-center text-center`}>
-            <p className="eyebrow">
-              Sample data <b>· No sign-up</b>
-            </p>
+            <Announcement>Sample data · No sign-up</Announcement>
             <h1 className="mt-6 max-w-[16ch] text-balance text-[clamp(36px,6vw,76px)] font-semibold leading-[1.02] tracking-[-0.04em] text-white">
               Ask a spreadsheet. <span className="font-extralight text-highlight">See what comes back.</span>
             </h1>

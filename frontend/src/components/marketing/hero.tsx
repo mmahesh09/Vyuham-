@@ -1,6 +1,7 @@
 import { ArrowRight, ArrowUpRight, Play } from "lucide-react";
 import Link from "next/link";
 
+import { Announcement } from "@/components/marketing/announcement";
 import { SiteNav } from "@/components/marketing/site-nav";
 import { ParticlesBackground } from "@/components/marketing/particles-background";
 import { Typewriter } from "@/components/marketing/typewriter";
@@ -46,9 +47,7 @@ export function Hero() {
         <div className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-start px-[clamp(20px,5vw,64px)] pt-[clamp(48px,8vw,104px)]">
           {/* Soft scrim so the copy stays legible where the arch passes behind it */}
           <div className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10 bg-[radial-gradient(closest-side,rgba(7,5,4,0.6),transparent)]" aria-hidden />
-          <p className="eyebrow">
-            Free during the beta <b>· No card</b>
-          </p>
+          <Announcement href="/signup">Free during the beta · No card</Announcement>
           <h1
             aria-label="Ask your spreadsheet anything: an AI dashboard for small businesses."
             className="mt-7 max-w-[13ch] text-[clamp(40px,6.4vw,92px)] font-semibold leading-[1] tracking-[-0.045em]"
