@@ -1,18 +1,10 @@
 import { ArrowRight, ArrowUpRight, Play } from "lucide-react";
 import Link from "next/link";
 
-import { Logo } from "@/components/layout/logo";
 import { ParticlesBackground } from "@/components/marketing/particles-background";
+import { SiteHeader } from "@/components/marketing/site-header";
 import { Typewriter } from "@/components/marketing/typewriter";
 import { Mark } from "@/components/ui/mark";
-
-const NAV = [
-  { href: "#top", label: "Home", active: true },
-  { href: "#problem", label: "The problem" },
-  { href: "#how-it-works", label: "How it works" },
-  { href: "#pricing", label: "Pricing" },
-  { href: "#faq", label: "FAQ" },
-];
 
 const PHRASES = ["anything.", "about revenue.", "who stopped buying.", "where cash goes."];
 
@@ -47,37 +39,7 @@ export function Hero() {
         <ParticlesBackground className="absolute inset-0 -z-10" quantity={55} color="#ffffff" size={0.45} staticity={30} ease={60} />
 
         {/* Navigation */}
-        <header className="relative z-20 flex items-center justify-between gap-4 px-5 py-5 sm:px-8 sm:py-6">
-          <Logo />
-          <nav
-            aria-label="Sections"
-            className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-white/10 bg-white/[0.06] p-1 backdrop-blur-md md:flex"
-          >
-            {NAV.map((l) => (
-              <a
-                key={l.href}
-                href={l.href}
-                aria-current={l.active ? "page" : undefined}
-                className={`flex min-h-9 items-center rounded-full px-4 text-[14px] transition-colors ${
-                  l.active ? "bg-white/15 text-white" : "text-white/75 hover:text-white"
-                }`}
-              >
-                {l.label}
-              </a>
-            ))}
-          </nav>
-          <div className="flex items-center gap-1">
-            <Link href="/login" className="hidden min-h-11 items-center px-3 text-[14px] text-white/75 hover:text-white sm:flex">
-              Log in
-            </Link>
-            <Link
-              href="/signup"
-              className="btn-ghost flex min-h-10 items-center rounded-full px-5 text-[14px] font-semibold"
-            >
-              Join beta
-            </Link>
-          </div>
-        </header>
+        <SiteHeader overlay />
 
         {/* Headline: left-aligned, heavy/light contrast, the question in a lighter weight */}
         <div className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-start px-[clamp(20px,5vw,64px)] pt-[clamp(48px,8vw,104px)]">
