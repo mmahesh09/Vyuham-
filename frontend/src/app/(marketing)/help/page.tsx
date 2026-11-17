@@ -51,7 +51,7 @@ export default async function HelpIndex() {
         ) : (
           <div className="grid gap-10 sm:grid-cols-2">
             {[...groups.entries()].map(([tag, list]) => (
-              <section key={tag} className="flex flex-col gap-3">
+              <section key={tag} id={tag} className="flex scroll-mt-24 flex-col gap-3">
                 <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-faint">{tag}</h2>
                 <ul className="flex flex-col gap-2.5">
                   {list.map((a) => (
@@ -73,9 +73,14 @@ export default async function HelpIndex() {
             <p className="font-medium text-text">Something not working right now?</p>
             <p className="text-[14px] text-muted">Check the live system status before you dig in.</p>
           </div>
-          <Link href="/status" className="text-[14px] font-medium text-highlight hover:underline">
-            System status →
-          </Link>
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            <Link href="/status" className="inline-flex min-h-11 items-center text-[14px] font-medium text-highlight hover:underline">
+              System status →
+            </Link>
+            <Link href="/support-center" className="inline-flex min-h-11 items-center text-[14px] font-medium text-highlight hover:underline">
+              Support center →
+            </Link>
+          </div>
         </aside>
       </main>
       <SiteFooter />

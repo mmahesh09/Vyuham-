@@ -2,7 +2,6 @@ import { ArrowRight, Check, Copy, Globe, Plus, X } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Logo } from "@/components/layout/logo";
 import { RSS_ALTERNATE } from "@/lib/site";
 import { FinanceShowcase } from "@/components/marketing/finance-showcase";
 import { Hero } from "@/components/marketing/hero";
@@ -12,6 +11,8 @@ import { MessySheet } from "@/components/marketing/messy-sheet";
 import { ParticlesBackground } from "@/components/marketing/particles-background";
 import { ColumnsShot } from "@/components/marketing/product-shots";
 import { Reveal } from "@/components/marketing/reveal";
+import { SiteFooter } from "@/components/marketing/site-footer";
+import { body, container, delay, h2, quiet, sectionY } from "@/components/marketing/tokens";
 import { Mark } from "@/components/ui/mark";
 
 const SITE_NAME = "Vyuham";
@@ -36,13 +37,6 @@ export const metadata: Metadata = {
   },
 };
 
-/* Layout + type tokens (8px grid). Outfit is wider than a grotesk, so tracking is eased a little. */
-const container = "mx-auto w-full max-w-[1200px] px-[clamp(16px,5vw,48px)]";
-const sectionY = "py-[clamp(96px,12vw,160px)]";
-const h2 = "text-balance text-[clamp(36px,4.8vw,62px)] font-semibold leading-[1.04] tracking-[-0.035em] text-white";
-const quiet = "font-extralight text-muted/80"; // the second, quieter clause: 200 against 600
-const body = "text-[17px] font-light leading-[1.7] text-muted";
-const delay = (ms: number) => ({ "--delay": `${ms}ms` }) as React.CSSProperties;
 
 /** Numbered section label: one accent thread from the first section to the last. */
 function Eyebrow({ n, children, className = "" }: { n: string; children: React.ReactNode; className?: string }) {
@@ -345,7 +339,7 @@ export default function LandingPage() {
                   key={s.title}
                   data-animate
                   style={delay(i * 100)}
-                  className="flex flex-col gap-4 rounded-[16px] border border-white/10 bg-black/40 p-8"
+                  className="flex flex-col gap-4 rounded-[16px] border border-white/10 bg-black/40 p-6 sm:p-8"
                 >
                   <span className="font-mono text-[13px] text-accent">Step {i + 1}</span>
                   <h3 className="text-[22px] font-semibold tracking-[-0.02em] text-white">{s.title}</h3>
@@ -380,7 +374,7 @@ export default function LandingPage() {
                 </div>
                 <ol className="flex flex-col gap-4">
                   {OLD_WAY.map(([t, s]) => (
-                    <li key={t} className="grid grid-cols-[3.5rem_1fr] gap-3 text-[16px] text-white/50">
+                    <li key={t} className="grid grid-cols-[3rem_1fr] sm:grid-cols-[3.5rem_1fr] gap-3 text-[16px] text-white/50">
                       <span className="font-mono text-[13px] leading-6 text-white/35">{t}</span>
                       <span className="leading-6">{s}</span>
                     </li>
@@ -393,11 +387,11 @@ export default function LandingPage() {
                   <span className="font-mono text-sm text-accent">4 sec</span>
                 </div>
                 <ol className="flex flex-col gap-4">
-                  <li className="grid grid-cols-[3.5rem_1fr] gap-3 text-[16px] text-white">
+                  <li className="grid grid-cols-[3rem_1fr] sm:grid-cols-[3.5rem_1fr] gap-3 text-[16px] text-white">
                     <span className="font-mono text-[13px] leading-6 text-highlight">9:02</span>
                     <span className="leading-6">Type the question.</span>
                   </li>
-                  <li className="grid grid-cols-[3.5rem_1fr] gap-3 text-[16px] text-white">
+                  <li className="grid grid-cols-[3rem_1fr] sm:grid-cols-[3.5rem_1fr] gap-3 text-[16px] text-white">
                     <span className="font-mono text-[13px] leading-6 text-highlight">9:02</span>
                     <span className="leading-6">
                       “Yes. <Mark>October is up 18% on September</Mark>, mostly from Halden &amp; Co and two new
@@ -518,7 +512,7 @@ export default function LandingPage() {
               Keep the spreadsheet. <span className={quiet}>Lose the busywork.</span>
             </h2>
             <div className="grid gap-4 md:grid-cols-[3fr_2fr]">
-              <div data-animate className="flex min-h-[300px] flex-col gap-6 rounded-[16px] border border-white/10 bg-black/40 p-8">
+              <div data-animate className="flex min-h-[300px] flex-col gap-6 rounded-[16px] border border-white/10 bg-black/40 p-6 sm:p-8">
                 <div>
                   <h3 className="text-[24px] font-semibold tracking-[-0.025em] text-white">Your team keeps editing the Google Sheet.</h3>
                   <p className="mt-2 max-w-[48ch] text-base font-light leading-relaxed text-white/65">
@@ -528,7 +522,7 @@ export default function LandingPage() {
                 </div>
                 <SyncCard />
               </div>
-              <div data-animate style={delay(80)} className="flex min-h-[300px] flex-col gap-5 rounded-[16px] border border-white/10 bg-black/40 p-8">
+              <div data-animate style={delay(80)} className="flex min-h-[300px] flex-col gap-5 rounded-[16px] border border-white/10 bg-black/40 p-6 sm:p-8">
                 <div>
                   <h3 className="text-[24px] font-semibold tracking-[-0.025em] text-white">Change the date once.</h3>
                   <p className="mt-2 text-base font-light leading-relaxed text-white/65">
@@ -537,7 +531,7 @@ export default function LandingPage() {
                 </div>
                 <FilterDemo />
               </div>
-              <div data-animate className="flex flex-col justify-between gap-8 rounded-[16px] bg-accent p-8 text-[#160f0a] md:col-span-2 md:flex-row md:items-end md:p-10">
+              <div data-animate className="flex flex-col justify-between gap-8 rounded-[16px] bg-accent p-6 text-[#160f0a] sm:p-8 md:col-span-2 md:flex-row md:items-end md:p-10">
                 <div>
                   <h3 className="text-[clamp(24px,2.6vw,32px)] font-semibold leading-[1.1] tracking-[-0.025em]">
                     Send the board update as a link, <span className="font-light">not a 30-slide deck.</span>
@@ -547,7 +541,7 @@ export default function LandingPage() {
                     what’s shared, and you can switch a link off any time.
                   </p>
                 </div>
-                <div className="flex w-full max-w-[380px] items-center gap-2 rounded-full bg-[#160f0a] py-1.5 pl-4 pr-1.5 text-[13px] text-white/80">
+                <div className="flex w-full min-w-0 max-w-[380px] items-center gap-2 rounded-full bg-[#160f0a] py-1.5 pl-4 pr-1.5 text-[13px] text-white/80">
                   <Globe className="size-4 shrink-0 text-highlight" aria-hidden />
                   <span className="min-w-0 flex-1 truncate">yourapp.com/s/october-board-update</span>
                   <span className="flex size-8 items-center justify-center rounded-full bg-accent text-[#160f0a]">
@@ -578,7 +572,8 @@ export default function LandingPage() {
                 </p>
               </div>
             </div>
-            <div data-animate data-lenis-prevent-horizontal className="overflow-x-auto">
+            <p className="mb-3 text-[13px] text-white/45 md:hidden">Swipe the table sideways to compare →</p>
+            <div data-animate data-lenis-prevent-horizontal className="-mx-[clamp(16px,5vw,48px)] overflow-x-auto px-[clamp(16px,5vw,48px)]">
               <table className="w-full min-w-[640px] border-collapse text-left">
                 <caption className="sr-only">{SITE_NAME} compared with Power BI and Tableau</caption>
                 <thead>
@@ -609,7 +604,7 @@ export default function LandingPage() {
         {/* 10 · Pricing — band, oversized number as the breathing moment */}
         <section id="pricing" className={`band scroll-mt-4 ${sectionY}`}>
           <div className={`${container} grid items-end gap-12 md:grid-cols-[auto_1fr] md:gap-20`}>
-            <p data-animate className="text-lit text-[clamp(140px,22vw,280px)] font-extralight leading-[0.8] tracking-[-0.06em]" aria-label="Zero dollars">
+            <p data-animate className="text-lit text-[clamp(112px,22vw,280px)] font-extralight leading-[0.8] tracking-[-0.06em]" aria-label="Zero dollars">
               $0
             </p>
             <div data-animate style={delay(120)} className="flex max-w-[44ch] flex-col items-start gap-6 pb-2">
@@ -677,32 +672,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <footer>
-        <div className={`${container} grid gap-10 py-14 text-sm sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_1fr_1fr]`}>
-          <div className="flex flex-col items-start gap-3">
-            <Logo />
-            <p className="max-w-[32ch] px-2.5 font-light text-white/55">
-              AI dashboards and answers from your spreadsheets, for teams too small for a data team.
-            </p>
-          </div>
-          {[
-            { title: "Product", links: [["The problem", "#problem"], ["How it works", "#how-it-works"], ["Compare to Power BI", "#compare"], ["Pricing", "#pricing"], ["FAQ", "#faq"], ["Blog", "/blog"]] },
-            { title: "Support", links: [["Help center", "/help"], ["Contact support", "/support/new"], ["System status", "/status"]] },
-            { title: "Account", links: [["Join the beta", "/signup"], ["Log in", "/login"]] },
-            { title: "Legal", links: [["Privacy", "/privacy"], ["Terms", "#"]] },
-          ].map((col) => (
-            <div key={col.title} className="flex flex-col gap-3">
-              <p className="font-semibold text-white">{col.title}</p>
-              {col.links.map(([label, href]) => (
-                <Link key={label} href={href} className="w-fit text-white/55 hover:text-white">
-                  {label}
-                </Link>
-              ))}
-            </div>
-          ))}
-        </div>
-        <div className={`${container} border-t border-white/[0.07] py-6 text-[13px] text-white/40`}>© 2026 {SITE_NAME}</div>
-      </footer>
+      <SiteFooter />
     </>
   );
 }

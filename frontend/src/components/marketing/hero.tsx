@@ -1,10 +1,11 @@
 import { ArrowRight, ArrowUpRight, Play } from "lucide-react";
 import Link from "next/link";
 
+import { SiteNav } from "@/components/marketing/site-nav";
 import { ParticlesBackground } from "@/components/marketing/particles-background";
-import { SiteHeader } from "@/components/marketing/site-header";
 import { Typewriter } from "@/components/marketing/typewriter";
 import { Mark } from "@/components/ui/mark";
+
 
 const PHRASES = ["anything.", "about revenue.", "who stopped buying.", "where cash goes."];
 
@@ -39,7 +40,7 @@ export function Hero() {
         <ParticlesBackground className="absolute inset-0 -z-10" quantity={55} color="#ffffff" size={0.45} staticity={30} ease={60} />
 
         {/* Navigation */}
-        <SiteHeader overlay />
+        <SiteNav variant="overlay" />
 
         {/* Headline: left-aligned, heavy/light contrast, the question in a lighter weight */}
         <div className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-start px-[clamp(20px,5vw,64px)] pt-[clamp(48px,8vw,104px)]">

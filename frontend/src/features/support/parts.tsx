@@ -39,17 +39,23 @@ export function Thread({ messages }: { messages: Message[] }) {
         <li
           key={m.id}
           className={cn(
-            "rounded-xl border p-4 sm:p-5",
-            m.internal ? "border-warning/40 bg-warning/5" : m.is_staff ? "border-highlight/30 bg-highlight/5" : "border-line bg-surface",
+            "max-w-full rounded-2xl border p-4 sm:max-w-[88%] sm:p-5",
+            m.internal
+              ? "border-warning/40 bg-warning/5 sm:ml-auto"
+              : m.is_staff
+                ? "rounded-tr-md border-primary/30 bg-primary/[0.07] sm:ml-auto"
+                : "rounded-tl-md border-line bg-surface",
           )}
         >
           <p className="mb-2 flex flex-wrap items-center gap-x-2 text-[13px] text-faint">
-            <span className="font-medium text-text">{m.author_name || (m.is_staff ? "Vyuham support" : "You")}</span>
+            <span className={cn("font-medium", m.is_staff && !m.internal ? "text-highlight" : "text-text")}>
+              {m.author_name || (m.is_staff ? "Vyuham support" : "You")}
+            </span>
             {m.is_staff && !m.internal && <span>· Vyuham support</span>}
             {m.internal && <span className="font-medium text-warning">· Internal note</span>}
             <span>· {ago(m.created_at)}</span>
           </p>
-          <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-text">{m.body}</p>
+          <p className="whitespace-pre-wrap break-words text-[15px] leading-relaxed text-text">{m.body}</p>
         </li>
       ))}
     </ol>

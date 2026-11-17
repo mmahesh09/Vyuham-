@@ -81,7 +81,7 @@ export function MessySheet() {
       </div>
 
       {/* Comment left by a teammate */}
-      <figcaption className="absolute -right-2 top-[44%] w-[200px] rotate-[2deg] rounded-[8px] bg-[#fff8c5] p-3 text-[12.5px] leading-snug text-[#3b3520] shadow-[0_12px_30px_-8px_rgba(0,0,0,0.6)] sm:-right-6">
+      <figcaption className="absolute -right-1 top-[44%] w-[160px] sm:w-[200px] rotate-[2deg] rounded-[8px] bg-[#fff8c5] p-3 text-[12.5px] leading-snug text-[#3b3520] shadow-[0_12px_30px_-8px_rgba(0,0,0,0.6)] sm:-right-6">
         <span className="block text-[11px] font-semibold text-[#8a7a2e]">Ravi</span>
         is this before or after refunds?? numbers don&apos;t match the bank
       </figcaption>
