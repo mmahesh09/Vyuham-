@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
-import { Logo } from "@/components/layout/logo";
+import { SiteHeader } from "@/components/marketing/site-header";
 import { PRIVACY_VERSION } from "@/lib/legal";
 
 /*
@@ -58,14 +57,7 @@ const li = "text-[15.5px] leading-[1.7] text-muted";
 export default function PrivacyPage() {
   return (
     <div className="min-h-screen bg-bg">
-      <header className="border-b border-line">
-        <div className="mx-auto flex max-w-[1080px] items-center justify-between px-5 py-5">
-          <Logo href="/" />
-          <Link href="/signup" className="text-sm font-medium text-highlight hover:underline">
-            Join the beta
-          </Link>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="mx-auto grid max-w-[1080px] gap-12 px-5 pb-24 pt-12 lg:grid-cols-[220px_minmax(0,1fr)]">
         <nav aria-label="On this page" className="hidden lg:block">
