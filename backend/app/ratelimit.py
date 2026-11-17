@@ -44,6 +44,12 @@ RULES: list[tuple[str, str, str]] = [
     ("*", "/print/", "120/minute"),  # print token pages (the PDF renderer loads a few per report)
     ("*", "/invites/", "30/minute"),
     ("POST", "/sql/", "60/minute"),
+    # Expensive work (from the rate-limit review in PR #4): AI answers, chart previews, new dashboards.
+    ("POST", "/ask", "30/minute"),  # each question is an LLM call
+    ("POST", "/charts/preview", "120/minute"),
+    ("POST", "/templates/", "30/hour"),  # applying a template builds a whole dashboard
+    ("POST", "/reports/", "30/hour"),  # report runs render PDFs in the worker
+    ("POST", "/workspace/invites", "20/hour"),  # each invite sends an email
     ("POST", "/support/webhooks/", "120/minute"),  # GlitchTip; checked by shared secret
     ("POST", "/support/", "20/minute"),  # new tickets and replies
     ("GET", "/support/errors/", "60/minute"),  # error-screen help lookup, no sign-in
