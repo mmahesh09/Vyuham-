@@ -253,7 +253,7 @@ export function ResetPasswordForm({ token, initialError }: { token?: string; ini
     return (
       <div className="flex flex-col gap-6">
         <FormNotice>Your password has been changed. Log in with your new password.</FormNotice>
-        <Link href="/login" className="flex h-11 items-center justify-center rounded-[10px] bg-primary text-[15px] font-semibold text-white">
+        <Link href="/login" className="flex h-11 items-center justify-center rounded-[10px] bg-primary text-[15px] font-semibold text-primary-foreground">
           Go to log in
         </Link>
       </div>

@@ -21,24 +21,24 @@ TIMEOUT = 10
 
 def render(title: str, paragraphs: list[str], button: tuple[str, str] | None = None, footer: str | None = None) -> str:
     """A small, email-client-safe HTML layout in the brand colours. All text is escaped."""
-    body = "".join(f'<p style="margin:0 0 14px;line-height:1.6;color:#3b3554;white-space:pre-line">{html.escape(p)}</p>' for p in paragraphs)
+    body = "".join(f'<p style="margin:0 0 14px;line-height:1.6;color:#544135;white-space:pre-line">{html.escape(p)}</p>' for p in paragraphs)
     cta = ""
     if button:
         label, url = button
         cta = (
             f'<p style="margin:22px 0"><a href="{html.escape(url, quote=True)}" '
-            'style="background:#705cbb;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;'
+            'style="background:#f07a2b;color:#1a0e05;text-decoration:none;padding:12px 22px;border-radius:999px;'
             f'font-weight:600;display:inline-block">{html.escape(label)}</a></p>'
-            f'<p style="margin:0 0 14px;font-size:12px;color:#8f86b3">Or paste this link into your browser:<br>{html.escape(url)}</p>'
+            f'<p style="margin:0 0 14px;font-size:12px;color:#a8978a">Or paste this link into your browser:<br>{html.escape(url)}</p>'
         )
     foot = html.escape(footer or "You're getting this because of your Vyuham account.")
     return (
-        '<!doctype html><html><body style="margin:0;background:#f5f2ff;font-family:Segoe UI,Helvetica,Arial,sans-serif">'
+        '<!doctype html><html><body style="margin:0;background:#fbf6f1;font-family:Segoe UI,Helvetica,Arial,sans-serif">'
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">'
         '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;padding:32px">'
-        '<tr><td><p style="margin:0 0 20px;font-weight:700;font-size:18px;color:#705cbb">vyuham</p>'
-        f'<h1 style="margin:0 0 16px;font-size:22px;color:#110e22">{html.escape(title)}</h1>{body}{cta}'
-        f'<p style="margin:24px 0 0;font-size:12px;color:#8f86b3">{foot}</p></td></tr></table></td></tr></table></body></html>'
+        '<tr><td><p style="margin:0 0 20px;font-weight:700;font-size:18px;color:#f07a2b">vyuham</p>'
+        f'<h1 style="margin:0 0 16px;font-size:22px;color:#15100c">{html.escape(title)}</h1>{body}{cta}'
+        f'<p style="margin:24px 0 0;font-size:12px;color:#a8978a">{foot}</p></td></tr></table></td></tr></table></body></html>'
     )
 
 
@@ -59,7 +59,7 @@ def send(to: list[str] | str, subject: str, html_body: str, text_body: str) -> i
             RESEND_URL, data=payload, headers={"Authorization": f"Bearer {s.resend_api_key}", "Content-Type": "application/json"}
         )
         try:
-            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
+            with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:  # fixed https Resend URL  # nosec B310
                 sent += 1 if resp.status < 300 else 0
         except urllib.error.HTTPError as e:
             log.error("[email] Resend refused a message to %s: HTTP %s %s", r, e.code, e.read()[:300])

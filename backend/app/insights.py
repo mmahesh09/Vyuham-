@@ -197,11 +197,11 @@ ID_HINT = re.compile(r"(^|[^a-z])id$|_id$|^id[^a-z]|number$|^no\.?$|phone|zip|po
 
 
 def _distinct_count(con: duckdb.DuckDBPyConnection, dataset: Dataset, col: str) -> int:
-    return con.execute(f"SELECT COUNT(DISTINCT {quote(col)}) FROM {view_name(dataset.id)}").fetchone()[0]
+    return con.execute(f"SELECT COUNT(DISTINCT {quote(col)}) FROM {view_name(dataset.id)}").fetchone()[0]  # quoted identifiers  # nosec B608
 
 
 def _date_span(con: duckdb.DuckDBPyConnection, dataset: Dataset, col: str) -> tuple[date | None, date | None]:
-    lo, hi = con.execute(f"SELECT MIN({quote(col)}), MAX({quote(col)}) FROM {view_name(dataset.id)}").fetchone()
+    lo, hi = con.execute(f"SELECT MIN({quote(col)}), MAX({quote(col)}) FROM {view_name(dataset.id)}").fetchone()  # quoted identifiers  # nosec B608
     return (lo.date() if lo else None, hi.date() if hi else None)
 
 

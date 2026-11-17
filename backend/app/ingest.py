@@ -12,6 +12,7 @@ import io
 import math
 import os
 import re
+import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime, time
 from pathlib import Path
@@ -108,7 +109,28 @@ def _read_csv(raw: bytes) -> pd.DataFrame:
         raise IngestError(f"A row{where} has more cells than the header row. Check for stray commas.") from e
 
 
+MAX_XLSX_ENTRIES = 2_000
+
+
+def _check_xlsx_size(raw: bytes) -> None:
+    """Refuse a zip bomb before openpyxl unpacks it. Sizes come from the zip directory, so nothing is
+    decompressed here."""
+    from app.config import get_settings
+
+    limit = get_settings().max_xlsx_uncompressed_bytes
+    try:
+        with zipfile.ZipFile(io.BytesIO(raw)) as z:
+            entries = z.infolist()
+    except (zipfile.BadZipFile, ValueError) as e:
+        raise IngestError("We couldn't open this Excel file. Is it a valid .xlsx?") from e
+    if len(entries) > MAX_XLSX_ENTRIES or sum(e.file_size for e in entries) > limit:
+        raise IngestError(
+            f"This workbook unpacks to more than {limit // (1024 * 1024)} MB. Save the sheet you need as CSV, or split the file."
+        )
+
+
 def _read_xlsx(raw: bytes, sheet: str | None) -> tuple[pd.DataFrame, list[str], str]:
+    _check_xlsx_size(raw)
     try:
         book = pd.ExcelFile(io.BytesIO(raw), engine="openpyxl")
     except Exception as e:  # openpyxl raises many types for corrupt files

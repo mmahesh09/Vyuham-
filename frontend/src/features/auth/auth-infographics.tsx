@@ -51,7 +51,7 @@ function BarChart() {
             <div key={i} className="relative flex-1" style={{ height: `${h}%` }}>
               <div
                 className={`h-full rounded-t-[4px] ${
-                  i === peak ? "bg-gradient-to-t from-primary to-highlight" : "bg-gradient-to-t from-line to-[#3a3170]"
+                  i === peak ? "bg-gradient-to-t from-primary to-highlight" : "bg-gradient-to-t from-line to-[#704a31]"
                 }`}
               />
               {i === peak && (

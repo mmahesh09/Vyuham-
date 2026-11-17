@@ -78,14 +78,26 @@ def safe_name(name: str, fallback: str = "export") -> str:
     return (cleaned or fallback)[:80]
 
 
+FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+_PLAIN_NUMBER = re.compile(r"^[+-]?(\d+([.,]\d+)*|\.\d+)([eE][+-]?\d+)?%?$")
+
+
+def _safe_text(v):
+    """Uploaded text that starts like a formula (=HYPERLINK(...), +cmd, @SUM) would run when the export
+    is opened in Excel or Sheets. A leading apostrophe makes it plain text. "-5" and "+3.2" are left alone."""
+    if isinstance(v, str) and v.startswith(FORMULA_START) and not _PLAIN_NUMBER.match(v):
+        return "'" + v
+    return v
+
+
 def _write_csv(path: str, columns: list[str], batches: Iterable[Iterable]) -> int:
     n = 0
     with open(path, "w", newline="", encoding="utf-8-sig") as f:
         w = csv.writer(f)
-        w.writerow(columns)
+        w.writerow([_safe_text(c) for c in columns])
         for batch in batches:
             for row in batch:
-                w.writerow(["" if v is None else to_json(v) for v in row])
+                w.writerow(["" if v is None else _safe_text(to_json(v)) for v in row])
                 n += 1
     return n
 
@@ -107,9 +119,9 @@ def dashboard_csv(tables: list[Table], name: str, out_dir: str) -> Built:
             used.add(fname)
             buf = io.StringIO()
             w = csv.writer(buf)
-            w.writerow(t.columns)
+            w.writerow([_safe_text(c) for c in t.columns])
             for r in t.rows:
-                w.writerow(["" if v is None else v for v in r])
+                w.writerow(["" if v is None else _safe_text(v) for v in r])
             total += len(t.rows)
             z.writestr(fname, "﻿" + buf.getvalue())
     return Built(path, f"{base}.zip", total)
@@ -128,7 +140,7 @@ def _sheet_title(title: str, used: set[str]) -> str:
 def _bold_row(ws, values: list) -> list:
     cells = []
     for v in values:
-        c = WriteOnlyCell(ws, value=v)
+        c = WriteOnlyCell(ws, value=_safe_text(v))
         c.font = Font(bold=True)
         cells.append(c)
     return cells
@@ -145,13 +157,13 @@ def dashboard_xlsx(tables: list[Table], headlines: list[str], name: str, period:
     if headlines:
         summary.append(_bold_row(summary, ["What stands out"]))
         for h in headlines:
-            summary.append([h])
+            summary.append([_safe_text(h)])
     total = 0
     for t in tables:
         ws = wb.create_sheet(_sheet_title(t.title, used))
         ws.append(_bold_row(ws, t.columns))
         for r in t.rows:
-            ws.append(r)
+            ws.append([_safe_text(v) for v in r])
         total += len(t.rows)
     base = safe_name(name, "dashboard")
     path = os.path.join(out_dir, f"{base}.xlsx")
@@ -165,7 +177,9 @@ def dashboard_xlsx(tables: list[Table], headlines: list[str], name: str, period:
 def _excel_value(v):
     if isinstance(v, datetime):
         return v.replace(tzinfo=None)  # Excel has no time zones
-    if v is None or isinstance(v, (date, bool, int, str)):
+    if isinstance(v, str):
+        return _safe_text(v)
+    if v is None or isinstance(v, (date, bool, int)):
         return v
     if isinstance(v, float):
         return None if math.isnan(v) or math.isinf(v) else v

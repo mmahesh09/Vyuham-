@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { PRIVACY_VERSION } from "@/lib/legal";
 
@@ -361,6 +362,7 @@ export default function PrivacyPage() {
           </div>
         </article>
       </main>
+      <SiteFooter />
     </div>
   );
 }

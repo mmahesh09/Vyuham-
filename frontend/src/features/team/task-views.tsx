@@ -24,7 +24,7 @@ import { cn } from "@/lib/utils";
 import { PRIORITY_LABEL, STATUS_LABEL, STATUSES, useOrderTasks, useUpdateTask, useWorkspaceLeaves, type Task, type TaskStatus } from "./api";
 
 const PRIORITY_BADGE = { low: "outline", medium: "info-light", high: "warning-light", urgent: "destructive-light" } as const;
-const PRIORITY_COLOR = { low: "#8f86b3", medium: "#705cbb", high: "#f2b544", urgent: "#f0597a" } as const;
+const PRIORITY_COLOR = { low: "#a8978a", medium: "#f07a2b", high: "#f2b544", urgent: "#f0597a" } as const;
 const PROGRESS: Record<TaskStatus, number> = { todo: 0, in_progress: 40, review: 80, done: 100 };
 const day = (iso: string) => startOfDay(parseISO(iso));
 

@@ -31,11 +31,25 @@
       "skillPath": ".claude/skills/backend-development/SKILL.md",
       "computedHash": ""
     },
+    "cinetic": {
+      "source": "Leonxlnx/cinetic",
+      "sourceType": "github",
+      "skillPath": "skills/cinetic/SKILL.md",
+      "computedHash": "c7af93e0a24a8825c37976e17a76a308edf9a412d26cd8a361f843ce034f71e2",
+      "installMode": "copy"
+    },
     "content-matrix": {
       "source": "charlie947/social-media-skills",
       "sourceType": "github",
       "skillPath": "skills/content-matrix/SKILL.md",
       "computedHash": "45423d4893f32ae55d35061ee76671bab07031516781dd1f277c8491dc7abd22"
+    },
+    "content-strategy": {
+      "source": "coreyhaines31/marketingskills",
+      "commit": "1f837447b20bb6f0e72d87b80ece1c221c362c7d",
+      "sourceType": "github",
+      "skillPath": "skills/content-strategy/SKILL.md",
+      "computedHash": "94a23ddb279c20ea8c7c7751eb07f548c855a5287aed8983f31e63b49e7dbf1a"
     },
     "diagram-design": {
       "source": "cathrynlavery/diagram-design",

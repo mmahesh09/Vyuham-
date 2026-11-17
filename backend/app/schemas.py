@@ -20,6 +20,8 @@ class UserOut(BaseModel):
     role: str
     job_role: str | None = None
     email_verified: bool = False
+    # Vyuham support staff: sees the support inbox, help-article editor and incident tools.
+    is_staff: bool = False
     workspace: WorkspaceOut
 
 

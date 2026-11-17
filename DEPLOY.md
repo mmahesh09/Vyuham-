@@ -63,6 +63,25 @@ restart: `docker compose -f docker-compose.prod.yml --env-file .env.prod up -d`.
 3. Export a PDF. The worker log shows it rendered by Forme, not the Chromium fallback.
 4. Create an alert. It runs on the next one-minute tick (`docker compose -f docker-compose.prod.yml logs -f worker`).
 
+## 6. Support, help center, errors and status
+- **Staff:** set `SUPPORT_STAFF_EMAILS=you@example.com` in `.env.prod` (comma-separated). Those people see
+  the support inbox at `/support/admin`, the help-article editor and the incident tools. Their email must be
+  confirmed in production.
+- **Status page:** `/status` is public. The beat checks the API, database, jobs and storage every minute,
+  and it keeps 90 days of history. Post incidents at `/support/admin/status`. Also point an outside uptime
+  monitor (for example Uptime Kuma) at `https://api.<domain>/health/ready`, which catches the whole server
+  being down.
+- **Error tracking (optional): GlitchTip (MIT, Sentry-SDK compatible).** Run it on the VPS or anywhere:
+  1. Use the `glitchtip` and `glitchtip-db` services in `docker-compose.yml` (`--profile errors`), or
+     GlitchTip's own compose file. Give it an HTTPS domain, and set `GLITCHTIP_DOMAIN` and `GLITCHTIP_SECRET_KEY`.
+  2. Create an organisation and a project, then copy the project's DSN.
+  3. Set `SENTRY_DSN` in `.env.prod` (API and worker), and set `SENTRY_DSN` + `NEXT_PUBLIC_SENTRY_DSN` in Vercel.
+  4. Pick a random `GLITCHTIP_WEBHOOK_SECRET` and set it in `.env.prod`. In GlitchTip, go to Project →
+     Alerts, add a **webhook** to `https://api.<domain>/support/webhooks/glitchtip?secret=<that value>`.
+  5. Each new issue then appears at `/support/admin/errors`. Link it to a help article, and anyone who hits
+     that error sees the fix on the error screen.
+  Without a DSN, nothing is sent anywhere and the app behaves exactly as before.
+
 ## Updating
 ```sh
 cd /opt/vyuham && git pull && docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build

@@ -3,8 +3,8 @@ import { cn } from "@/lib/utils";
 import type { ColumnProfile, ColumnType } from "./types";
 
 const TYPE_STYLE: Record<ColumnType, string> = {
-  number: "bg-accent text-[#14051b]",
-  date: "bg-primary text-text",
+  number: "bg-accent text-[#160f0a]",
+  date: "bg-primary text-primary-foreground",
   category: "bg-white/10 text-highlight",
   text: "bg-white/[0.06] text-muted",
 };

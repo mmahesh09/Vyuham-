@@ -1,10 +1,12 @@
 import { ArrowRight, ArrowUpRight, Play } from "lucide-react";
 import Link from "next/link";
 
+import { Announcement } from "@/components/marketing/announcement";
+import { SiteNav } from "@/components/marketing/site-nav";
 import { ParticlesBackground } from "@/components/marketing/particles-background";
-import { SiteHeader } from "@/components/marketing/site-header";
 import { Typewriter } from "@/components/marketing/typewriter";
 import { Mark } from "@/components/ui/mark";
+
 
 const PHRASES = ["anything.", "about revenue.", "who stopped buying.", "where cash goes."];
 
@@ -21,11 +23,11 @@ export function Hero() {
         fill="none"
         aria-hidden
       >
-        <circle cx="700" cy="760" r="620" stroke="#cb72d0" strokeOpacity="0.16" />
-        <circle cx="700" cy="760" r="700" stroke="#cea3f5" strokeOpacity="0.09" />
+        <circle cx="700" cy="760" r="620" stroke="#f2545b" strokeOpacity="0.16" />
+        <circle cx="700" cy="760" r="700" stroke="#ffb37a" strokeOpacity="0.09" />
       </svg>
 
-      <div className="hero-panel relative isolate mx-auto min-h-[min(100svh,980px)] max-w-[1440px] overflow-hidden rounded-[28px] border border-white/[0.06] sm:rounded-[36px]">
+      <div className="theme-dark dark hero-panel relative isolate mx-auto min-h-[min(100svh,980px)] max-w-[1440px] overflow-hidden rounded-[28px] border border-white/[0.06] sm:rounded-[36px]">
         {/* Light rays from the top left */}
         <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
           <div className="ray left-[22%] w-[70px] [animation-delay:0s]" />
@@ -39,15 +41,13 @@ export function Hero() {
         <ParticlesBackground className="absolute inset-0 -z-10" quantity={55} color="#ffffff" size={0.45} staticity={30} ease={60} />
 
         {/* Navigation */}
-        <SiteHeader overlay />
+        <SiteNav variant="overlay" />
 
         {/* Headline: left-aligned, heavy/light contrast, the question in a lighter weight */}
         <div className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-start px-[clamp(20px,5vw,64px)] pt-[clamp(48px,8vw,104px)]">
           {/* Soft scrim so the copy stays legible where the arch passes behind it */}
-          <div className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10 bg-[radial-gradient(closest-side,rgba(5,4,10,0.6),transparent)]" aria-hidden />
-          <p className="eyebrow">
-            Free during the beta <b>· No card</b>
-          </p>
+          <div className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10 bg-[radial-gradient(closest-side,rgba(7,5,4,0.6),transparent)]" aria-hidden />
+          <Announcement href="/signup">Free during the beta · No card</Announcement>
           <h1
             aria-label="Ask your spreadsheet anything: an AI dashboard for small businesses."
             className="mt-7 max-w-[13ch] text-[clamp(40px,6.4vw,92px)] font-semibold leading-[1] tracking-[-0.045em]"
@@ -121,12 +121,12 @@ export function Hero() {
             </div>
             <svg viewBox="0 0 200 56" className="mt-2 h-14 w-full">
               {[22, 30, 18, 34, 26, 40, 31, 46, 38, 52].map((h, i) => (
-                <rect key={i} x={i * 20 + 4} y={56 - h} width="10" height={h} rx="3" fill={i === 9 ? "#cb72d0" : "#705cbb"} fillOpacity={i === 9 ? 0.9 : 0.55} />
+                <rect key={i} x={i * 20 + 4} y={56 - h} width="10" height={h} rx="3" fill={i === 9 ? "#f2545b" : "#f07a2b"} fillOpacity={i === 9 ? 0.9 : 0.55} />
               ))}
               <polyline
                 points="9,40 29,30 49,42 69,26 89,34 109,20 129,28 149,14 169,22 189,8"
                 fill="none"
-                stroke="#cea3f5"
+                stroke="#ffb37a"
                 strokeWidth="1.5"
                 strokeOpacity="0.7"
               />

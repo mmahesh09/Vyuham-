@@ -70,15 +70,30 @@ def _datasets(db: Session, d: Dashboard) -> dict[str, Dataset]:
     return {ds.id: ds for ds in rows}
 
 
+def _public_chart(c: Chart) -> ChartOut:
+    """A chart for a share link or print page: no saved SQL (it names tables, columns and values)."""
+    out = ChartOut.model_validate(c)
+    out.spec = {k: v for k, v in (c.spec or {}).items() if k not in ("sql", "params")}
+    return out
+
+
 def _out(db: Session, d: Dashboard, member: WorkspaceMember | None) -> DashboardOut:
+    """member=None means a share link or print page: the reader isn't in the workspace, so they get
+    column names and types only (no sample values) and no chart SQL."""
     datasets = _datasets(db, d)
+    if member is None:
+        refs = [
+            DatasetRef(id=ds.id, name=ds.name, columns=[{**col, "examples": []} for col in ds.columns]) for ds in datasets.values()
+        ]
+        charts = [_public_chart(c) for c in d.charts]
+    else:
+        refs = [DatasetRef(id=ds.id, name=ds.name, columns=ds.columns) for ds in datasets.values()]
+        charts = [ChartOut.model_validate(c) for c in d.charts]
     return DashboardOut(
         id=d.id, name=d.name, description=d.description, date_fields=d.date_fields or {},
         filter_columns=d.filter_columns or [], kpi_layout=d.kpi_layout or [], canvas_layout=d.canvas_layout or [],
         share_token=d.share_token if member else None, created_at=d.created_at, updated_at=d.updated_at,
-        charts=[ChartOut.model_validate(c) for c in d.charts],
-        datasets=[DatasetRef(id=ds.id, name=ds.name, columns=ds.columns) for ds in datasets.values()],
-        can_edit=bool(member and member.role in CAN_UPLOAD),
+        charts=charts, datasets=refs, can_edit=bool(member and member.role in CAN_UPLOAD),
     )
 
 
@@ -90,7 +105,7 @@ def _parse_filters(f: str | None) -> dict[str, str]:
         if not isinstance(data, dict):
             raise ValueError
     except ValueError:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Filters must be a JSON object") from None
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Filters must be a JSON object") from None
     return {str(k): str(v) for k, v in data.items() if v not in (None, "")}
 
 
@@ -100,7 +115,7 @@ def _all_datasets(db: Session, workspace_id: str) -> dict[str, Dataset]:
 
 def _view(db: Session, d: Dashboard, date_from: date | None, date_to: date | None, equals: dict[str, str]) -> DashboardViewOut:
     if date_from and date_to and date_from > date_to:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "The start date is after the end date")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "The start date is after the end date")
     datasets = _all_datasets(db, d.workspace_id) if any(c.spec.get("sql") for c in d.charts) else _datasets(db, d)
     con = connect(d.workspace_id, list(datasets.values()))
     allowed = set(d.filter_columns or [])
@@ -140,14 +155,14 @@ def _check_spec_dataset(db: Session, member: WorkspaceMember, spec: dict) -> Dat
             sql, _ = bind(spec["sql"], [Param(**p) for p in spec.get("params") or []])
             validate_select(sql)
         except QueryError as e:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
         return ds
     cols = {c["name"] for c in ds.columns}
     missing = [m["field"] for m in spec["metrics"] if m["field"] != "*" and m["field"] not in cols]
     if spec.get("groupBy") and spec["groupBy"] not in cols:
         missing.append(spec["groupBy"])
     if missing:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f'"{missing[0]}" isn\'t a column in {ds.name}')
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f'"{missing[0]}" isn\'t a column in {ds.name}')
     return ds
 
 
@@ -201,7 +216,7 @@ def update_dashboard(
         for ds_id, col in data["date_fields"].items():
             ds = owned_dataset(db, member, ds_id)
             if not any(c["name"] == col and c["type"] == "date" for c in ds.columns):
-                raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f'"{col}" isn\'t a date column in {ds.name}')
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f'"{col}" isn\'t a date column in {ds.name}')
         d.date_fields = dict(data["date_fields"])
     if "filter_columns" in data:
         d.filter_columns = list(dict.fromkeys(data["filter_columns"]))
@@ -264,6 +279,10 @@ def filter_values(dashboard_id: str, column: str, member: WorkspaceMember = Depe
 
 
 def _filter_values(db: Session, d: Dashboard, column: str) -> list[str]:
+    # Only the dashboard's own filter columns: otherwise a share link would list the raw values of any
+    # column behind it (emails, phone numbers...).
+    if column not in (d.filter_columns or []):
+        return []
     datasets = [ds for ds in _datasets(db, d).values() if any(c["name"] == column for c in ds.columns)]
     if not datasets:
         return []
@@ -285,7 +304,7 @@ def add_chart(dashboard_id: str, body: ChartIn, member: WorkspaceMember = Depend
     _editor(member)
     d = _dashboard(db, member, dashboard_id)
     if len(d.charts) >= MAX_CHARTS:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"A dashboard can hold up to {MAX_CHARTS} charts.")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"A dashboard can hold up to {MAX_CHARTS} charts.")
     spec = body.spec.model_dump(exclude_none=True)
     ds = _check_spec_dataset(db, member, spec)
     position = max((c.position for c in d.charts), default=-1) + 1
@@ -339,7 +358,7 @@ def reorder(dashboard_id: str, body: OrderIn, member: WorkspaceMember = Depends(
     d = _dashboard(db, member, dashboard_id)
     by_id = {c.id: c for c in d.charts}
     if set(body.chart_ids) - set(by_id):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Unknown chart in the new order")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Unknown chart in the new order")
     ordered = [by_id[i] for i in body.chart_ids] + [c for c in d.charts if c.id not in body.chart_ids]
     for n, c in enumerate(ordered):
         c.position = n
@@ -351,6 +370,8 @@ def reorder(dashboard_id: str, body: OrderIn, member: WorkspaceMember = Depends(
 def preview(body: PreviewIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     """Live result for the chart builder, before anything is saved."""
     spec = body.spec.model_dump(exclude_none=True)
+    if spec.get("sql"):
+        _editor(member)  # SQL charts come from SQL Lab, which is for owners and editors
     ds = _check_spec_dataset(db, member, spec)
     date_field = body.date_field or next((c["name"] for c in ds.columns if c["type"] == "date"), None)
     filters = Filters(date_field, body.date_from, body.date_to) if date_field and (body.date_from or body.date_to) else None
@@ -358,7 +379,7 @@ def preview(body: PreviewIn, member: WorkspaceMember = Depends(current_membershi
     try:
         rows, insight = chart_insight(con, spec, ds, filters)
     except QueryError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     finally:
         con.close()
     return PreviewOut(rows=rows, insight=InsightOut(**insight.__dict__))

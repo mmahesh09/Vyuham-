@@ -9,6 +9,13 @@ x-backend-env: &backend-env
   SIGNING_SECRET: ${SIGNING_SECRET:-dev-only-signing-secret-change-me-0123456789}
   # The worker's browser opens the print page through the frontend container.
   PRINT_BASE_URL: http://frontend:3000
+  # Status page: the beat pings the API so "API" is checked from outside it.
+  STATUS_API_URL: http://backend:8000
+  # Support staff (comma-separated emails): support inbox, help articles, incidents.
+  SUPPORT_STAFF_EMAILS: ${SUPPORT_STAFF_EMAILS:-}
+  # Error tracking: a DSN from GlitchTip (below) and the secret on its webhook URL. Off when empty.
+  SENTRY_DSN: ${SENTRY_DSN:-}
+  GLITCHTIP_WEBHOOK_SECRET: ${GLITCHTIP_WEBHOOK_SECRET:-}
 
 services:
   db:
@@ -101,6 +108,39 @@ services:
     profiles: ["dev"]
     ports: ["127.0.0.1:4566:4566"]
 
+  # Error tracking: self-hosted GlitchTip (MIT), Sentry-SDK compatible. Optional:
+  #   docker compose --profile errors up -d glitchtip
+  # then open http://localhost:8001, create an org + project, copy its DSN into SENTRY_DSN /
+  # NEXT_PUBLIC_SENTRY_DSN, and add a webhook alert to
+  #   http://backend:8000/support/webhooks/glitchtip?secret=<GLITCHTIP_WEBHOOK_SECRET>
+  glitchtip-db:
+    image: postgres:18
+    profiles: ["errors"]
+    command: -c max_locks_per_transaction=512
+    environment:
+      POSTGRES_USER: glitchtip
+      POSTGRES_PASSWORD: glitchtip
+      POSTGRES_DB: glitchtip
+    volumes: [glitchtip-pg:/var/lib/postgresql]
+
+  glitchtip:
+    image: glitchtip/glitchtip:6
+    profiles: ["errors"]
+    depends_on: [glitchtip-db]
+    ports: ["127.0.0.1:8001:8000"]
+    environment:
+      DATABASE_URL: postgres://glitchtip:glitchtip@glitchtip-db:5432/glitchtip
+      VALKEY_URL: ""  # task queue and cache in Postgres; keeps it to one extra database
+      SECRET_KEY: ${GLITCHTIP_SECRET_KEY:-dev-only-glitchtip-secret-change-me}
+      EMAIL_URL: consolemail://
+      GLITCHTIP_DOMAIN: ${GLITCHTIP_DOMAIN:-http://localhost:8001}
+      DEFAULT_FROM_EMAIL: ${GLITCHTIP_FROM_EMAIL:-errors@localhost}
+      SERVER_ROLE: all_in_one
+      GLITCHTIP_ENABLE_UPTIME: "False"
+    volumes: [glitchtip-uploads:/code/uploads]
+
 volumes:
   pgdata:
   appdata:
+  glitchtip-pg:
+  glitchtip-uploads:

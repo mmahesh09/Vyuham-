@@ -75,9 +75,9 @@ export function AuthVisual({ className = "" }: { className?: string }) {
   return (
     <aside
       aria-hidden
-      className={`relative isolate flex-col items-center overflow-hidden border-line bg-[#06050c] lg:border-l ${className}`}
+      className={`theme-dark dark relative isolate flex-col items-center overflow-hidden border-line bg-[#0b0806] lg:border-l ${className}`}
     >
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_45%_at_50%_100%,rgba(112,92,187,0.22),transparent_70%),radial-gradient(40%_30%_at_50%_0%,rgba(206,163,245,0.08),transparent_70%)]" />
+      <div className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(60%_45%_at_50%_100%,rgba(240,122,43,0.22),transparent_70%),radial-gradient(40%_30%_at_50%_0%,rgba(255,179,122,0.08),transparent_70%)]" />
 
       <p className="mt-[clamp(48px,9vh,110px)] max-w-[520px] px-8 text-center font-display text-[clamp(30px,2.6vw,42px)] font-medium leading-[1.15] tracking-tight">
         <span className="block text-text">Upload a spreadsheet.</span>
@@ -99,25 +99,25 @@ export function AuthVisual({ className = "" }: { className?: string }) {
         <svg viewBox="-330 -215 660 290" className="absolute bottom-0 left-0 w-full">
           <defs>
             <linearGradient id="av-top" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#2c2560" />
-              <stop offset="1" stopColor="#1b163d" />
+              <stop offset="0" stopColor="#603c25" />
+              <stop offset="1" stopColor="#37271c" />
             </linearGradient>
             <linearGradient id="av-hero" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stopColor="#a48ff0" />
-              <stop offset="1" stopColor="#6450b4" />
+              <stop offset="0" stopColor="#f0b58f" />
+              <stop offset="1" stopColor="#b47750" />
             </linearGradient>
             <linearGradient id="av-face" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#1a1636" />
-              <stop offset="1" stopColor="#0b0918" />
+              <stop offset="0" stopColor="#31241b" />
+              <stop offset="1" stopColor="#16100b" />
             </linearGradient>
             <linearGradient id="av-face-dark" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#120f27" />
-              <stop offset="1" stopColor="#07060f" />
+              <stop offset="0" stopColor="#231a13" />
+              <stop offset="1" stopColor="#0e0a07" />
             </linearGradient>
             <linearGradient id="av-ring" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stopColor="#cea3f5" stopOpacity="0.15" />
-              <stop offset="0.5" stopColor="#cea3f5" stopOpacity="0.9" />
-              <stop offset="1" stopColor="#cea3f5" stopOpacity="0.15" />
+              <stop offset="0" stopColor="#ffb37a" stopOpacity="0.15" />
+              <stop offset="0.5" stopColor="#ffb37a" stopOpacity="0.9" />
+              <stop offset="1" stopColor="#ffb37a" stopOpacity="0.15" />
             </linearGradient>
             <filter id="av-glow" x="-50%" y="-50%" width="200%" height="200%">
               <feGaussianBlur stdDeviation="14" />
@@ -126,20 +126,20 @@ export function AuthVisual({ className = "" }: { className?: string }) {
 
           {/* Guides from the handle corners down to the floor. */}
           {handle.slice(1).map(([x, y], i) => (
-            <line key={i} x1={x} y1={y} x2={x} y2={70} stroke="#cea3f5" strokeOpacity="0.14" />
+            <line key={i} x1={x} y1={y} x2={x} y2={70} stroke="#ffb37a" strokeOpacity="0.14" />
           ))}
 
           <path d={backArc} fill="none" stroke="url(#av-ring)" strokeOpacity="0.45" strokeWidth="1.25" />
 
-          <polygon points={hero.top} fill="#8d78e0" opacity="0.35" filter="url(#av-glow)" />
+          <polygon points={hero.top} fill="#e0a178" opacity="0.35" filter="url(#av-glow)" />
 
           {bars.map((b, i) => {
             const isHero = i === bars.length - 1;
             return (
               <g key={i}>
-                <polygon points={b.left} fill="url(#av-face)" stroke="#2a2357" strokeOpacity="0.6" strokeWidth="0.75" />
-                <polygon points={b.right} fill="url(#av-face-dark)" stroke="#2a2357" strokeOpacity="0.6" strokeWidth="0.75" />
-                <polygon points={b.top} fill={isHero ? "url(#av-hero)" : "url(#av-top)"} stroke={isHero ? "#cea3f5" : "#3a3170"} strokeWidth="0.75" />
+                <polygon points={b.left} fill="url(#av-face)" stroke="#573723" strokeOpacity="0.6" strokeWidth="0.75" />
+                <polygon points={b.right} fill="url(#av-face-dark)" stroke="#573723" strokeOpacity="0.6" strokeWidth="0.75" />
+                <polygon points={b.top} fill={isHero ? "url(#av-hero)" : "url(#av-top)"} stroke={isHero ? "#ffb37a" : "#704a31"} strokeWidth="0.75" />
               </g>
             );
           })}
@@ -147,16 +147,16 @@ export function AuthVisual({ className = "" }: { className?: string }) {
           <polygon
             points={handle.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ")}
             fill="none"
-            stroke="#cea3f5"
+            stroke="#ffb37a"
             strokeOpacity="0.55"
             strokeDasharray="5 6"
           />
           {handle.map(([x, y], i) => (
-            <circle key={i} cx={x} cy={y} r="4.5" fill="#06050c" stroke="#cea3f5" strokeWidth="1.5" />
+            <circle key={i} cx={x} cy={y} r="4.5" fill="#0b0806" stroke="#ffb37a" strokeWidth="1.5" />
           ))}
 
           <path d={frontArc} fill="none" stroke="url(#av-ring)" strokeWidth="1.5" />
-          <path d={`M 10 ${arrowY} L -14 ${arrowY - 12} L -8 ${arrowY} L -14 ${arrowY + 12} Z`} fill="#cea3f5" />
+          <path d={`M 10 ${arrowY} L -14 ${arrowY - 12} L -8 ${arrowY} L -14 ${arrowY + 12} Z`} fill="#ffb37a" />
         </svg>
       </div>
     </aside>

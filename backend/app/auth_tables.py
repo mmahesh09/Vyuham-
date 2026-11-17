@@ -4,7 +4,7 @@ Column names are Better Auth's defaults (camelCase). Keep in sync with frontend/
 (e.g. the extra `company` field on user).
 """
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Table, Text
+from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text
 
 from app.db import Base
 
@@ -53,6 +53,17 @@ account_table = Table(
     Column("password", Text),
     ts("createdAt"),
     ts("updatedAt"),
+)
+
+# Sign-in / sign-up / password-reset attempt counters (rateLimit.storage = "database" in auth.ts), so
+# the limits hold across Vercel's serverless instances instead of resetting per instance.
+rate_limit_table = Table(
+    "rateLimit",
+    Base.metadata,
+    Column("id", String(64), primary_key=True),
+    Column("key", String(255), nullable=False, unique=True),
+    Column("count", Integer, nullable=False),
+    Column("lastRequest", BigInteger, nullable=False),  # epoch milliseconds
 )
 
 verification_table = Table(

@@ -48,6 +48,9 @@ def _start_tracing(**_: object) -> None:
     from app.telemetry import setup_telemetry
 
     setup_telemetry("vyuham-worker", celery=True)
+    from app.errors import setup_error_tracking
+
+    setup_error_tracking("vyuham-worker")
 
 
 # Database and network trouble is worth retrying; a broken alert definition is not (run_job
@@ -64,11 +67,23 @@ class JobTask(Task):
             db.close()
 
 
+def _status_checks(db) -> None:
+    """The status page's once-a-minute checks ride on the same beat; a failure here never stops jobs."""
+    from app.status import run_checks
+
+    try:
+        run_checks(db)
+    except Exception:
+        log.exception("status checks failed")
+        db.rollback()
+
+
 @celery_app.task(name="vyuham.tick", ignore_result=True)
 def tick() -> dict:
     db = SessionLocal()
     try:
         counts = jobs.tick(db, enqueue=lambda job_id: run_job.delay(job_id))
+        _status_checks(db)
     finally:
         db.close()
     if any(counts.values()):

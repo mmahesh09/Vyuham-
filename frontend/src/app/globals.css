@@ -6,32 +6,85 @@
 @custom-variant data-horizontal (&[data-orientation="horizontal"]);
 @custom-variant data-vertical (&[data-orientation="vertical"]);
 
-/* Brand palette — black ground with four violet tones. */
-:root {
-  --bg: #05040a; /* near-black with a violet cast; never flat #000 */
-  --bg-alt: #0a0913; /* alternating section tone, violet-tinted */
-  --surface: #110e22;
-  --surface-2: #17132e;
-  --line: #221c4a; /* borders, selected states, AI panels */
-  --line-strong: #2e2660; /* hover borders and dividers that must read */
-  --primary: #705cbb; /* main buttons, chart bars */
-  --accent: #cb72d0; /* attention: values going down, highlights */
-  --highlight: #cea3f5; /* values going up, chart lines, links */
-  --text: #f5f2ff;
-  --muted: #b3a9d6;
-  --faint: #8f86b3;
+/* Brand palette: warm near-black ground, amber-orange accents. Dark is the default theme;
+ * .theme-dark re-applies it to an island (product art, the hero) inside a light page. */
+:root,
+.theme-dark {
+  --bg: #070504; /* near-black with a warm cast; never flat #000 */
+  --bg-alt: #0d0907; /* alternating section tone, warm-tinted */
+  --surface: #15100c;
+  --surface-2: #1c1510;
+  --line: #2a1e16; /* borders, selected states, AI panels */
+  --line-strong: #3a2a1e; /* hover borders and dividers that must read */
+  --primary: #f07a2b; /* main buttons, chart bars */
+  --accent: #f2545b; /* attention: values going down, highlights */
+  --highlight: #ffb37a; /* values going up, chart lines, links */
+  --text: #fbf6f1;
+  --muted: #d1c2b4;
+  --faint: #a8978a;
 
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
   --destructive-foreground: var(--color-red-800);
   --success: var(--color-emerald-500);
   --success-foreground: var(--color-emerald-900);
-  --info: var(--color-violet-500);
-  --info-foreground: var(--color-violet-900);
+  --info: var(--color-sky-500);
+  --info-foreground: var(--color-sky-900);
   --warning: var(--color-yellow-500);
   --warning-foreground: var(--color-yellow-900);
   --invert: var(--color-zinc-900);
   --invert-foreground: var(--color-zinc-50);
+
+  /* Marketing surfaces (glass cards, tinted bands, glows, date picker). */
+  --glass-bg: rgba(255, 255, 255, 0.035);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-strong-from: rgba(255, 255, 255, 0.07);
+  --glass-strong-to: rgba(255, 255, 255, 0.025);
+  --glass-strong-border: rgba(255, 255, 255, 0.1);
+  --glass-strong-inset: rgba(255, 255, 255, 0.08);
+  --glass-strong-glow: rgba(242, 84, 91, 0.45);
+  --band-bg: rgba(25, 18, 13, 0.72);
+  --band-border: rgba(255, 255, 255, 0.05);
+  --glow-strength: 1;
+  color-scheme: dark;
+}
+
+/* Light theme (next-themes puts .light on <html>): warm paper ground, deeper orange for text and
+ * lines so every text colour passes WCAG AA on bg, surface and surface-2. */
+:root.light {
+  --bg: #faf6f1;
+  --bg-alt: #f3ece4;
+  --surface: #ffffff;
+  --surface-2: #f5eee7;
+  --line: #e7dbcf;
+  --line-strong: #d3c2b1;
+  --primary: #e8691c; /* buttons keep dark text: 5.8:1 */
+  --accent: #c2303c; /* down / attention: 5.2:1 on bg */
+  --highlight: #b14e0c; /* up, links, focus: 4.9:1 on bg */
+  --text: #1e150f;
+  --muted: #5b4b3f;
+  --faint: #6f5f53;
+  --input: #d3c2b1;
+  --destructive: #c2303c;
+  --chart-4: #8a7768;
+  --chart-5: #a5531f;
+
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(30, 21, 15, 0.08);
+  --glass-strong-from: rgba(255, 255, 255, 0.92);
+  --glass-strong-to: rgba(255, 255, 255, 0.74);
+  --glass-strong-border: rgba(30, 21, 15, 0.1);
+  --glass-strong-inset: rgba(255, 255, 255, 0.7);
+  --glass-strong-glow: rgba(232, 105, 28, 0.22);
+  --band-bg: rgba(243, 236, 228, 0.78);
+  --band-border: rgba(30, 21, 15, 0.06);
+  --glow-strength: 0.5;
+  color-scheme: light;
+}
+
+/* An island keeps its own text colour (body's is the light theme's dark text). */
+.theme-dark {
+  color: var(--text);
 }
 
 /*
@@ -39,7 +92,8 @@
  * components/reui) use these names. Brand --muted / --accent are TEXT colours here, so the
  * vendored files had bg-muted / bg-accent rewritten to bg-surface-2 when installed.
  */
-:root {
+:root,
+.theme-dark {
   --radius: 0.625rem;
   --background: var(--bg);
   --foreground: var(--text);
@@ -47,25 +101,25 @@
   --card-foreground: var(--text);
   --popover: var(--surface);
   --popover-foreground: var(--text);
-  --primary-foreground: var(--text);
+  --primary-foreground: #1a0e05; /* dark text on orange (7.6:1); light text would fail contrast */
   --secondary: var(--surface-2);
   --secondary-foreground: var(--text);
   --muted-foreground: var(--muted);
   --accent-foreground: var(--text);
   --destructive: #f0597a;
   --border: var(--line);
-  --input: #2e2660;
+  --input: #3a2a1e;
   --ring: var(--highlight);
   /* Same order as the ECharts "brand" theme (features/charts/echarts-setup.ts). */
   --chart-1: var(--highlight);
   --chart-2: var(--primary);
   --chart-3: var(--accent);
-  --chart-4: #8f86b3;
-  --chart-5: #4b3f8f;
+  --chart-4: #a8978a;
+  --chart-5: #8a4a24;
   --sidebar: var(--bg);
   --sidebar-foreground: var(--text);
   --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--text);
+  --sidebar-primary-foreground: #1a0e05;
   --sidebar-accent: var(--surface-2);
   --sidebar-accent-foreground: var(--text);
   --sidebar-border: var(--line);
@@ -116,6 +170,15 @@
   --color-success-foreground: var(--success-foreground);
   --color-success: var(--success);
   --color-destructive-foreground: var(--destructive-foreground);
+  --animate-shiny-text: shiny-text 8s infinite;
+  @keyframes shiny-text {
+  0%, 90%, 100% {
+    background-position: calc(-100% - var(--shiny-width)) 0;
+    }
+  30%, 60% {
+    background-position: calc(100% + var(--shiny-width)) 0;
+    }
+  }
 }
 
 @layer base {
@@ -145,7 +208,7 @@
   --font-display: var(--font-outfit), system-ui, sans-serif;
   --font-serif: var(--font-outfit), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  /* No pure white anywhere: "white" is the brand's violet-tinted off-white. */
+  /* No pure white anywhere: "white" is the brand's warm off-white. */
   --color-white: var(--text);
   --color-invert-foreground: var(--invert-foreground);
   --color-invert: var(--invert);
@@ -156,10 +219,6 @@
   --color-success-foreground: var(--success-foreground);
   --color-success: var(--success);
   --color-destructive-foreground: var(--destructive-foreground);
-}
-
-html {
-  color-scheme: dark;
 }
 
 body {
@@ -191,8 +250,8 @@ body {
 .btn-lift:hover {
   transform: translateY(-2px);
   box-shadow:
-    0 8px 24px rgba(112, 92, 187, 0.35),
-    0 2px 6px rgba(112, 92, 187, 0.25);
+    0 8px 24px rgba(240, 122, 43, 0.35),
+    0 2px 6px rgba(240, 122, 43, 0.25);
 }
 .btn-lift:active {
   transform: translateY(0) scale(0.98);
@@ -229,9 +288,9 @@ body {
 /* ---------- Hero: glowing panel, rays, arch ---------- */
 .hero-panel {
   background:
-    radial-gradient(55% 50% at 34% 0%, rgba(206, 163, 245, 0.34), transparent 72%),
-    radial-gradient(70% 55% at 50% 100%, rgba(203, 114, 208, 0.2), transparent 70%),
-    radial-gradient(95% 85% at 50% 38%, #2a0f33 0%, #13061b 58%, #07030b 100%);
+    radial-gradient(55% 50% at 34% 0%, rgba(255, 179, 122, 0.34), transparent 72%),
+    radial-gradient(70% 55% at 50% 100%, rgba(242, 84, 91, 0.2), transparent 70%),
+    radial-gradient(95% 85% at 50% 38%, #2d1f15 0%, #16100b 58%, #090705 100%);
 }
 
 .ray {
@@ -240,7 +299,7 @@ body {
   height: 100%;
   transform: rotate(25deg);
   transform-origin: top center;
-  background: linear-gradient(to bottom, rgba(250, 215, 252, 0.8), rgba(220, 140, 220, 0.28) 50%, transparent 82%);
+  background: linear-gradient(to bottom, rgba(252, 220, 215, 0.8), rgba(220, 150, 140, 0.28) 50%, transparent 82%);
   filter: blur(16px);
   mix-blend-mode: screen;
   animation: ray-pulse 7s ease-in-out infinite alternate;
@@ -255,7 +314,7 @@ body {
 }
 /* Fades the arch into the dark at the bottom of the panel, without clipping its glow. */
 .hero-fade {
-  background: linear-gradient(to bottom, transparent, rgba(7, 3, 11, 0.85) 75%, #07030b);
+  background: linear-gradient(to bottom, transparent, rgba(9, 7, 5, 0.85) 75%, #090705);
 }
 .arch-ring {
   position: absolute;
@@ -269,25 +328,25 @@ body {
   background: radial-gradient(
     circle closest-side,
     transparent 0 73.5%,
-    #3b1046 74%,
-    #7d2a7e 78%,
-    #c661c4 83%,
-    #f4bff2 86.5%,
-    #dc7bd6 88.5%,
-    #8f3590 93.5%,
-    #4a1550 97.5%,
+    #3a291c 74%,
+    #7e342a 78%,
+    #c66d61 83%,
+    #f4c5bf 86.5%,
+    #dc877b 88.5%,
+    #904035 93.5%,
+    #501c15 97.5%,
     transparent 99.5%
   );
-  filter: drop-shadow(0 -10px 60px rgba(203, 114, 208, 0.45));
+  filter: drop-shadow(0 -10px 60px rgba(242, 84, 91, 0.45));
 }
 .arch-ring--inner {
   background: radial-gradient(
     circle closest-side,
     transparent 0 60%,
-    #2a0c35 60.5%,
-    #5b1f62 64%,
-    #a2479f 67.5%,
-    #451650 71%,
+    #2c1f15 60.5%,
+    #62271f 64%,
+    #a25247 67.5%,
+    #501d16 71%,
     transparent 72.5%
   );
   opacity: 0.85;
@@ -296,12 +355,12 @@ body {
   left: -6%;
   top: -6%;
   width: 112%;
-  border: 1px solid rgba(206, 163, 245, 0.22);
+  border: 1px solid rgba(255, 179, 122, 0.22);
 }
 .arch-glow {
   position: absolute;
   inset: -25% 5% 30%;
-  background: radial-gradient(50% 60% at 50% 30%, rgba(203, 114, 208, 0.4), transparent 70%);
+  background: radial-gradient(50% 60% at 50% 30%, rgba(242, 84, 91, 0.4), transparent 70%);
   filter: blur(40px);
 }
 
@@ -330,19 +389,19 @@ body {
 
 /* ---------- Glass surfaces & section glows ---------- */
 .glass {
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   -webkit-backdrop-filter: blur(16px);
   backdrop-filter: blur(16px);
 }
 .glass-strong {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.025));
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: linear-gradient(180deg, var(--glass-strong-from), var(--glass-strong-to));
+  border: 1px solid var(--glass-strong-border);
   -webkit-backdrop-filter: blur(24px);
   backdrop-filter: blur(24px);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 40px 120px -40px rgba(203, 114, 208, 0.45);
+    inset 0 1px 0 var(--glass-strong-inset),
+    0 40px 120px -40px var(--glass-strong-glow);
 }
 
 /* A soft colored light source behind a section's content. */
@@ -352,10 +411,11 @@ body {
   border-radius: 9999px;
   filter: blur(90px);
   pointer-events: none;
+  opacity: var(--glow-strength);
 }
-.glow--pink { background: rgba(203, 114, 208, 0.28); }
-.glow--violet { background: rgba(112, 92, 187, 0.32); }
-.glow--lilac { background: rgba(206, 163, 245, 0.18); }
+.glow--pink { background: rgba(242, 84, 91, 0.28); }
+.glow--violet { background: rgba(240, 122, 43, 0.32); }
+.glow--lilac { background: rgba(255, 179, 122, 0.18); }
 
 .live-ping {
   animation: live-ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;
@@ -371,8 +431,8 @@ body {
 /* ---------- Section rhythm ---------- */
 /* A tinted band that alternates with the black sections; translucent so particles still show. */
 .band {
-  background: rgba(14, 10, 28, 0.72);
-  border-block: 1px solid rgba(255, 255, 255, 0.05);
+  background: var(--band-bg);
+  border-block: 1px solid var(--band-border);
 }
 
 /* Map hot-spot pulse (CSS, so it honours reduced motion — unlike SMIL). */
@@ -389,27 +449,27 @@ body {
   .map-pulse { animation: none; opacity: 0; }
 }
 
-/* ---------- react-day-picker, dark brand ---------- */
+/* ---------- react-day-picker, brand colours (follows the theme) ---------- */
 .rdp-brand .rdp-root {
-  --rdp-accent-color: #cb72d0;
-  --rdp-accent-background-color: rgba(203, 114, 208, 0.16);
-  --rdp-range_middle-background-color: rgba(112, 92, 187, 0.28);
-  --rdp-range_middle-color: #f5f2ff;
-  --rdp-range_start-date-background-color: #cb72d0;
-  --rdp-range_end-date-background-color: #cb72d0;
-  --rdp-range_start-color: #14051b;
-  --rdp-range_end-color: #14051b;
-  --rdp-today-color: #cea3f5;
+  --rdp-accent-color: #f2545b;
+  --rdp-accent-background-color: rgba(242, 84, 91, 0.16);
+  --rdp-range_middle-background-color: rgba(240, 122, 43, 0.28);
+  --rdp-range_middle-color: var(--text);
+  --rdp-range_start-date-background-color: #f2545b;
+  --rdp-range_end-date-background-color: #f2545b;
+  --rdp-range_start-color: #160f0a;
+  --rdp-range_end-color: #160f0a;
+  --rdp-today-color: var(--highlight);
   --rdp-day-height: 40px;
   --rdp-day-width: 40px;
   --rdp-day_button-height: 38px;
   --rdp-day_button-width: 38px;
-  color: #f5f2ff;
+  color: var(--text);
   font-size: 14px;
 }
-.rdp-brand .rdp-weekday { color: rgba(255, 255, 255, 0.45); font-size: 12px; }
+.rdp-brand .rdp-weekday { color: var(--faint); font-size: 12px; }
 .rdp-brand .rdp-disabled { opacity: 0.3; }
-.rdp-brand .rdp-chevron { fill: #cea3f5; }
+.rdp-brand .rdp-chevron { fill: var(--highlight); }
 
 /* Gentle drift for floating infographic cards (auth panel). */
 .float-slow {
@@ -456,14 +516,14 @@ body {
   color: transparent;
 }
 
-/* The one primary action: brand violet, lifts with a violet (not black) shadow. */
+/* The one primary action: brand orange, dark text, lifts with an orange (not black) shadow. */
 .btn-primary {
-  background: linear-gradient(180deg, #7f6acb, var(--primary));
-  color: var(--text);
+  background: linear-gradient(180deg, #f59a58, var(--primary));
+  color: var(--primary-foreground);
   box-shadow:
-    inset 0 1px 0 rgba(245, 242, 255, 0.22),
-    0 1px 2px rgba(20, 5, 27, 0.4),
-    0 8px 24px -10px rgba(112, 92, 187, 0.7);
+    inset 0 1px 0 rgba(251, 246, 241, 0.22),
+    0 1px 2px rgba(22, 15, 10, 0.4),
+    0 8px 24px -10px rgba(240, 122, 43, 0.7);
   transition:
     transform 200ms var(--ease-out-quart),
     box-shadow 200ms var(--ease-out-quart);
@@ -471,24 +531,24 @@ body {
 .btn-primary:hover {
   transform: translateY(-2px);
   box-shadow:
-    inset 0 1px 0 rgba(245, 242, 255, 0.22),
-    0 2px 4px rgba(20, 5, 27, 0.4),
-    0 16px 36px -12px rgba(112, 92, 187, 0.85);
+    inset 0 1px 0 rgba(251, 246, 241, 0.22),
+    0 2px 4px rgba(22, 15, 10, 0.4),
+    0 16px 36px -12px rgba(240, 122, 43, 0.85);
 }
 .btn-primary:active {
   transform: translateY(0) scale(0.98);
   transition-duration: 100ms;
 }
 .btn-ghost {
-  border: 1px solid rgba(206, 163, 245, 0.22);
+  border: 1px solid rgba(255, 179, 122, 0.22);
   color: var(--text);
   transition:
     background-color 200ms var(--ease-out-quart),
     border-color 200ms var(--ease-out-quart);
 }
 .btn-ghost:hover {
-  background: rgba(206, 163, 245, 0.06);
-  border-color: rgba(206, 163, 245, 0.4);
+  background: rgba(255, 179, 122, 0.06);
+  border-color: rgba(255, 179, 122, 0.4);
 }
 @media (prefers-reduced-motion: reduce) {
   .btn-primary,
@@ -499,11 +559,11 @@ body {
 }
 
 /* ---------- Highlighter: marker swipe ---------- */
-/* A translucent violet-pink band behind the lower part of a key phrase, slightly slanted
+/* A translucent orange band behind the lower part of a key phrase, slightly slanted
    with soft ends. It sweeps in left to right when its [data-animate] ancestor is revealed. */
 mark.mark {
-  --mark-a: rgba(203, 114, 208, 0.5);
-  --mark-b: rgba(206, 163, 245, 0.38);
+  --mark-a: rgba(242, 84, 91, 0.5);
+  --mark-b: rgba(255, 179, 122, 0.38);
   color: inherit;
   background-color: transparent;
   background-image: linear-gradient(100deg, transparent 0.3em, var(--mark-a) 0.45em, var(--mark-b) calc(100% - 0.45em), transparent calc(100% - 0.3em));
@@ -517,8 +577,8 @@ mark.mark {
   box-decoration-break: clone;
 }
 mark.mark[data-tone="violet"] {
-  --mark-a: rgba(112, 92, 187, 0.62);
-  --mark-b: rgba(141, 120, 224, 0.45);
+  --mark-a: rgba(240, 122, 43, 0.62);
+  --mark-b: rgba(224, 161, 120, 0.45);
 }
 /* With JS on, marks inside an animated block start empty and sweep in once it is visible. */
 .reveal-ready [data-animate] mark.mark {
@@ -560,8 +620,8 @@ details[open] mark.mark {
   --destructive-foreground: var(--color-red-600);
   --success: var(--color-emerald-500);
   --success-foreground: var(--color-emerald-600);
-  --info: var(--color-violet-500);
-  --info-foreground: var(--color-violet-600);
+  --info: var(--color-sky-500);
+  --info-foreground: var(--color-sky-600);
   --warning: var(--color-yellow-500);
   --warning-foreground: var(--color-yellow-600);
   --invert: var(--color-zinc-700);
@@ -596,4 +656,12 @@ details[open] mark.mark {
   font-weight: 300;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
+}
+
+/* Blog code blocks (Shiki, dual theme): dark colours are inline; the light theme swaps in the
+ * --shiki-light variables Shiki writes on every token. */
+:root.light .shiki,
+:root.light .shiki span {
+  color: var(--shiki-light) !important;
+  background-color: var(--shiki-light-bg) !important;
 }

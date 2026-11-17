@@ -384,3 +384,137 @@ class ReportRun(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# --- Support: tickets, knowledge base, error groups, status page ---------------------------------
+
+
+class KbArticle(Base):
+    """A help-center article. Drafts are staff-only; published ones are public at /help/<slug>."""
+
+    __tablename__ = "kb_articles"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    slug: Mapped[str] = mapped_column(String(120), unique=True)
+    title: Mapped[str] = mapped_column(String(200))
+    summary: Mapped[str] = mapped_column(String(300), default="")
+    body: Mapped[str] = mapped_column(Text, default="")  # markdown
+    tags: Mapped[list] = mapped_column(JSON, default=list)
+    status: Mapped[str] = mapped_column(String(10), default="draft", index=True)  # draft | published
+    source_ticket_id: Mapped[str | None] = mapped_column(String(32))
+    views: Mapped[int] = mapped_column(Integer, default=0)
+    helpful_yes: Mapped[int] = mapped_column(Integer, default=0)
+    helpful_no: Mapped[int] = mapped_column(Integer, default=0)
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ErrorGroup(Base):
+    """One distinct error, as grouped by GlitchTip (one GlitchTip issue). Staff link it to a KB article."""
+
+    __tablename__ = "error_groups"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    glitchtip_issue_id: Mapped[str] = mapped_column(String(64), unique=True)
+    title: Mapped[str] = mapped_column(String(300))
+    culprit: Mapped[str | None] = mapped_column(String(300))
+    level: Mapped[str] = mapped_column(String(16), default="error")
+    url: Mapped[str | None] = mapped_column(String(500))  # the issue in GlitchTip
+    status: Mapped[str] = mapped_column(String(10), default="new", index=True)  # new | known | fixed
+    count: Mapped[int] = mapped_column(Integer, default=1)  # webhook deliveries (alerts) seen
+    kb_article_id: Mapped[str | None] = mapped_column(ForeignKey("kb_articles.id", ondelete="SET NULL"))
+    first_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    last_seen: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class SupportTicket(Base):
+    __tablename__ = "support_tickets"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"), index=True)
+    subject: Mapped[str] = mapped_column(String(200))
+    category: Mapped[str] = mapped_column(String(16), default="question")  # bug | question | billing | feature
+    priority: Mapped[str] = mapped_column(String(8), default="normal")  # low | normal | high | urgent
+    status: Mapped[str] = mapped_column(String(10), default="open", index=True)  # open | pending | resolved | closed
+    error_event_id: Mapped[str | None] = mapped_column(String(64))  # Sentry/GlitchTip event id from the error screen
+    error_group_id: Mapped[str | None] = mapped_column(ForeignKey("error_groups.id", ondelete="SET NULL"))
+    kb_article_id: Mapped[str | None] = mapped_column(ForeignKey("kb_articles.id", ondelete="SET NULL"))
+    page_url: Mapped[str | None] = mapped_column(String(500))
+    user_agent: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    first_response_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    messages: Mapped[list["TicketMessage"]] = relationship(
+        back_populates="ticket", cascade="all, delete-orphan", order_by="TicketMessage.created_at"
+    )
+
+
+class TicketMessage(Base):
+    __tablename__ = "ticket_messages"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    ticket_id: Mapped[str] = mapped_column(ForeignKey("support_tickets.id", ondelete="CASCADE"), index=True)
+    author_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    author_name: Mapped[str] = mapped_column(String(200), default="")
+    is_staff: Mapped[bool] = mapped_column(Boolean, default=False)
+    internal: Mapped[bool] = mapped_column(Boolean, default=False)  # staff-only note, never shown to the customer
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    ticket: Mapped[SupportTicket] = relationship(back_populates="messages")
+
+
+class KbDeflection(Base):
+    """Someone on the new-ticket form opened a suggested article instead of (or before) filing."""
+
+    __tablename__ = "kb_deflections"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    article_id: Mapped[str] = mapped_column(ForeignKey("kb_articles.id", ondelete="CASCADE"))
+    user_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+class StatusCheck(Base):
+    """One health check of one component, written every minute; the status page's uptime history."""
+
+    __tablename__ = "status_checks"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    component: Mapped[str] = mapped_column(String(32))
+    ok: Mapped[bool] = mapped_column(Boolean)
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
+    checked_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+class Incident(Base):
+    __tablename__ = "incidents"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    title: Mapped[str] = mapped_column(String(200))
+    impact: Mapped[str] = mapped_column(String(12), default="minor")  # minor | major | maintenance
+    status: Mapped[str] = mapped_column(String(12), default="investigating")  # investigating | identified | monitoring | resolved
+    components: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    updates: Mapped[list["IncidentUpdate"]] = relationship(
+        back_populates="incident", cascade="all, delete-orphan", order_by="IncidentUpdate.created_at.desc()"
+    )
+
+
+class IncidentUpdate(Base):
+    __tablename__ = "incident_updates"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    incident_id: Mapped[str] = mapped_column(ForeignKey("incidents.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(12))
+    message: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+    incident: Mapped[Incident] = relationship(back_populates="updates")

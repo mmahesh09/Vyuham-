@@ -94,7 +94,7 @@ export function buildOption(spec: ChartSpec, rows: ResultRow[], { highlightLast 
           width: "100%",
           height: "100%",
           label: { color: BRAND.text, fontSize: 12 },
-          itemStyle: { borderColor: "#05040a", borderWidth: 2, gapWidth: 2 },
+          itemStyle: { borderColor: "#070504", borderWidth: 2, gapWidth: 2 },
           data: rows.map((_, i) => ({ name: labels[i], value: values[i] })),
         },
       ],
@@ -249,8 +249,8 @@ export function buildOption(spec: ChartSpec, rows: ResultRow[], { highlightLast 
                       { offset: 1, color: alpha(spec.color, 0) },
                     ]
                   : [
-                      { offset: 0, color: "rgba(203,114,208,0.35)" },
-                      { offset: 1, color: "rgba(112,92,187,0)" },
+                      { offset: 0, color: "rgba(242,84,91,0.35)" },
+                      { offset: 1, color: "rgba(240,122,43,0)" },
                     ],
               },
             }

@@ -50,9 +50,9 @@ def _check_channels(c: Channels, user: AuthUser | None = None) -> dict:
         try:
             check_webhook_url(c.webhook)
         except WebhookError as e:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     if not (c.inapp or c.emails or c.webhook):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Pick at least one way to be notified.")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Pick at least one way to be notified.")
     return c.model_dump()
 
 
@@ -102,13 +102,13 @@ def _validate_alert(db: Session, member: WorkspaceMember, body: AlertIn, user: A
     cols = {c["name"]: c["type"] for c in ds.columns}
     m = body.metric
     if m.field != "*" and m.field not in cols:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f'"{m.field}" isn\'t a column in {ds.name}')
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f'"{m.field}" isn\'t a column in {ds.name}')
     if m.agg in ("sum", "avg") and cols.get(m.field) != "number":
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f'"{m.field}" isn\'t a number column')
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f'"{m.field}" isn\'t a number column')
     if body.date_field and cols.get(body.date_field) != "date":
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f'"{body.date_field}" isn\'t a date column')
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f'"{body.date_field}" isn\'t a date column')
     if body.condition.startswith("change") and not (body.date_field and body.window_days):
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "A change alert needs a date column and a time window to compare.")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A change alert needs a date column and a time window to compare.")
     data = body.model_dump()
     data["channels"] = _check_channels(body.channels, user)
     data["metric"] = m.model_dump()
@@ -270,7 +270,7 @@ def run_now(aid: str, member: WorkspaceMember = Depends(current_membership), db:
     try:
         run_automation(db, a)
     except QueryError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     db.refresh(a)
     return a
 

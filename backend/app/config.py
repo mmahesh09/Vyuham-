@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # Uploads (beta limits; the browser checks the same size before sending).
     max_upload_bytes: int = 10 * 1024 * 1024
     max_upload_rows: int = 1_000_000
+    # An .xlsx is a zip: a 10 MB file can unpack to gigabytes and take the API down. Refuse workbooks
+    # whose contents add up to more than this, before opening them.
+    max_xlsx_uncompressed_bytes: int = 150 * 1024 * 1024
+    # Per-account / per-address request limits (app/ratelimit.py).
+    rate_limit_enabled: bool = True
     # Background jobs (alerts, automations, reports) run on a Celery worker fed by Redis.
     # Without REDIS_URL (local dev), the API runs them in a thread instead: one process only.
     redis_url: str = ""
@@ -64,6 +69,24 @@ class Settings(BaseSettings):
     s3_secret_key: str = ""
     report_retention_days: int = 30
     report_max_rows: int = 1_000_000
+
+    # Support: Vyuham staff who can see every ticket, write help articles and post incidents.
+    # Comma-separated emails, matched against the signed-in (Better Auth) address.
+    support_staff_emails: str = ""
+    # Error tracking with the Sentry SDK, sent to a self-hosted GlitchTip (MIT). Off when empty.
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.0
+    release: str = ""
+    # Shared secret GlitchTip sends with its webhook (?secret=... on the webhook URL). Webhook is off when empty.
+    glitchtip_webhook_secret: str = ""
+    # Status page: where the scheduler pings the API's /health/live. Empty = the check runs inside
+    # the API process (no-Redis dev), so a finished check already proves the API is up.
+    status_api_url: str = ""
+    status_retention_days: int = 90
+
+    @property
+    def staff_emails(self) -> set[str]:
+        return {e.strip().lower() for e in self.support_staff_emails.split(",") if e.strip()}
 
     @model_validator(mode="after")
     def _production_is_safe(self):

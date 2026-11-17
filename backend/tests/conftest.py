@@ -44,6 +44,16 @@ def data_dir(tmp_path, monkeypatch):
     return tmp_path / "data"
 
 
+@pytest.fixture(autouse=True)
+def fresh_rate_limits():
+    """Every test starts with empty rate-limit counters (they're per process, in memory, in tests)."""
+    from app import ratelimit
+
+    ratelimit.reset()
+    yield
+    ratelimit.reset()
+
+
 @pytest.fixture
 def client(engine):
     TestSession = sessionmaker(bind=engine, expire_on_commit=False)

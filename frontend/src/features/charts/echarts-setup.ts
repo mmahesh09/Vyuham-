@@ -27,7 +27,9 @@ echarts.use([
   LegacyGridContainLabel,
 ]);
 
-echarts.registerTheme("brand", brandTheme(`${outfit.style.fontFamily}, system-ui, sans-serif`));
+const font = `${outfit.style.fontFamily}, system-ui, sans-serif`;
+echarts.registerTheme("brand", brandTheme(font));
+echarts.registerTheme("brand-light", brandTheme(font, "light"));
 
 // Kept here too so existing imports of BRAND from this module keep working.
 export { BRAND };

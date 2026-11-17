@@ -86,14 +86,17 @@ def export_my_data(user: AuthUser = Depends(current_user), member: WorkspaceMemb
             "profile": _row(profile) if profile else None,
             "status": _row(presence) if presence else None,
         }))
+        # Workspace records are limited to the workspace the person is in now: after being removed from
+        # a workspace (or leaving it), their old uploads and dashboards there are no longer theirs to take.
+        ws_id = member.workspace_id
         z.writestr("tasks.json", _json([_row(t) for t in db.scalars(
-            select(Task).where((Task.assignee_id == user.id) | (Task.created_by == user.id)))]))
+            select(Task).where(Task.workspace_id == ws_id, (Task.assignee_id == user.id) | (Task.created_by == user.id)))]))
         z.writestr("leave.json", _json([_row(lv) for lv in db.scalars(select(LeaveRecord).where(LeaveRecord.user_id == user.id))]))
         z.writestr("notifications.json", _json([_row(n) for n in db.scalars(select(Notification).where(Notification.user_id == user.id))]))
         z.writestr("feedback.json", _json([_row(f) for f in db.scalars(select(Feedback).where(Feedback.user_id == user.id))]))
-        dashboards = db.scalars(select(Dashboard).where(Dashboard.created_by == user.id)).all()
+        dashboards = db.scalars(select(Dashboard).where(Dashboard.created_by == user.id, Dashboard.workspace_id == ws_id)).all()
         z.writestr("dashboards.json", _json([{**_row(d, skip=("share_token",)), "charts": [_row(c) for c in d.charts]} for d in dashboards]))
-        for ds in db.scalars(select(Dataset).where(Dataset.created_by == user.id)):
+        for ds in db.scalars(select(Dataset).where(Dataset.created_by == user.id, Dataset.workspace_id == ws_id)):
             path = parquet_path(ds.workspace_id, ds.id)
             if path.exists():
                 safe = "".join(ch if ch.isalnum() or ch in " -_." else "_" for ch in ds.name)[:80] or ds.id
@@ -125,7 +128,7 @@ def delete_workspace(body: ConfirmIn, member: WorkspaceMember = Depends(current_
     if member.role != "owner":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Only owners can delete the workspace.")
     if body.confirm.strip() != member.workspace.name:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Type the workspace name exactly to confirm.")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Type the workspace name exactly to confirm.")
     ws_id = member.workspace_id
     _erase_workspace(db, ws_id)
     db.commit()
@@ -155,7 +158,7 @@ def leave_workspace(member: WorkspaceMember = Depends(current_membership), db: S
 @router.delete("/account", status_code=status.HTTP_204_NO_CONTENT)
 def delete_account(body: ConfirmIn, user: AuthUser = Depends(current_user), db: Session = Depends(get_db)):
     if body.confirm.strip().lower() != user.email.lower():
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Type your email address exactly to confirm.")
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Type your email address exactly to confirm.")
     member = db.scalar(select(WorkspaceMember).where(WorkspaceMember.user_id == user.id))
     if member:
         others = db.scalar(select(func.count()).where(WorkspaceMember.workspace_id == member.workspace_id, WorkspaceMember.user_id != user.id))

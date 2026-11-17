@@ -56,7 +56,7 @@ export function SocialButtons({ verb, enabled }: { verb: "Log in" | "Sign up"; e
           type="button"
           onClick={() => start(id, label)}
           disabled={pendingProvider !== undefined}
-          className="flex h-11 w-full items-center justify-center gap-2.5 rounded-[10px] border border-line bg-surface text-[15px] font-medium text-text transition-[background-color,border-color] duration-200 hover:border-[#3a3170] hover:bg-surface-2 disabled:cursor-wait disabled:opacity-70"
+          className="flex h-11 w-full items-center justify-center gap-2.5 rounded-[10px] border border-line bg-surface text-[15px] font-medium text-text transition-[background-color,border-color] duration-200 hover:border-[#704a31] hover:bg-surface-2 disabled:cursor-wait disabled:opacity-70"
         >
           {mark}
           {pendingProvider === id ? `Opening ${label}…` : `${verb} with ${label}`}

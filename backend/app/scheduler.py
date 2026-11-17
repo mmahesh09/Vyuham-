@@ -9,6 +9,7 @@ import logging
 import threading
 
 from app.jobs import tick
+from app.status import run_checks
 from app.db import SessionLocal
 
 log = logging.getLogger("app.scheduler")
@@ -34,6 +35,7 @@ class Scheduler:
             db = SessionLocal()
             try:
                 tick(db)
+                run_checks(db)
             except Exception:  # keep the loop alive; one bad pass shouldn't stop alerts
                 log.exception("scheduler pass failed")
                 db.rollback()

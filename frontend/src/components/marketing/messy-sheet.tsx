@@ -16,9 +16,9 @@ const TABS = ["Jan", "Feb", "Mar", "Copy of Mar", "pivot DO NOT TOUCH", "Oct (ne
 export function MessySheet() {
   return (
     <figure className="relative" aria-label="A typical messy sales spreadsheet with broken formulas and duplicate tabs">
-      <div className="overflow-hidden rounded-[10px] bg-[#f6f5f8] text-[#1d1b22] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] ring-1 ring-black/10 md:-rotate-[1.5deg]">
+      <div className="overflow-hidden rounded-[10px] bg-[#f8f6f5] text-[#1d1b22] shadow-[0_30px_80px_-20px_rgba(0,0,0,0.9)] ring-1 ring-black/10 md:-rotate-[1.5deg]">
         {/* Title bar */}
-        <div className="flex items-center gap-2 border-b border-black/10 bg-[#e9e7ee] px-3 py-2">
+        <div className="flex items-center gap-2 border-b border-black/10 bg-[#eeeae7] px-3 py-2">
           <span className="size-2.5 rounded-full bg-[#ff5f57]" />
           <span className="size-2.5 rounded-full bg-[#febc2e]" />
           <span className="size-2.5 rounded-full bg-[#28c840]" />
@@ -35,7 +35,7 @@ export function MessySheet() {
         <div data-lenis-prevent-horizontal className="overflow-x-auto">
           <table className="w-full min-w-[520px] border-collapse font-mono text-[11.5px]">
             <thead>
-              <tr className="bg-[#eceaf1] text-black/50">
+              <tr className="bg-[#f1edea] text-black/50">
                 <th className="w-8 border border-black/10 font-normal" />
                 {COLS.map((c) => (
                   <th key={c} className="border border-black/10 py-1 font-normal">
@@ -47,7 +47,7 @@ export function MessySheet() {
             <tbody>
               {ROWS.map((row, r) => (
                 <tr key={r} className={r === 0 ? "font-semibold" : ""}>
-                  <td className="border border-black/10 bg-[#eceaf1] py-1 text-center text-black/50">{r + 1}</td>
+                  <td className="border border-black/10 bg-[#f1edea] py-1 text-center text-black/50">{r + 1}</td>
                   {row.map((cell, c) => {
                     const cellObj = typeof cell === "string" ? { v: cell } : cell;
                     return (
@@ -68,7 +68,7 @@ export function MessySheet() {
           </table>
         </div>
         {/* Tabs */}
-        <div className="flex gap-px overflow-x-auto border-t border-black/10 bg-[#e9e7ee] px-2 text-[11px]">
+        <div className="flex gap-px overflow-x-auto border-t border-black/10 bg-[#eeeae7] px-2 text-[11px]">
           {TABS.map((t, i) => (
             <span
               key={t}
@@ -81,7 +81,7 @@ export function MessySheet() {
       </div>
 
       {/* Comment left by a teammate */}
-      <figcaption className="absolute -right-2 top-[44%] w-[200px] rotate-[2deg] rounded-[8px] bg-[#fff8c5] p-3 text-[12.5px] leading-snug text-[#3b3520] shadow-[0_12px_30px_-8px_rgba(0,0,0,0.6)] sm:-right-6">
+      <figcaption className="absolute -right-1 top-[44%] w-[160px] sm:w-[200px] rotate-[2deg] rounded-[8px] bg-[#fff8c5] p-3 text-[12.5px] leading-snug text-[#3b3520] shadow-[0_12px_30px_-8px_rgba(0,0,0,0.6)] sm:-right-6">
         <span className="block text-[11px] font-semibold text-[#8a7a2e]">Ravi</span>
         is this before or after refunds?? numbers don&apos;t match the bank
       </figcaption>

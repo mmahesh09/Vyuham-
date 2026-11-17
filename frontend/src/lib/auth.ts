@@ -65,8 +65,11 @@ async function createAuth() {
       },
     },
     // Slow down password guessing and sign-up spam (Better Auth's built-in limiter).
+    // Counters live in the database ("rateLimit" table, created by Alembic): the default in-memory store
+    // resets per serverless instance on Vercel, so the limits wouldn't hold there.
     rateLimit: {
       enabled: true,
+      storage: "database",
       window: 60,
       max: 100,
       customRules: {

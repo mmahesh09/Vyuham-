@@ -10,7 +10,7 @@ export function Button({ variant = "primary", className, ...props }: ButtonProps
       className={cn(
         "inline-flex min-h-11 items-center justify-center gap-2 rounded-full px-6 text-[15px] disabled:cursor-not-allowed disabled:opacity-60",
         variant === "primary"
-          ? "btn-lift bg-primary font-semibold text-white"
+          ? "btn-lift bg-primary font-semibold text-primary-foreground"
           : "border border-line bg-transparent font-medium text-text hover:bg-surface",
         className,
       )}

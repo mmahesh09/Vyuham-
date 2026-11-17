@@ -9,18 +9,18 @@ import "server-only";
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export function renderEmail(title: string, paragraphs: string[], button?: { label: string; url: string }) {
-  const body = paragraphs.map((p) => `<p style="margin:0 0 14px;line-height:1.6;color:#3b3554">${esc(p)}</p>`).join("");
+  const body = paragraphs.map((p) => `<p style="margin:0 0 14px;line-height:1.6;color:#544135">${esc(p)}</p>`).join("");
   const cta = button
-    ? `<p style="margin:22px 0"><a href="${esc(button.url)}" style="background:#705cbb;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:600;display:inline-block">${esc(button.label)}</a></p>` +
-      `<p style="margin:0 0 14px;font-size:12px;color:#8f86b3">Or paste this link into your browser:<br>${esc(button.url)}</p>`
+    ? `<p style="margin:22px 0"><a href="${esc(button.url)}" style="background:#f07a2b;color:#ffffff;text-decoration:none;padding:12px 22px;border-radius:999px;font-weight:600;display:inline-block">${esc(button.label)}</a></p>` +
+      `<p style="margin:0 0 14px;font-size:12px;color:#a8978a">Or paste this link into your browser:<br>${esc(button.url)}</p>`
     : "";
   return (
-    `<!doctype html><html><body style="margin:0;background:#f5f2ff;font-family:Segoe UI,Helvetica,Arial,sans-serif">` +
+    `<!doctype html><html><body style="margin:0;background:#fbf6f1;font-family:Segoe UI,Helvetica,Arial,sans-serif">` +
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">` +
     `<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;padding:32px"><tr><td>` +
-    `<p style="margin:0 0 20px;font-weight:700;font-size:18px;color:#705cbb">vyuham</p>` +
-    `<h1 style="margin:0 0 16px;font-size:22px;color:#110e22">${esc(title)}</h1>${body}${cta}` +
-    `<p style="margin:24px 0 0;font-size:12px;color:#8f86b3">If you didn't ask for this, you can ignore this email.</p>` +
+    `<p style="margin:0 0 20px;font-weight:700;font-size:18px;color:#f07a2b">vyuham</p>` +
+    `<h1 style="margin:0 0 16px;font-size:22px;color:#15100c">${esc(title)}</h1>${body}${cta}` +
+    `<p style="margin:24px 0 0;font-size:12px;color:#a8978a">If you didn't ask for this, you can ignore this email.</p>` +
     `</td></tr></table></td></tr></table></body></html>`
   );
 }

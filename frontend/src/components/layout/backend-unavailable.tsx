@@ -32,7 +32,7 @@ export function BackendUnavailable({ detail }: { detail: string }) {
           type="button"
           onClick={() => startTransition(() => router.refresh())}
           disabled={pending}
-          className="btn-lift inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-6 text-[15px] font-semibold text-white disabled:opacity-60"
+          className="btn-lift inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-6 text-[15px] font-semibold text-primary-foreground disabled:opacity-60"
         >
           <RotateCw className={`size-4 ${pending ? "animate-spin" : ""}`} aria-hidden />
           Try again

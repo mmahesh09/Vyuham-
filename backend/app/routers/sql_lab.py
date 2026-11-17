@@ -84,7 +84,7 @@ def run(body: RunIn, member: WorkspaceMember = Depends(current_membership), db: 
     try:
         rows = run_sql(con, *bind(body.sql, body.params))
     except QueryError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     finally:
         con.close()
     columns = list(rows[0].keys()) if rows else []
@@ -100,7 +100,7 @@ def explain(body: RunIn, member: WorkspaceMember = Depends(current_membership), 
     try:
         return ExplainOut(plan=explain_sql(con, *bind(body.sql, body.params)))
     except QueryError as e:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(e)) from e
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     finally:
         con.close()
 

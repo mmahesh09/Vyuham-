@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Fragment, useEffect, useState } from "react";
 
 import { usePageCrumb } from "@/components/app/page-crumb";
+import { ThemeToggle } from "@/components/app/theme-toggle";
 import { Logo } from "@/components/layout/logo";
 import { NAV_GROUPS, SidebarNav } from "@/components/layout/sidebar";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
@@ -79,6 +80,7 @@ export function Topbar({ workspaceName, userName }: { workspaceName: string; use
         <span className="flex-1 text-left max-sm:hidden">Search or ask…</span>
         <kbd className="rounded-[5px] border border-line px-1.5 py-0.5 font-sans text-[11px] text-muted max-sm:hidden">{mac ? "⌘K" : "Ctrl K"}</kbd>
       </button>
+      <ThemeToggle />
       <NotificationBell />
 
       <Sheet open={menuOpen} onOpenChange={setMenuOpen}>

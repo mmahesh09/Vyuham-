@@ -1,12 +1,21 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+import logging
+
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from app.config import get_settings
-from app.routers import account, alerts, ask, dashboards, datasets, health, me, presence, profile, reports, sql_lab, team, templates
+from app.db import get_db
+from app.errors import capture
+from app.ratelimit import RateLimitMiddleware
+from app.errors import setup_error_tracking
+from app.routers import account, alerts, ask, dashboards, datasets, health, kb, me, presence, profile, reports, sql_lab, status_page, support, team, templates
 from app.scheduler import Scheduler
 from app.telemetry import setup_telemetry
+
+
+log = logging.getLogger("app.main")
 
 
 @asynccontextmanager
@@ -23,9 +32,17 @@ async def lifespan(_: FastAPI):
 
 # The Next.js frontend proxies /api/* to this app, so the browser sees one
 # origin and no CORS setup is needed.
-app = FastAPI(title="AI Dashboards API", version="0.1.0", lifespan=lifespan)
+# In production the interactive docs are off: the API's address is public, and the docs map every route.
+_docs = get_settings().environment != "production"
+app = FastAPI(
+    title="AI Dashboards API", version="0.1.0", lifespan=lifespan,
+    docs_url="/docs" if _docs else None, redoc_url="/redoc" if _docs else None, openapi_url="/openapi.json" if _docs else None,
+)
+app.add_middleware(RateLimitMiddleware)
 # Tracing (OpenTelemetry), only when OTEL_EXPORTER_OTLP_ENDPOINT is set. celery=True traces the jobs the API queues.
 setup_telemetry("vyuham-api", app=app, celery=True)
+# Error tracking (Sentry SDK -> self-hosted GlitchTip), only when SENTRY_DSN is set.
+setup_error_tracking("vyuham-api")
 
 app.include_router(me.router)
 app.include_router(datasets.router)
@@ -42,9 +59,37 @@ app.include_router(account.router)
 app.include_router(health.router)
 app.include_router(reports.router)
 app.include_router(reports.printer)
+app.include_router(support.router)
+app.include_router(support.admin)
+app.include_router(kb.router)
+app.include_router(kb.admin)
+app.include_router(status_page.router)
+app.include_router(status_page.admin)
+
+
+@app.exception_handler(Exception)
+async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
+    """A 500 the person can act on: a reference to quote to support, and the fix when staff have written one up."""
+    ref = capture(exc)
+    help_link = None
+    try:
+        gen = app.dependency_overrides.get(get_db, get_db)()
+        db = next(gen)
+        try:
+            article = support.help_for_title(db, f"{type(exc).__name__}: {exc}")
+            if article:
+                help_link = {"slug": article.slug, "title": article.title}
+        finally:
+            gen.close()
+    except Exception:  # the help lookup must never turn one error into two
+        log.exception("help lookup for an unhandled error failed")
+    return JSONResponse(
+        {"detail": "Something went wrong on our side. We have been notified.", "error_ref": ref, "help": help_link},
+        status_code=500,
+    )
 
 
 @app.get("/", include_in_schema=False)
 def root() -> RedirectResponse:
-    """This app is an API only; send people who open the bare URL to the interactive docs."""
-    return RedirectResponse("/docs")
+    """This app is an API only; send people who open the bare URL to the interactive docs (dev) or the health check."""
+    return RedirectResponse("/docs" if _docs else "/health")
