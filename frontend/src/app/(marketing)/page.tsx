@@ -198,12 +198,12 @@ const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
   },
   {
     q: "What data can I use?",
-    text: "Excel and CSV files, and Google Sheets that stay in sync automatically. Exports from tools like Stripe, QuickBooks or your CRM work too, as long as they’re a spreadsheet. Direct database and app connectors come after the beta.",
+    text: "Excel and CSV files, and your PostgreSQL or MySQL database: pick the tables and they refresh every hour or every day. Exports from tools like Stripe, QuickBooks or your CRM work too, and you can ask questions across a database and a spreadsheet at once.",
     a: (
       <>
-        Excel and CSV files, and <Mark>Google Sheets that stay in sync</Mark> automatically. Exports from tools like
-        Stripe, QuickBooks or your CRM work too, as long as they’re a spreadsheet. Direct database and app connectors
-        come after the beta.
+        Excel and CSV files, and <Mark>your PostgreSQL or MySQL database</Mark>: pick the tables and they refresh every
+        hour or every day. Exports from tools like Stripe, QuickBooks or your CRM work too, and you can ask questions
+        across a database and a spreadsheet at once.
       </>
     ),
   },

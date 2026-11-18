@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -172,6 +172,10 @@ def update_dataset(
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown column: {sorted(unknown)[0]}")
         # New list so SQLAlchemy sees the JSON change.
         dataset.columns = [{**c, "type": body.column_types.get(c["name"], c["type"])} for c in dataset.columns]
+    if body.refresh is not None:
+        if dataset.connection_id is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Only data from a connected database refreshes on a schedule.")
+        dataset.refresh = body.refresh
     db.commit()
     db.refresh(dataset)
     return dataset
@@ -202,6 +206,8 @@ def replace_file(
     """New data, same dataset: dashboards built on it keep working if the columns still match."""
     require_editor(member)
     dataset = owned_dataset(db, member, dataset_id)
+    if dataset.connection_id is not None:
+        raise HTTPException(status.HTTP_409_CONFLICT, "This data comes from a connected database. Use Refresh now instead.")
     s = get_settings()
     filename = Path(file.filename or "").name
     raw = _read_capped(file, s.max_upload_bytes)
@@ -217,4 +223,42 @@ def replace_file(
     dataset.columns = [c.as_dict() for c in result.columns]
     db.commit()
     db.refresh(dataset)
+    return dataset
+
+
+def _run_job_inline(bind, job_id: str) -> None:
+    """Without Redis (local dev): run a claimed job in this process, after the response is sent."""
+    from sqlalchemy.orm import Session as _Session
+
+    from app import jobs
+
+    db = _Session(bind)
+    try:
+        jobs.run_job(db, job_id)
+    except Exception as e:
+        jobs.mark_failed(db, job_id, e)
+    finally:
+        db.close()
+
+
+@router.post("/{dataset_id}/sync", response_model=DatasetOut, status_code=status.HTTP_202_ACCEPTED)
+def sync_now(
+    dataset_id: str, background: BackgroundTasks,
+    member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db),
+):
+    """Refresh a database-backed dataset now. Runs in the background; poll the dataset for `last_synced_at`."""
+    from app import jobs
+
+    require_editor(member)
+    dataset = owned_dataset(db, member, dataset_id)
+    if dataset.connection_id is None:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Only data from a connected database can be refreshed.")
+    run = jobs.sync_now(db, dataset)
+    if run is not None:
+        if get_settings().redis_url:
+            from app.worker import run_job  # Celery only where it's configured
+
+            run_job.delay(run.id)
+        else:
+            background.add_task(_run_job_inline, db.get_bind(), run.id)
     return dataset

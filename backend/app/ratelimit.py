@@ -45,11 +45,14 @@ RULES: list[tuple[str, str, str]] = [
     ("*", "/invites/", "30/minute"),
     ("POST", "/sql/", "60/minute"),
     # Expensive work (from the rate-limit review in PR #4): AI answers, chart previews, new dashboards.
-    ("POST", "/ask", "30/minute"),  # each question is an LLM call
+    ("POST", "/ask", "30/minute"),  # each question parses the text and runs DuckDB queries
     ("POST", "/charts/preview", "120/minute"),
     ("POST", "/templates/", "30/hour"),  # applying a template builds a whole dashboard
     ("POST", "/reports/", "30/hour"),  # report runs render PDFs in the worker
     ("POST", "/workspace/invites", "20/hour"),  # each invite sends an email
+    # Database connections: each request opens a connection to the customer's database.
+    ("POST", "/connections/", "20/minute"),  # test, create, first sync
+    ("GET", "/connections/", "60/minute"),  # table lists and previews
     ("POST", "/support/webhooks/", "120/minute"),  # GlitchTip; checked by shared secret
     ("POST", "/support/", "20/minute"),  # new tickets and replies
     ("GET", "/support/errors/", "60/minute"),  # error-screen help lookup, no sign-in

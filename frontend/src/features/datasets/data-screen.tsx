@@ -1,6 +1,6 @@
 "use client";
 
-import { LoaderCircle, X } from "lucide-react";
+import { Database, LoaderCircle, X } from "lucide-react";
 import { useState } from "react";
 
 import { PageContainer } from "@/components/app/page-container";
@@ -9,6 +9,8 @@ import { PageHeader } from "@/components/app/page-header";
 import { Button } from "@/components/ui/core";
 import { NativeSelect } from "@/components/ui/native-select";
 import { useMe } from "@/features/auth/hooks";
+import { ConnectDatabaseDialog } from "@/features/connections/connect-database-dialog";
+import { ConnectionList } from "@/features/connections/connection-list";
 
 import { ColumnSummary } from "./column-summary";
 import { useUploadDataset, type Dataset } from "./api";
@@ -24,7 +26,14 @@ export function DataScreen() {
   const upload = useUploadDataset();
   const { data: me } = useMe();
   const [saved, setSaved] = useState<Dataset | null>(null);
+  const [connectOpen, setConnectOpen] = useState(false);
+  const [connectionId, setConnectionId] = useState<string | null>(null);
   const canSave = me?.role !== "viewer";
+
+  function openConnect(id: string | null = null) {
+    setConnectionId(id);
+    setConnectOpen(true);
+  }
 
   function save() {
     if (state.status !== "done") return;
@@ -49,9 +58,14 @@ export function DataScreen() {
     <PageContainer>
       <PageHeader
         title="Data"
-        description="Add a CSV or Excel file (up to 10 MB), check what we understood, then save it."
+        description="Add a CSV or Excel file (up to 10 MB), or connect a PostgreSQL or MySQL database."
         actions={
           <>
+            {canSave && state.status !== "done" && (
+              <Button variant="ghost" onClick={() => openConnect()}>
+                <Database className="size-4" aria-hidden /> Connect a database
+              </Button>
+            )}
             {state.status === "done" && canSave && (
               <Button onClick={save} disabled={upload.isPending}>
                 {upload.isPending ? (
@@ -142,7 +156,9 @@ export function DataScreen() {
         </>
       )}
 
+      <ConnectionList canEdit={canSave} onAddTables={(id) => openConnect(id)} />
       <SavedDatasets highlightId={saved?.id} />
+      {canSave && <ConnectDatabaseDialog open={connectOpen} onOpenChange={setConnectOpen} connectionId={connectionId} />}
     </PageContainer>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Check, FileSpreadsheet, LayoutDashboard, ListTodo, Pencil, RefreshCw, Trash2, X } from "lucide-react";
+import { Check, Database, FileSpreadsheet, LayoutDashboard, ListTodo, Pencil, RefreshCw, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
@@ -27,9 +27,10 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMe } from "@/features/auth/hooks";
+import { useSyncDataset } from "@/features/connections/api";
 import { TaskDialog } from "@/features/team/task-dialog";
 
-import { useDataset, useDeleteDataset, useReplaceDatasetFile, useUpdateDataset, type Dataset } from "./api";
+import { isSynced, useDataset, useDeleteDataset, useReplaceDatasetFile, useUpdateDataset, type Dataset } from "./api";
 import { TypeBadge } from "./column-summary";
 import { DatasetGrid } from "./dataset-grid";
 import { ACCEPTED, MAX_FILE_BYTES, type ColumnType } from "./types";
@@ -75,6 +76,8 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
   const canEdit = me?.role !== "viewer";
   const update = useUpdateDataset(dataset.id);
   const replace = useReplaceDatasetFile(dataset.id);
+  const sync = useSyncDataset(dataset.id);
+  const synced = isSynced(dataset);
   const remove = useDeleteDataset();
   const fileRef = useRef<HTMLInputElement>(null);
   const [renaming, setRenaming] = useState(false);
@@ -142,14 +145,27 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
         description={
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px]">
             <span className="flex items-center gap-1.5">
-              <FileSpreadsheet className="size-4 text-faint" aria-hidden />
-              {dataset.source_filename}
-              {dataset.sheet ? ` (${dataset.sheet})` : ""}
+              {synced ? (
+                <>
+                  <Database className="size-4 text-highlight" aria-hidden />
+                  {dataset.source_kind === "postgres" ? "PostgreSQL" : "MySQL"} · {dataset.source_table ?? "custom query"}
+                  {!dataset.connection_id && <span className="text-faint">(connection removed)</span>}
+                </>
+              ) : (
+                <>
+                  <FileSpreadsheet className="size-4 text-faint" aria-hidden />
+                  {dataset.source_filename}
+                  {dataset.sheet ? ` (${dataset.sheet})` : ""}
+                </>
+              )}
             </span>
             <span>{nf.format(dataset.row_count)} rows</span>
             <span>{dataset.columns.length} columns</span>
             <span>{formatBytes(dataset.file_size)}</span>
-            <span className="text-faint">updated {formatDistanceToNow(new Date(dataset.updated_at ?? dataset.created_at), { addSuffix: true })}</span>
+            <span className="text-faint">
+              {synced && dataset.last_synced_at ? "synced" : "updated"}{" "}
+              {formatDistanceToNow(new Date((synced && dataset.last_synced_at) || dataset.updated_at || dataset.created_at), { addSuffix: true })}
+            </span>
           </p>
         }
         actions={
@@ -180,9 +196,29 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
                   e.target.value = "";
                 }}
               />
-              <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={replace.isPending}>
-                <RefreshCw className={replace.isPending ? "animate-spin" : ""} /> {replace.isPending ? "Replacing…" : "Replace file"}
-              </Button>
+              {synced ? (
+                dataset.connection_id && (
+                  <>
+                    <NativeSelect
+                      aria-label="Refresh schedule"
+                      value={dataset.refresh ?? "manual"}
+                      onChange={(e) => update.mutate({ refresh: e.target.value as "manual" | "hourly" | "daily" })}
+                      className="w-auto"
+                    >
+                      <option value="hourly">Refresh hourly</option>
+                      <option value="daily">Refresh daily</option>
+                      <option value="manual">Manual refresh</option>
+                    </NativeSelect>
+                    <Button variant="outline" onClick={() => sync.mutate()} disabled={sync.isPending}>
+                      <RefreshCw className={sync.isPending ? "animate-spin" : ""} /> {sync.isPending ? "Refreshing…" : "Refresh now"}
+                    </Button>
+                  </>
+                )
+              ) : (
+                <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={replace.isPending}>
+                  <RefreshCw className={replace.isPending ? "animate-spin" : ""} /> {replace.isPending ? "Replacing…" : "Replace file"}
+                </Button>
+              )}
               <AlertDialog>
                 <AlertDialogTrigger render={<Button variant="outline" aria-label="Delete dataset" />}>
                   <Trash2 />
@@ -218,6 +254,15 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
         <InlineAlert tone={replaceError ? "error" : "info"}>
           {replaceError ?? `Replaced with ${dataset.source_filename}. Dashboards using this dataset now show the new data.`}
         </InlineAlert>
+      )}
+      {synced && dataset.sync_error && !sync.isPending && (
+        <InlineAlert tone="error">
+          The last refresh failed: {dataset.sync_error} You&apos;re seeing the data from the last successful refresh.
+        </InlineAlert>
+      )}
+      {sync.isError && <InlineAlert tone="error">{sync.error.message}</InlineAlert>}
+      {sync.isSuccess && !dataset.sync_error && (
+        <InlineAlert tone="info">Refreshed: {nf.format(dataset.row_count)} rows. Dashboards using this dataset now show the new data.</InlineAlert>
       )}
 
       <Tabs defaultValue="rows">

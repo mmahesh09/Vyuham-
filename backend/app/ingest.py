@@ -15,6 +15,7 @@ import re
 import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime, time
+from decimal import Decimal
 from pathlib import Path
 
 import pandas as pd
@@ -247,25 +248,102 @@ def _ingest(raw: bytes, filename: str, sheet: str | None = None, max_rows: int =
     if len(body) > max_rows:
         raise IngestError(f"This file has {len(body):,} rows. The beta limit is {max_rows:,}.")
 
-    profiles: list[ColumnProfile] = []
+    frame, profiles = _profile_text_columns(body[keep])
+    return IngestResult(frame=frame, columns=profiles, sheets=sheets, sheet=chosen)
+
+
+def _profile_text_column(name: str, col: pd.Series, rows: int) -> tuple[pd.Series, ColumnProfile]:
+    """Type one column of text (as a user would see it) and describe it."""
+    col = col.astype(str)
+    non_empty = col[col.str.strip() != ""]
+    sample = non_empty.iloc[:SAMPLE].tolist()
+    kind, fmt = _infer(sample, len(non_empty))
+    profile = ColumnProfile(
+        name=name,
+        type=kind,
+        empty_ratio=round(1 - len(non_empty) / rows, 4) if rows else 1.0,
+        examples=list(dict.fromkeys(sample))[:3],
+    )
+    return _convert(col, kind, fmt), profile
+
+
+def _profile_text_columns(body: pd.DataFrame) -> tuple[pd.DataFrame, list[ColumnProfile]]:
     typed: dict[str, pd.Series] = {}
-    rows = len(body)
-    for name in keep:
-        col = body[name].astype(str)
-        non_empty = col[col.str.strip() != ""]
-        sample = non_empty.iloc[:SAMPLE].tolist()
-        kind, fmt = _infer(sample, len(non_empty))
-        typed[name] = _convert(col, kind, fmt)
+    profiles: list[ColumnProfile] = []
+    for name in body.columns:
+        typed[name], p = _profile_text_column(name, body[name], len(body))
+        profiles.append(p)
+    return pd.DataFrame(typed), profiles
+
+
+def _native_kind(values: pd.Series) -> str | None:
+    """"number" or "date" when a database column already has that type, else None (profile as text).
+
+    Drivers return numeric/decimal and date columns as Python objects (Decimal, date), so object
+    columns are checked value by value; booleans are left to the text rules (they become categories).
+    """
+    if pd.api.types.is_bool_dtype(values):
+        return None
+    if pd.api.types.is_numeric_dtype(values):
+        return "number"
+    if pd.api.types.is_datetime64_any_dtype(values):
+        return "date"
+    present = values.dropna()
+    if present.empty:
+        return None
+    sample = present.iloc[:SAMPLE]
+    if all(isinstance(v, (int, float, Decimal)) and not isinstance(v, bool) for v in sample):
+        return "number"
+    if all(isinstance(v, (date, datetime)) for v in sample):
+        return "date"
+    return None
+
+
+def profile_frame(df: pd.DataFrame, max_rows: int = 1_000_000) -> IngestResult:
+    """Type a table read from a database, with the same column rules as uploads.
+
+    Columns the database already types (numbers, dates and timestamps) keep that type; everything else
+    is turned into text and profiled exactly like a CSV column, so "paid"/"Paid" and date strings behave
+    the same as in an uploaded file.
+    """
+    if len(df) > max_rows:
+        raise IngestError(f"This table has more than {max_rows:,} rows. The beta limit is {max_rows:,}; add a filter with a query.")
+    if df.columns.empty:
+        raise IngestError("This table has no columns.")
+    names = clean_headers([str(c) for c in df.columns])
+    df = df.set_axis(names, axis=1)
+    rows = len(df)
+
+    typed: dict[str, pd.Series] = {}
+    profiles: list[ColumnProfile] = []
+    for name in names:
+        col = df[name]
+        kind = _native_kind(col)
+        if kind is None:
+            typed[name], p = _profile_text_column(name, col.map(_cell_text), rows)
+            profiles.append(p)
+            continue
+        if kind == "number":
+            nums = pd.to_numeric(col.map(lambda v: float(v) if isinstance(v, Decimal) else v), errors="coerce")
+            whole = nums.dropna()
+            if len(whole) and (whole % 1 == 0).all() and whole.abs().max() < 2**53:
+                nums = nums.astype("Int64")
+            else:
+                nums = nums.astype("float64")
+            typed[name] = nums
+        else:
+            stamps = pd.to_datetime(col, errors="coerce", utc=True)
+            typed[name] = stamps.dt.tz_convert(None)  # stored as UTC wall time, like uploads (naive)
+        present = col.dropna()
         profiles.append(
             ColumnProfile(
                 name=name,
                 type=kind,
-                empty_ratio=round(1 - len(non_empty) / rows, 4),
-                examples=list(dict.fromkeys(sample))[:3],
+                empty_ratio=round(1 - len(present) / rows, 4) if rows else 1.0,
+                examples=list(dict.fromkeys(_cell_text(v) for v in present.iloc[:SAMPLE]))[:3],
             )
         )
-
-    return IngestResult(frame=pd.DataFrame(typed), columns=profiles, sheets=sheets, sheet=chosen)
+    return IngestResult(frame=pd.DataFrame(typed), columns=profiles, sheets=[], sheet=None)
 
 
 def write_parquet(frame: pd.DataFrame, path: Path) -> int:

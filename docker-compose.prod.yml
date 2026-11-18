@@ -18,6 +18,8 @@ x-backend-env: &backend-env
   APP_URL: ${APP_URL:?set APP_URL (the Vercel address) in .env.prod}
   PRINT_BASE_URL: ${APP_URL}
   SIGNING_SECRET: ${SIGNING_SECRET:?set SIGNING_SECRET (32+ random characters) in .env.prod}
+  CONNECTIONS_KEY: ${CONNECTIONS_KEY:?set CONNECTIONS_KEY (a Fernet key) in .env.prod}
+  PUBLIC_EGRESS_IP: ${PUBLIC_EGRESS_IP:-}
   SUPPORT_STAFF_EMAILS: ${SUPPORT_STAFF_EMAILS:-}
   SENTRY_DSN: ${SENTRY_DSN:-}
   GLITCHTIP_WEBHOOK_SECRET: ${GLITCHTIP_WEBHOOK_SECRET:-}

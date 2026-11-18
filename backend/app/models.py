@@ -48,8 +48,38 @@ class WorkspaceMember(Base):
     workspace: Mapped[Workspace] = relationship(back_populates="members")
 
 
+class Connection(Base):
+    """A customer's external database (PostgreSQL or MySQL) that datasets sync from.
+
+    The password is stored encrypted (app/crypto.py) and never returned by the API.
+    """
+
+    __tablename__ = "connections"
+    __table_args__ = (UniqueConstraint("workspace_id", "name"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    name: Mapped[str] = mapped_column(String(120))
+    kind: Mapped[str] = mapped_column(String(16))  # postgres | mysql
+    host: Mapped[str] = mapped_column(String(255))
+    port: Mapped[int] = mapped_column(Integer)
+    database: Mapped[str] = mapped_column(String(255))
+    username: Mapped[str] = mapped_column(String(255))
+    secret_enc: Mapped[str] = mapped_column(Text)
+    ssl_mode: Mapped[str] = mapped_column(String(16), default="require")  # require | verify-full | disable
+    status: Mapped[str] = mapped_column(String(8), default="ok")  # ok | error
+    last_error: Mapped[str | None] = mapped_column(String(500))
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class Dataset(Base):
-    """An uploaded table. Data lives in Parquet at <data_dir>/<workspace_id>/<id>.parquet."""
+    """A table in a workspace. Data lives in Parquet at <data_dir>/<workspace_id>/<id>.parquet.
+
+    Uploaded datasets (csv | xlsx) get their file from the upload. Database-backed datasets
+    (postgres | mysql) get it from a sync of `source_table` or `source_query` (app/sync.py).
+    """
 
     __tablename__ = "datasets"
 
@@ -58,7 +88,7 @@ class Dataset(Base):
     created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
     name: Mapped[str] = mapped_column(String(200))
     source_filename: Mapped[str] = mapped_column(String(255))
-    source_kind: Mapped[str] = mapped_column(String(8))  # csv | xlsx
+    source_kind: Mapped[str] = mapped_column(String(8))  # csv | xlsx | postgres | mysql
     sheet: Mapped[str | None] = mapped_column(String(255))
     row_count: Mapped[int] = mapped_column(Integer)
     # [{name, type, empty_ratio, examples}] in file order
@@ -66,6 +96,13 @@ class Dataset(Base):
     file_size: Mapped[int] = mapped_column(Integer)  # Parquet bytes
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    # Database-backed datasets only. A deleted connection leaves the dataset as a frozen snapshot.
+    connection_id: Mapped[str | None] = mapped_column(ForeignKey("connections.id", ondelete="SET NULL"), index=True)
+    source_table: Mapped[str | None] = mapped_column(String(255))  # "schema"."table" as picked
+    source_query: Mapped[str | None] = mapped_column(Text)  # a single SELECT, instead of a table
+    refresh: Mapped[str | None] = mapped_column(String(8))  # manual | hourly | daily
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    sync_error: Mapped[str | None] = mapped_column(String(500))
 
 
 class UserProfile(Base):

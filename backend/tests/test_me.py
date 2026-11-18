@@ -56,5 +56,10 @@ def test_production_refuses_unsafe_defaults():
         Settings(environment="production", database_url="postgresql+psycopg://x@db/app", data_dir="./data")
     with pytest.raises(ValidationError, match="SIGNING_SECRET"):
         Settings(environment="production", database_url="postgresql+psycopg://x@db/app", data_dir="/data")
-    ok = Settings(environment="production", database_url="postgresql+psycopg://x@db/app", data_dir="/data", signing_secret="s" * 32)
+    with pytest.raises(ValidationError, match="CONNECTIONS_KEY"):
+        Settings(environment="production", database_url="postgresql+psycopg://x@db/app", data_dir="/data", signing_secret="s" * 32)
+    safe = {"database_url": "postgresql+psycopg://x@db/app", "data_dir": "/data", "signing_secret": "s" * 32, "connections_key": "k"}
+    with pytest.raises(ValidationError, match="CONNECTIONS_ALLOW_PRIVATE"):
+        Settings(environment="production", connections_allow_private=True, **safe)
+    ok = Settings(environment="production", **safe)
     assert ok.environment == "production"

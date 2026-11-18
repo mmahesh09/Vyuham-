@@ -95,6 +95,20 @@ needs about 1–2 GB of memory, so use an 8 GB server. Full guide: [docs/observa
    `OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer <OTEL_COLLECTOR_TOKEN>` and `OTEL_SERVICE_NAME=vyuham-web`,
    then redeploy.
 
+## 8. Database connections
+Customers can connect their own PostgreSQL or MySQL database on the Data page. Vyuham copies the tables
+they pick into its own storage and refreshes them hourly or daily (the worker's normal scheduler pass).
+
+- **`CONNECTIONS_KEY` is required.** It encrypts the saved database passwords, and the API won't start in
+  production without it. Generate one and keep it with your other secrets:
+  `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+  Losing it means customers have to re-enter every password. To rotate, put the new key first
+  (`CONNECTIONS_KEY=new,old`); old passwords stay readable until they are re-saved.
+- **`PUBLIC_EGRESS_IP`**: the VPS's public IP (`curl -4 ifconfig.me` on the server). It is shown in the connect
+  dialog so customers can allowlist it in their database firewall.
+- Connections to private, loopback and cloud-metadata addresses are refused, so nobody can point a
+  connection at this server's own Postgres or Redis. Every session is read-only with a 60-second statement limit.
+
 ## Updating
 ```sh
 cd /opt/vyuham && git pull && docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build

@@ -35,6 +35,15 @@ class Settings(BaseSettings):
     max_xlsx_uncompressed_bytes: int = 150 * 1024 * 1024
     # Per-account / per-address request limits (app/ratelimit.py).
     rate_limit_enabled: bool = True
+    # Database connections (app/connectors). Passwords are encrypted with these Fernet keys:
+    # comma-separated, newest first, so an old key can stay for decryption while rotating.
+    # Generate one with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    connections_key: str = ""
+    # Private and loopback addresses are refused so a connection can't reach our own services.
+    # Local development and tests turn this on to reach databases on the same machine.
+    connections_allow_private: bool = False
+    # Shown in the connect dialog so customers can allowlist our outbound address in their firewall.
+    public_egress_ip: str = ""
     # Background jobs (alerts, automations, reports) run on a Celery worker fed by Redis.
     # Without REDIS_URL (local dev), the API runs them in a thread instead: one process only.
     redis_url: str = ""
@@ -98,6 +107,10 @@ class Settings(BaseSettings):
                 raise ValueError("ENVIRONMENT=production needs DATA_DIR set to a persistent volume path")
             if self.signing_secret == DEV_SIGNING_SECRET or len(self.signing_secret) < 32:
                 raise ValueError("ENVIRONMENT=production needs SIGNING_SECRET set to a random string of 32+ characters")
+            if not self.connections_key.strip():
+                raise ValueError("ENVIRONMENT=production needs CONNECTIONS_KEY (a Fernet key) to store database passwords")
+            if self.connections_allow_private:
+                raise ValueError("CONNECTIONS_ALLOW_PRIVATE must stay off in production")
         return self
 
 

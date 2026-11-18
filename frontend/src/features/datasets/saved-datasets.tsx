@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { FileSpreadsheet } from "lucide-react";
+import { CircleAlert, Database, FileSpreadsheet } from "lucide-react";
 import Link from "next/link";
 
 import { EmptyState } from "@/components/app/empty-state";
@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
-import { useDatasets } from "./api";
+import { isSynced, useDatasets } from "./api";
 import { TypeBadge } from "./column-summary";
 
 const nf = new Intl.NumberFormat("en-US");
@@ -38,7 +38,7 @@ export function SavedDatasets({ highlightId }: { highlightId?: string }) {
         <EmptyState
           icon={<FileSpreadsheet />}
           title="No datasets yet"
-          description="Add a CSV or Excel file above and press Save dataset. It shows up here."
+          description="Add a CSV or Excel file above, or connect a database. It shows up here."
         />
       )}
 
@@ -57,7 +57,7 @@ export function SavedDatasets({ highlightId }: { highlightId?: string }) {
             <TableBody>
               {data.map((d) => {
                 const shown = d.columns.slice(0, 4);
-                const when = d.updated_at ?? d.created_at;
+                const when = d.last_synced_at ?? d.updated_at ?? d.created_at;
                 return (
                   <TableRow
                     key={d.id}
@@ -69,11 +69,18 @@ export function SavedDatasets({ highlightId }: { highlightId?: string }) {
                         href={`/data/${d.id}`}
                         className="flex min-w-0 items-center gap-3 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:rounded-sm focus-visible:after:ring-2 focus-visible:after:ring-highlight"
                       >
-                        <FileSpreadsheet className="size-4 shrink-0 text-faint" strokeWidth={1.8} aria-hidden />
+                        {isSynced(d) ? (
+                          <Database className="size-4 shrink-0 text-highlight" strokeWidth={1.8} aria-hidden />
+                        ) : (
+                          <FileSpreadsheet className="size-4 shrink-0 text-faint" strokeWidth={1.8} aria-hidden />
+                        )}
                         <span className="flex min-w-0 flex-col">
-                          <span className="truncate text-[14.5px] font-medium text-text">{d.name}</span>
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="truncate text-[14.5px] font-medium text-text">{d.name}</span>
+                            {d.sync_error && <CircleAlert className="size-3.5 shrink-0 text-accent" aria-label="Last refresh failed" />}
+                          </span>
                           <span className="truncate text-[12.5px] text-faint">
-                            {d.source_filename}
+                            {isSynced(d) ? `${d.source_kind === "postgres" ? "PostgreSQL" : "MySQL"} · ${d.source_table ?? "query"}` : d.source_filename}
                             {d.sheet ? ` (${d.sheet})` : ""}
                           </span>
                         </span>

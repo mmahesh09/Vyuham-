@@ -22,13 +22,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.alerts import SCHEDULE_EVERY, _aware, alert_due, automation_due, check_alert, last_occurrence, run_automation
-from app.models import Alert, Automation, JobRun
+from app.models import Alert, Automation, Dataset, JobRun
 from app.query import QueryError
+from app.sync import SyncError, next_sync_at, sync_dataset
 from app.telemetry import count, record, span
 
 log = logging.getLogger("app.jobs")
 
-ALERT, AUTOMATION = "alert", "automation"
+ALERT, AUTOMATION, SYNC = "alert", "automation", "sync"
 FINISHED = ("done", "failed")
 
 
@@ -59,7 +60,17 @@ def find_due(db: Session, now: datetime) -> list[Due]:
     for a in db.scalars(select(Automation).where(Automation.enabled.is_(True))).all():
         if automation_due(a, now):
             due.append(Due(AUTOMATION, a.id, _second(last_occurrence(a, now))))
+    synced = select(Dataset).where(Dataset.connection_id.is_not(None), Dataset.refresh.in_(("hourly", "daily")))
+    for ds in db.scalars(synced).all():
+        at = next_sync_at(ds)
+        if at is not None and at <= now:
+            due.append(Due(SYNC, ds.id, _second(at)))
     return due
+
+
+def sync_now(db: Session, ds: Dataset, now: datetime | None = None) -> JobRun | None:
+    """Claim an immediate sync ("Refresh now"); None when one is already claimed for this second."""
+    return claim(db, Due(SYNC, ds.id, _second(now or datetime.now(timezone.utc))))
 
 
 def claim(db: Session, d: Due) -> JobRun | None:
@@ -109,6 +120,19 @@ def _run_job(db: Session, job_id: str, now: datetime | None = None) -> JobRun | 
     run.status, run.attempts, run.started_at = "running", run.attempts + 1, datetime.now(timezone.utc)
     db.commit()
     try:
+        if run.kind == SYNC:
+            ds = db.get(Dataset, run.target_id)
+            if ds is None:
+                run.status, run.error = "done", "Skipped: dataset deleted."
+            else:
+                try:
+                    sync_dataset(db, ds, now)
+                    run.status, run.error = "done", None
+                except SyncError as e:  # the customer's to fix: recorded on the dataset, not retried
+                    run.status, run.error = "failed", str(e)[:500]
+            run.finished_at = datetime.now(timezone.utc)
+            db.commit()
+            return run
         target = db.get(Alert if run.kind == ALERT else Automation, run.target_id)
         if target is None or not target.enabled:
             run.status, run.error = "done", "Skipped: deleted or paused."
@@ -162,13 +186,14 @@ def prune(db: Session, now: datetime | None = None, keep_days: int = 30) -> int:
 def tick(db: Session, now: datetime | None = None, enqueue: Callable[[str], None] | None = None) -> dict:
     """One scheduler pass. With `enqueue`, claimed jobs are handed to it; otherwise they run here."""
     now = now or datetime.now(timezone.utc)
-    counts = {"alerts_checked": 0, "automations_run": 0, "skipped": 0}
+    counts = {"alerts_checked": 0, "automations_run": 0, "datasets_synced": 0, "skipped": 0}
+    label = {ALERT: "alerts_checked", AUTOMATION: "automations_run", SYNC: "datasets_synced"}
     for d in find_due(db, now):
         run = claim(db, d)
         if run is None:
             counts["skipped"] += 1
             continue
-        counts["alerts_checked" if d.kind == ALERT else "automations_run"] += 1
+        counts[label[d.kind]] += 1
         if enqueue is not None:
             enqueue(run.id)
             continue

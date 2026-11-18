@@ -11,14 +11,23 @@ export type Dataset = {
   id: string;
   name: string;
   source_filename: string;
-  source_kind: "csv" | "xlsx";
+  source_kind: "csv" | "xlsx" | "postgres" | "mysql";
   sheet: string | null;
   row_count: number;
   columns: DatasetColumn[];
   file_size: number;
   created_at: string;
   updated_at: string | null;
+  /** Database-backed datasets only (source_kind postgres | mysql). */
+  connection_id?: string | null;
+  source_table?: string | null;
+  source_query?: string | null;
+  refresh?: "manual" | "hourly" | "daily" | null;
+  last_synced_at?: string | null;
+  sync_error?: string | null;
 };
+
+export const isSynced = (d: Pick<Dataset, "source_kind">) => d.source_kind === "postgres" || d.source_kind === "mysql";
 
 export type DatasetColumn = { name: string; type: ColumnType; empty_ratio: number; examples: string[] };
 
@@ -98,7 +107,7 @@ function useDatasetMutationSuccess() {
 export function useUpdateDataset(id: string) {
   const onSuccess = useDatasetMutationSuccess();
   return useMutation({
-    mutationFn: (body: { name?: string; column_types?: Record<string, ColumnType> }) =>
+    mutationFn: (body: { name?: string; column_types?: Record<string, ColumnType>; refresh?: "manual" | "hourly" | "daily" }) =>
       api<Dataset>(`/datasets/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess,
   });

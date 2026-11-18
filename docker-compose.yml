@@ -7,6 +7,9 @@ x-backend-env: &backend-env
   RESEND_API_KEY: ${RESEND_API_KEY:-}
   # Signs print-page and download links; must be the same for the API and the worker.
   SIGNING_SECRET: ${SIGNING_SECRET:-dev-only-signing-secret-change-me-0123456789}
+  CONNECTIONS_KEY: ${CONNECTIONS_KEY:-}
+  # Local dev: let "Connect a database" reach databases on this machine (host.docker.internal).
+  CONNECTIONS_ALLOW_PRIVATE: "true"
   # The worker's browser opens the print page through the frontend container.
   PRINT_BASE_URL: http://frontend:3000
   # Status page: the beat pings the API so "API" is checked from outside it.

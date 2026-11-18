@@ -1,0 +1,80 @@
+"""What's in a customer's database: tables and views to pick from, and a preview of one."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+import pandas as pd
+from sqlalchemy import inspect, select, text
+from sqlalchemy.sql import table as sa_table
+
+from app.connectors.base import ConnectorError, ConnSpec, session
+
+MAX_TABLES = 500
+SYSTEM_SCHEMAS = {"information_schema", "pg_catalog", "mysql", "performance_schema", "sys"}
+
+
+@dataclass(frozen=True)
+class TableInfo:
+    schema: str | None
+    name: str
+    kind: str  # table | view
+    rows: int | None  # the database's estimate; None when unknown
+
+    @property
+    def key(self) -> str:
+        return f"{self.schema}.{self.name}" if self.schema else self.name
+
+    def as_dict(self) -> dict:
+        return {"key": self.key, "schema": self.schema, "name": self.name, "kind": self.kind, "rows": self.rows}
+
+
+def _estimates(conn, spec: ConnSpec) -> dict[str, int]:
+    try:
+        if spec.kind == "postgres":
+            rows = conn.execute(text("SELECT schemaname, relname, n_live_tup FROM pg_stat_user_tables")).all()
+            return {f"{s}.{t}": int(n) for s, t, n in rows}
+        rows = conn.execute(
+            text("SELECT table_name, table_rows FROM information_schema.tables WHERE table_schema = DATABASE()")
+        ).all()
+        return {t: int(n) for t, n in rows if n is not None}
+    except Exception:  # estimates are nice to have; a restricted user may not see the stats views
+        return {}
+
+
+def list_tables(spec: ConnSpec) -> list[TableInfo]:
+    with session(spec) as conn:
+        insp = inspect(conn)
+        if spec.kind == "postgres":
+            schemas = [s for s in insp.get_schema_names() if s not in SYSTEM_SCHEMAS and not s.startswith("pg_")]
+        else:
+            schemas = [None]  # MySQL: the connection's database only
+        est = _estimates(conn, spec)
+        out: list[TableInfo] = []
+        for schema in schemas:
+            for kind, names in (("table", insp.get_table_names(schema=schema)), ("view", insp.get_view_names(schema=schema))):
+                for name in names:
+                    if "." in name or (schema and "." in schema):
+                        continue  # can't be referred to unambiguously as schema.table
+                    key = f"{schema}.{name}" if schema else name
+                    out.append(TableInfo(schema, name, kind, est.get(key)))
+                    if len(out) >= MAX_TABLES:
+                        return out
+        return sorted(out, key=lambda t: (t.schema or "", t.name))
+
+
+def find_table(spec: ConnSpec, key: str) -> TableInfo:
+    for t in list_tables(spec):
+        if t.key == key:
+            return t
+    raise ConnectorError(f"There's no table or view called “{key}” that this user can see.")
+
+
+def table_ref(info: TableInfo):
+    return sa_table(info.name, schema=info.schema)
+
+
+def preview(spec: ConnSpec, key: str, limit: int = 50) -> pd.DataFrame:
+    info = find_table(spec, key)
+    with session(spec) as conn:
+        return pd.read_sql(select(text("*")).select_from(table_ref(info)).limit(limit), conn)

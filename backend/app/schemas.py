@@ -44,9 +44,119 @@ class DatasetOut(BaseModel):
     file_size: int = 0
     created_at: UtcDatetime
     updated_at: UtcDatetime | None = None
+    # Database-backed datasets (source_kind postgres | mysql); empty for uploads.
+    connection_id: str | None = None
+    source_table: str | None = None
+    source_query: str | None = None
+    refresh: str | None = None
+    last_synced_at: UtcDatetime | None = None
+    sync_error: str | None = None
 
 
-HHMM = r"^([01]\d|2[0-3]):[0-5]\d$"
+ConnectionKind = Literal["postgres", "mysql"]
+SslMode = Literal["require", "verify-full", "disable"]
+Refresh = Literal["manual", "hourly", "daily"]
+
+
+class ConnectionFields(BaseModel):
+    kind: ConnectionKind
+    host: str = Field(min_length=1, max_length=253)
+    port: int = Field(ge=1, le=65535)
+    database: str = Field(min_length=1, max_length=255)
+    username: str = Field(min_length=1, max_length=255)
+    ssl_mode: SslMode = "require"
+
+    @field_validator("host", "database", "username")
+    @classmethod
+    def _strip(cls, v: str) -> str:
+        return v.strip()
+
+
+class ConnectionTestIn(ConnectionFields):
+    # Testing a saved connection can leave this empty to reuse its stored password.
+    password: str = Field(default="", max_length=1000)
+    connection_id: str | None = None
+
+
+class ConnectionIn(ConnectionFields):
+    name: str = Field(min_length=1, max_length=120)
+    password: str = Field(min_length=1, max_length=1000)
+
+
+class ConnectionPatch(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=120)
+    host: str | None = Field(default=None, min_length=1, max_length=253)
+    port: int | None = Field(default=None, ge=1, le=65535)
+    database: str | None = Field(default=None, min_length=1, max_length=255)
+    username: str | None = Field(default=None, min_length=1, max_length=255)
+    password: str | None = Field(default=None, min_length=1, max_length=1000)  # omitted = keep the stored one
+    ssl_mode: SslMode | None = None
+
+
+class ConnectionOut(BaseModel):
+    """A saved connection. The password is never included."""
+
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    kind: str
+    host: str
+    port: int
+    database: str
+    username: str
+    ssl_mode: str
+    status: str
+    last_error: str | None = None
+    last_checked_at: UtcDatetime | None = None
+    created_at: UtcDatetime
+    dataset_count: int = 0
+
+
+class ConnectionTestOut(BaseModel):
+    ok: bool
+    message: str
+    table_count: int | None = None
+
+
+class TableOut(BaseModel):
+    key: str
+    schema_name: str | None = Field(default=None, alias="schema")
+    name: str
+    kind: str
+    rows: int | None = None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class PreviewOut(BaseModel):
+    columns: list[str]
+    rows: list[list]
+
+
+class SyncDatasetsIn(BaseModel):
+    """Create datasets from a connection: several tables, or one query with a name."""
+
+    # Each table's first sync runs during the request, so keep a batch small.
+    tables: list[str] = Field(default_factory=list, max_length=10)
+    query: str | None = Field(default=None, max_length=20_000)
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    refresh: Refresh = "daily"
+
+    @model_validator(mode="after")
+    def _one_source(self):
+        if bool(self.tables) == bool(self.query):
+            raise ValueError("Pick one or more tables, or write one query")
+        if self.query and not self.name:
+            raise ValueError("Give the query's dataset a name")
+        return self
+
+
+class SyncCreatedOut(BaseModel):
+    datasets: list[DatasetOut]
+    errors: dict[str, str] = Field(default_factory=dict)  # table -> why it couldn't be synced
+
+
+HHMM =r"^([01]\d|2[0-3]):[0-5]\d$"
 
 
 class ProfileIn(BaseModel):
@@ -178,6 +288,8 @@ class DatasetPatch(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     # column name -> new type; only the columns being changed
     column_types: dict[str, ColumnType] | None = None
+    # Database-backed datasets only.
+    refresh: Literal["manual", "hourly", "daily"] | None = None
 
 
 class RowFilter(BaseModel):

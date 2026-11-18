@@ -55,7 +55,7 @@ def test_queued_job_is_not_claimed_twice(client, engine):
     with Session(engine) as s:
         assert jobs.tick(s, NOON, enqueue=queued.append)["automations_run"] == 1
         second = jobs.tick(s, NOON + timedelta(minutes=1), enqueue=queued.append)
-        assert second == {"alerts_checked": 0, "automations_run": 0, "skipped": 1}
+        assert second == {"alerts_checked": 0, "automations_run": 0, "datasets_synced": 0, "skipped": 1}
         assert len(queued) == 1
         jobs.run_job(s, queued[0])
         jobs.run_job(s, queued[0])  # redelivered message: already done, nothing sent
