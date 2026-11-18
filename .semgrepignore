@@ -1,5 +1,4 @@
 # Vendored or demo code we don't maintain line by line.
-frontend/src/components/examples/
 frontend/src/components/reui/
 frontend/src/components/ui/finance-bento.tsx
 backend/tests/

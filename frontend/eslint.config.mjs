@@ -28,7 +28,7 @@ const eslintConfig = [
   },
   {
     // Vendored shadcn / ReUI code (installed with `npx shadcn add`): keep it close to upstream.
-    files: ["src/components/ui/**", "src/components/reui/**", "src/components/examples/**"],
+    files: ["src/components/ui/**", "src/components/reui/**"],
     rules: { "@typescript-eslint/no-explicit-any": "off" },
   },
 ];

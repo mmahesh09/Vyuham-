@@ -33,7 +33,7 @@ screen after logging in. Keep `BACKEND_URL=http://127.0.0.1:8000` (not `localhos
 while uvicorn only listens on IPv4).
 
 ## UI components
-shadcn style is `base-nova` (Base UI), because the ReUI blocks (`components/reui`, demos in `components/examples`)
+shadcn style is `base-nova` (Base UI), because the ReUI blocks (`components/reui`)
 use Base UI's `render` prop. Brand `--muted`/`--accent` are text colours, so after `npx shadcn add` rewrite
 `bg-muted`/`bg-accent` → `bg-surface-2` in the vendored files (see the token bridge in `globals.css`).
 Open http://localhost:3000.
