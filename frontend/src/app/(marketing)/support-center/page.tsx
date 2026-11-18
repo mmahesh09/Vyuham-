@@ -40,8 +40,8 @@ export const metadata: Metadata = {
 /** Topic cards. `keys` are matched against article tags (lowercase, partial) to count and link articles. */
 const TOPICS: { title: string; text: string; icon: LucideIcon; keys: string[] }[] = [
   { title: "Getting started", text: "Your first upload, your first question and the starter dashboard.", icon: Rocket, keys: ["start", "general", "onboard"] },
-  { title: "Uploading data", text: "Excel, CSV and Google Sheets: formats, sizes, dates and messy columns.", icon: FileSpreadsheet, keys: ["upload", "data", "csv", "excel", "sheet", "import"] },
-  { title: "Asking questions", text: "How to phrase a question, follow-ups and why an answer looks off.", icon: MessageSquareText, keys: ["question", "ask", "ai", "answer"] },
+  { title: "Uploading data", text: "Excel and CSV files, database connections, dates and column types.", icon: FileSpreadsheet, keys: ["upload", "data", "csv", "excel", "sheet", "import", "connection"] },
+  { title: "Asking questions", text: "How to phrase a question and what to do when an answer looks off.", icon: MessageSquareText, keys: ["question", "ask", "ai", "answer"] },
   { title: "Dashboards & sharing", text: "Pin answers, filters, share links and turning a link off.", icon: LayoutDashboard, keys: ["dashboard", "share", "chart", "report"] },
   { title: "Account & billing", text: "Sign-in, email, the beta and what happens after it.", icon: CreditCard, keys: ["billing", "account", "login", "password"] },
   { title: "Teams & bugs", text: "Inviting teammates, roles, and what to do when something breaks.", icon: Users, keys: ["team", "invite", "bug", "error"] },

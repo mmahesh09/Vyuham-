@@ -164,37 +164,39 @@ export function LiveDashboard() {
   const revenue = stream.reduce((a, p) => a + p.v, 0) * 1.6;
   const lastTwo = stream.slice(-2);
   const rising = lastTwo[1].v >= lastTwo[0].v;
+  const topChannel = channels.reduce((a, c) => (c.v > a.v ? c : a));
+  const topShare = Math.round((topChannel.v / channels.reduce((a, c) => a + c.v, 0)) * 100);
 
   return (
     <div ref={ref} className="glass-strong rounded-[28px] p-3 sm:p-4">
       {/* Ask bar */}
       <div className="flex flex-wrap items-center gap-3 rounded-[18px] border border-primary/60 bg-black/40 px-4 py-3">
         <Sparkle className="size-5 shrink-0 text-highlight" strokeWidth={2} aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-[15px] text-white">Are we selling more than last month?</span>
+        <span className="min-w-0 flex-1 truncate text-[15px] text-white">Orders by channel</span>
         <LiveBadge />
       </div>
 
       <p className="flex items-start gap-2 px-2 pb-1 pt-5 text-lg font-medium tracking-tight text-white sm:text-xl">
         <ArrowUpRight className="mt-1 size-5 shrink-0 text-highlight" strokeWidth={2.4} aria-hidden />
-        Yes. October is up 18% on September, and today is already 12% ahead of a normal Thursday.
+        {topChannel.name} leads with {topShare}% of orders.
       </p>
 
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="Revenue today" value={usd(revenue)} delta="12%" up spark={stream.slice(-12).map((p) => p.v)} />
         <Kpi label="Orders this month" value={orders.toLocaleString("en-US")} delta="6%" up spark={[30, 32, 31, 35, 34, 38, 37, 41, 40, 44]} />
         <Kpi label="Average order" value="$129.60" delta="3%" up={false} spark={[48, 46, 47, 44, 45, 43, 44, 42, 43, 41]} />
-        <Kpi label="On site now" value={String(visitors)} delta="live" up spark={stream.slice(-12).map((p) => p.v * 0.08)} />
+        <Kpi label="Active customers" value={String(visitors)} delta="today" up spark={stream.slice(-12).map((p) => p.v * 0.08)} />
       </div>
 
       <div className="mt-3 grid gap-3 lg:grid-cols-[2fr_1fr]">
         <div className="glass rounded-[18px] p-4">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm text-white/70">Revenue, every 15 minutes</p>
+            <p className="text-sm text-white/70">Revenue today</p>
             <span className={`text-xs font-semibold tabular-nums ${rising ? "text-highlight" : "text-accent"}`}>
               {usd(lastTwo[1].v)} {rising ? "▲" : "▼"}
             </span>
           </div>
-          <div className="h-[220px]" role="img" aria-label="Live area chart of revenue every 15 minutes">
+          <div className="h-[220px]" role="img" aria-label="Area chart of revenue today">
             <Fit>
               <AreaChart data={stream} margin={{ top: 6, right: 4, left: -16, bottom: 0 }}>
                 <defs>
@@ -269,7 +271,7 @@ export function StoryFeed() {
 
   return (
     <div ref={ref} className="flex flex-col gap-4">
-      <FeedCard icon="up" tone="text-highlight" title="Revenue up 18% vs last month" note="Monthly revenue · Oct still filling in">
+      <FeedCard icon="up" tone="text-highlight" title="Total revenue up 27% in October" note="Compared with September">
         <div className="h-[140px]" role="img" aria-label="Line chart of monthly revenue, January to October">
           <Fit>
             <AreaChart data={rev} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
@@ -288,7 +290,7 @@ export function StoryFeed() {
       </FeedCard>
 
       <div className="grid gap-4 sm:grid-cols-[3fr_2fr]">
-        <FeedCard icon="down" tone="text-accent" title="Ad spend 30% over average" note="No matching rise in orders">
+        <FeedCard icon="down" tone="text-accent" title="Ad spend up 36% in October" note="Compared with September">
           <div className="h-[120px]" role="img" aria-label="Bar chart of monthly ad spend, October highest">
             <Fit>
               <BarChart data={SPEND} margin={{ top: 4, right: 0, left: 0, bottom: 0 }}>
@@ -303,7 +305,7 @@ export function StoryFeed() {
             </Fit>
           </div>
         </FeedCard>
-        <FeedCard icon="up" tone="text-highlight" title="Halden & Co is 22%" note="Share of revenue this year">
+        <FeedCard icon="up" tone="text-highlight" title="Halden & Co leads with 22%" note="Share of revenue this year">
           <div className="relative h-[120px]" role="img" aria-label="Donut chart: Halden & Co 22%, Mira Foods 16%, Ostro Labs 12%, others 50%">
             <Fit>
               <PieChart>
@@ -358,7 +360,7 @@ export function SyncCard() {
       </div>
       <p className="flex items-center gap-2 text-sm text-white/60">
         <RefreshCw className={`size-3.5 text-highlight ${secs === 0 ? "animate-spin" : ""}`} strokeWidth={2.2} aria-hidden />
-        Expenses sheet · synced {secs === 0 ? "just now" : `${secs}s ago`}
+        orders table · synced {secs === 0 ? "just now" : `${secs} min ago`}
       </p>
     </div>
   );

@@ -87,8 +87,8 @@ export function AuthVisual({ className = "" }: { className?: string }) {
         </span>
       </p>
       <p className="mt-5 max-w-[440px] px-8 text-center text-[15px] font-light leading-relaxed text-muted">
-        An AI dashboard for small businesses. Works with Excel, CSV and Google Sheets. No formulas, no data model, no
-        analyst needed.
+        Dashboards for small businesses, built from Excel, CSV, PostgreSQL or MySQL. You won&apos;t need a single
+        formula.
       </p>
 
       <div className="relative mt-[clamp(56px,9vh,84px)] w-full">

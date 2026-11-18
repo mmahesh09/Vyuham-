@@ -4,7 +4,6 @@ import Link from "next/link";
 
 import { Announcement } from "@/components/marketing/announcement";
 import { LazyFilterDemo, LazyFinanceShowcase, LazyStoryFeed, LazySyncCard } from "@/components/marketing/lazy-demos";
-import { MapSection } from "@/components/marketing/map-section";
 import { ColumnsShot } from "@/components/marketing/product-shots";
 import { Reveal } from "@/components/marketing/reveal";
 import { SiteFooter } from "@/components/marketing/site-footer";
@@ -15,37 +14,32 @@ import { TryAsk, type TryQuestion } from "@/components/marketing/try-ask";
 export const metadata: Metadata = {
   title: "Try Vyuham with sample data",
   description:
-    "See how Vyuham answers questions about a spreadsheet: pick a question and get the answer plus a chart, using sample data. No sign-up needed.",
+    "See how Vyuham answers plain-English questions about business data. Pick a question and get a one-line answer with a chart, using sample data. No sign-up needed.",
   alternates: { canonical: "/try" },
 };
 
 const QUESTIONS: TryQuestion[] = [
   {
-    q: "Are we selling more than last month?",
-    answer: "Yes. Revenue is up 18% on last month, and the last week is ahead of a normal week too.",
-    panel: <LazyFilterDemo />,
-  },
-  {
-    q: "What changed this month?",
-    answer: "Revenue is up, ad spend is 30% over average, and one client now brings in 22% of revenue.",
+    q: "Revenue by month",
+    answer: "Total revenue is up 27% in October.",
     panel: <LazyStoryFeed />,
   },
   {
-    q: "Where do our best customers live?",
-    answer: "Mumbai and Bengaluru bring 41% of revenue. London is the fastest-growing city this quarter, up 34%.",
-    panel: <MapSection bare />,
+    q: "Revenue over the last 30 days",
+    answer: "Here is daily revenue for the last 30 days. Switch the range to compare.",
+    panel: <LazyFilterDemo />,
   },
   {
-    q: "Is the sheet still up to date?",
-    answer: "Yes. The Google Sheet synced a few minutes ago, and the dashboard refreshes every hour.",
+    q: "Orders per day",
+    answer: "Here are orders per day, from an orders table that syncs with your database.",
     panel: <LazySyncCard />,
   },
 ];
 
 const STEPS = [
-  { icon: FileSpreadsheet, title: "Upload a file", text: "Excel, CSV or a Google Sheet. Columns are detected for you." },
-  { icon: MessageSquareText, title: "Ask in plain English", text: "Type the question the way you'd ask a colleague." },
-  { icon: Share2, title: "Save and share", text: "Pin answers to a dashboard and send it as a live link." },
+  { icon: FileSpreadsheet, title: "Upload a file", text: "Excel or CSV, or connect PostgreSQL or MySQL. Column types are labelled for you." },
+  { icon: MessageSquareText, title: "Ask in plain English", text: "Type something like “Top 5 customers by revenue”." },
+  { icon: Share2, title: "Save and share", text: "Pin answers to a dashboard and send a read-only link." },
 ];
 
 export default function TryPage() {
@@ -63,8 +57,8 @@ export default function TryPage() {
               Ask a spreadsheet. <span className="font-extralight text-highlight">See what comes back.</span>
             </h1>
             <p className={`${body} mt-6 max-w-[52ch]`}>
-              This is a small online shop&apos;s sales sheet. Pick a question below and watch Vyuham answer it in a
-              sentence, then show the chart.
+              This is a small online shop&apos;s sales data. Pick a question below to see the one-line answer and the
+              chart that comes with it.
             </p>
           </div>
           <div className="mx-auto mt-12 w-full max-w-[1000px] px-[clamp(16px,5vw,48px)]">
@@ -79,8 +73,8 @@ export default function TryPage() {
                 It reads the file <span className={quiet}>before you ask.</span>
               </h2>
               <p className={`${body} max-w-[44ch]`}>
-                Dates, money, categories and IDs are detected on upload, so the first question already gets the right
-                chart.
+                Numbers, dates, categories and text are labelled on upload, so your first question can already find the
+                right columns.
               </p>
             </div>
             <div data-animate style={delay(120)} className="min-w-0">
@@ -95,7 +89,7 @@ export default function TryPage() {
               <h2 className={`${h2} max-w-[18ch]`}>
                 One export in. <span className={quiet}>A whole dashboard out.</span>
               </h2>
-              <p className={`${body} max-w-[40ch]`}>Hover the charts, switch the period, flip the currency.</p>
+              <p className={`${body} max-w-[40ch]`}>Hover the charts and switch the period to see how the dashboard responds.</p>
             </div>
             <div data-animate style={delay(100)}>
               <LazyFinanceShowcase />

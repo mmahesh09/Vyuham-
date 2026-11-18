@@ -107,7 +107,7 @@ export function RequestListMock() {
     { s: "Share a dashboard without filters", st: "Waiting on support", tone: "bg-info/15 text-info", t: "2m" },
     { s: "Totals don't match the bank export", st: "Waiting on you", tone: "bg-warning/15 text-warning", t: "1d" },
     { s: "Dates in my CSV show up as text", st: "Resolved", tone: "bg-success/15 text-success", t: "3d" },
-    { s: "Add a second Google Sheet", st: "Resolved", tone: "bg-success/15 text-success", t: "1w" },
+    { s: "Add a second database", st: "Resolved", tone: "bg-success/15 text-success", t: "1w" },
   ];
   return (
     <div className="overflow-hidden rounded-[14px] border border-white/[0.07] bg-black/30" aria-hidden>

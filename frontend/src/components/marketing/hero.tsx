@@ -8,7 +8,7 @@ import { Typewriter } from "@/components/marketing/typewriter";
 import { Mark } from "@/components/ui/mark";
 
 
-const PHRASES = ["anything.", "about revenue.", "who stopped buying.", "where cash goes."];
+const PHRASES = ["about revenue.", "for top customers.", "for sales by month.", "for totals by region."];
 
 const glass =
   "rounded-[18px] border border-white/10 bg-white/[0.045] backdrop-blur-md shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)]";
@@ -49,7 +49,7 @@ export function Hero() {
           <div className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10 bg-[radial-gradient(closest-side,rgba(7,5,4,0.6),transparent)]" aria-hidden />
           <Announcement href="/signup">Free during the beta · No card</Announcement>
           <h1
-            aria-label="Ask your spreadsheet anything: an AI dashboard for small businesses."
+            aria-label="Ask your spreadsheet about revenue, customers and sales: dashboards for small businesses."
             className="mt-7 max-w-[13ch] text-[clamp(40px,6.4vw,92px)] font-semibold leading-[1] tracking-[-0.045em]"
           >
             <span aria-hidden>
@@ -61,9 +61,9 @@ export function Hero() {
             </span>
           </h1>
           <p className="mt-7 max-w-[46ch] text-[clamp(16px,1.5vw,19px)] font-light leading-relaxed text-white/80">
-            The AI dashboard for small businesses. Upload Excel, CSV or Google Sheets, ask about your numbers in plain
-            English and get <Mark sweepOnLoad>the answer plus a chart</Mark> in seconds.{" "}
-            <span className="text-white">No analyst. No formulas. No data model.</span>
+            Vyuham turns Excel files, CSVs and databases into dashboards for small businesses. Type what you want to
+            know in plain English and get <Mark sweepOnLoad>a one-line answer with the right chart</Mark>.{" "}
+            <span className="text-white">You won’t write a single formula.</span>
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link href="/signup" className="btn-primary inline-flex min-h-12 items-center gap-2 rounded-full px-7 text-[15px] font-semibold">
@@ -93,7 +93,7 @@ export function Hero() {
           <div className={`${glass} float absolute left-[4%] top-[4%] flex w-[250px] items-center gap-5 p-4`}>
             <div>
               <p className="flex items-center gap-1.5 text-[13px] text-highlight">
-                +18% <ArrowUpRight className="size-3.5" strokeWidth={2.4} />
+                +27% <ArrowUpRight className="size-3.5" strokeWidth={2.4} />
               </p>
               <p className="text-[34px] font-light tracking-tight text-white/90">$48.2k</p>
             </div>
@@ -110,7 +110,7 @@ export function Hero() {
                 <ArrowUpRight className="size-3.5 text-white" strokeWidth={2.4} />
               </span>
             </div>
-            <p className="mt-3 text-[15px] leading-tight text-white/75">Ad spend 30% over average</p>
+            <p className="mt-3 text-[15px] leading-tight text-white/75">Ad spend up 36% in October</p>
             <p className="mt-2 text-right text-[11px] text-white/45">Oct 2026</p>
           </div>
 

@@ -7,7 +7,7 @@ import { enabledProviders } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Log in",
-  description: "Log in to Vyuham to ask questions about your spreadsheets and open your AI dashboards.",
+  description: "Log in to Vyuham to ask questions about your spreadsheets and open your dashboards.",
   alternates: { canonical: "/login" },
 };
 

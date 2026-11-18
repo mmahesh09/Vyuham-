@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { BlogHero } from "@/components/marketing/blog-hero";
 import { FeaturedPost, PostList, TagFilter } from "@/components/marketing/post-list";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
@@ -18,31 +19,33 @@ export default async function BlogIndex() {
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-[760px] flex-1 px-5 pb-24 pt-14">
-        <div className="flex flex-col gap-3 border-b border-line pb-10">
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-faint">Blog</p>
-          <h1 className="font-display text-[clamp(34px,5vw,48px)] font-semibold leading-[1.05] tracking-tight text-text">
+      <main className="w-full flex-1">
+        <BlogHero>
+          <p className="font-mono text-[11px] font-medium uppercase tracking-[0.16em]">Blog</p>
+          <h1 className="font-display text-[clamp(36px,6vw,60px)] font-semibold leading-[1.04] tracking-tight">
             Answers from your spreadsheets
           </h1>
-          <p className="max-w-[60ch] text-[16.5px] leading-[1.7] text-muted">
+          <p className="max-w-[56ch] text-[17px] font-medium leading-[1.6]">
             Guides for owners and managers of small teams: reporting, dashboards and finding what changed, without a data team.
           </p>
-          <p className="text-[13px] text-faint">
-            <a href="/blog/rss.xml" className="hover:text-text">
+          <p className="text-[13px] font-medium">
+            <a href="/blog/rss.xml" className="underline underline-offset-[3px]">
               Subscribe by RSS
             </a>
           </p>
-        </div>
+        </BlogHero>
 
-        {posts.length === 0 ? (
-          <p className="py-16 text-center text-muted">The first posts are on their way. Check back soon.</p>
-        ) : (
-          <>
-            <FeaturedPost post={featured} />
-            <TagFilter tags={tags} />
-            <PostList posts={rest} />
-          </>
-        )}
+        <div className="mx-auto w-full max-w-[760px] px-5 pb-24">
+          {posts.length === 0 ? (
+            <p className="py-16 text-center text-muted">The first posts are on their way. Check back soon.</p>
+          ) : (
+            <>
+              <FeaturedPost post={featured} />
+              <TagFilter tags={tags} />
+              <PostList posts={rest} />
+            </>
+          )}
+        </div>
       </main>
       <SiteFooter />
     </div>

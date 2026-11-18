@@ -151,9 +151,9 @@ export function AuthInfographics() {
           <Sparkle className="size-3.5 text-white" strokeWidth={2} aria-hidden />
         </span>
         <div className="flex flex-col gap-1">
-          <span className="text-[11px] text-faint">Which region grew fastest?</span>
+          <span className="text-[11px] text-faint">Revenue by region</span>
           <span className="text-[12px] leading-snug text-text">
-            North, <span className="font-semibold text-highlight">+18%</span> vs last month.
+            North leads with <span className="font-semibold text-highlight">48%</span> of revenue.
           </span>
         </div>
       </div>

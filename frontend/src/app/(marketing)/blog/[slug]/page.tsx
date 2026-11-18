@@ -7,6 +7,7 @@ import rehypeShiki from "@shikijs/rehype";
 import rehypeSlug from "rehype-slug";
 import remarkGfm from "remark-gfm";
 
+import { BlogHero } from "@/components/marketing/blog-hero";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { mdxComponents } from "@/features/blog/mdx-components";
@@ -91,29 +92,28 @@ export default async function BlogPost({ params }: Params) {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
       <SiteHeader />
-      <main className="mx-auto max-w-[720px] px-5 pb-24 pt-12">
-        <Link href="/blog" className="inline-flex items-center gap-1.5 text-[13px] text-faint hover:text-text">
-          <ArrowLeft className="size-3.5" aria-hidden /> All posts
-        </Link>
-
-        <article className="mt-8 flex flex-col gap-6">
-          <header className="flex flex-col gap-4 border-b border-line pb-8">
-            <p className="flex flex-wrap items-center gap-x-2 text-[13px] text-faint">
+      <main>
+        <article>
+          <BlogHero column="max-w-[720px]">
+            <Link href="/blog" className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium hover:underline">
+              <ArrowLeft className="size-3.5" aria-hidden /> All posts
+            </Link>
+            <p className="flex flex-wrap items-center gap-x-2 text-[13px] font-medium">
               <time dateTime={post.date}>{formatDate(post.date)}</time>
               <span aria-hidden>·</span>
               <span>{post.readingMinutes} min read</span>
               <span aria-hidden>·</span>
               <span>{post.author}</span>
-              {post.draft && <span className="rounded-full bg-accent/15 px-2 py-0.5 text-[11px] font-semibold text-accent">Draft: only visible in dev</span>}
+              {post.draft && <span className="rounded-full bg-[#2a0d07]/10 px-2 py-0.5 text-[11px] font-semibold">Draft: only visible in dev</span>}
             </p>
-            <h1 className="font-display text-[clamp(32px,5vw,46px)] font-semibold leading-[1.08] tracking-tight text-text">{post.title}</h1>
-            <p className="text-[18px] leading-[1.65] text-muted">{post.description}</p>
-          </header>
+            <h1 className="font-display text-[clamp(32px,5.4vw,52px)] font-semibold leading-[1.06] tracking-tight">{post.title}</h1>
+            <p className="text-[18px] font-medium leading-[1.55]">{post.description}</p>
+          </BlogHero>
 
-          <div className="flex flex-col gap-5">{content}</div>
+          <div className="mx-auto flex max-w-[720px] flex-col gap-5 px-5 pt-12">{content}</div>
         </article>
 
-        <aside className="mt-16 flex flex-col items-start gap-4 rounded-[18px] border border-line bg-surface p-7">
+        <aside className="mx-auto mb-24 mt-16 flex w-[calc(100%-40px)] max-w-[680px] flex-col items-start gap-4 rounded-[18px] border border-line bg-surface p-7">
           <p className="font-display text-[22px] font-semibold leading-snug text-text">Try it on your own spreadsheet</p>
           <p className="text-[15.5px] leading-[1.7] text-muted">
             Upload a CSV or Excel file, ask a question in plain English, and get the answer with a chart.

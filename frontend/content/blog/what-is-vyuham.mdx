@@ -1,0 +1,143 @@
+---
+title: "What is Vyuham? Dashboards from your spreadsheets, in plain English"
+description: "Vyuham turns Excel files, CSVs and PostgreSQL or MySQL tables into dashboards you can question in plain English. Here's what it does, who it's for and its limits."
+date: 2026-11-19
+author: The Vyuham team
+tags: [guides, dashboards, small-business]
+---
+
+Vyuham is a web app that turns your business data into dashboards. You upload an Excel or CSV file, or connect a PostgreSQL
+or MySQL database, then type a short question such as "revenue by month". Vyuham returns a chart and a one-line answer, and
+you can pin that answer to a dashboard your team can open.
+
+It's built for companies of 1 to 100 people where nobody's job title says "analyst". The person building the report is
+usually a founder, an owner or an operations manager who has other work waiting.
+
+You can [try it with sample data](/try) without signing up. The rest of this post explains how it works, where it fits and
+what it can't do yet.
+
+## What does the name Vyuham mean?
+
+Vyuham comes from the Sanskrit word *vyūha*, which means a formation or arrangement. In the Mahabharata it's the word for
+the battle formations armies took up, the best known being the *chakravyuha*, a spiral of soldiers.
+
+We liked it because reporting has the same problem at a smaller scale. Sales sit in one file, invoices in another, and the
+work is lining them up so you can see what's happening. Our logo shows that idea: three pieces forming around an open centre.
+
+## How Vyuham works
+
+### 1. Bring your data
+
+Upload an Excel or CSV file of up to 10 MB and 1 million rows. Vyuham labels each column as a number, date, category or
+text, and shows you a preview. If it reads a customer ID as a number, you can change the label, and later charts use your
+correction.
+
+If your data lives in a database, connect [PostgreSQL](https://www.postgresql.org/) or [MySQL](https://www.mysql.com/),
+choose the tables you want, and set them to refresh every hour or every day.
+
+### 2. Ask a question
+
+Questions work best when they name what you want to measure and how to split it:
+
+| You type | You get |
+| --- | --- |
+| Revenue by month | A line chart and a headline such as "Total revenue up 27% in Oct 2026" |
+| Revenue by region | A bar chart and a headline such as "North leads with 48% of total revenue" |
+| Top 5 products by revenue | A ranked bar chart of your five biggest products |
+| Average amount by product | A bar chart showing which product has the highest average |
+| How many orders in North | A single number, filtered to that region |
+| Total revenue this year | A single number for the current year |
+
+Vyuham matches your words to your column names, then runs a real query on your data. Every number on the screen comes from
+that query. If it can't connect your question to a column, it tells you and suggests questions it can answer.
+
+### 3. Build a dashboard and share it
+
+Save any answer to a dashboard, or let Vyuham build a starter dashboard from your columns and edit from there. Each chart
+carries a one-line headline, so you can read the page before you study it. A date filter applies across the dashboard.
+
+When it's ready, invite teammates, create a read-only share link that you can turn off later, or export a PDF, CSV or Excel
+copy.
+
+## Who is Vyuham for?
+
+Vyuham suits you if most of these sound familiar:
+
+- Your numbers live in spreadsheets, exports or a single application database.
+- One person spends hours each month copying data into a report.
+- You want several people to look at the same numbers without buying a license for each of them.
+- Your questions are about totals, trends, rankings and breakdowns.
+
+A shop owner tracking sales by product, a startup founder watching monthly revenue and an agency checking income by client
+all fit that description.
+
+## What Vyuham can't do yet
+
+Knowing the limits will save you time, so here they are.
+
+**Ask follows rules today.** It doesn't use an AI model. It understands totals, averages, counts, rankings, time periods
+and "by" breakdowns. It won't answer "why did revenue drop?" with a reason, and a broad question such as "are we doing
+well?" needs rewording into something like "revenue by month".
+
+**Labels need to be consistent.** "Paid" and "PAID" count as two different values, so tidy those before you upload. A good
+rule of thumb is one header row, one record per row and one date format per column.
+
+**Google Sheets isn't connected.** Download the sheet as Excel or CSV for now.
+
+**Databases must be reachable from the internet.** Vyuham refuses private and local addresses, so a database that only
+exists inside your office network won't connect.
+
+## How is Vyuham different from Excel or Power BI?
+
+Excel is where a lot of good data starts, and you can keep using it. Vyuham reads the export and handles the charting and
+the repeat reporting, so you stop rebuilding the same pivot table every month.
+
+Power BI and Tableau do far more. They suit companies with someone who will own data models and maintain reports. If you
+have that person, or you need custom measures across many systems, they're the better choice. Vyuham is for the team
+without that person. There's a [side-by-side comparison on our homepage](/#compare).
+
+| | Excel | Power BI or Tableau | Vyuham |
+| --- | --- | --- | --- |
+| Starting point | A blank sheet | A data model | Your existing file or table |
+| How you ask | Formulas and pivots | DAX or calculated fields | A short plain-English question |
+| Best for | Working on the data itself | Teams with an analyst | Teams without one |
+| Depth | Very high, by hand | Very high | Everyday business questions |
+
+## Is my data safe in Vyuham?
+
+Each company's data is kept in its own workspace, and a dashboard only becomes public if you create a share link for it.
+
+For database connections, Vyuham opens read-only sessions, stores your password encrypted and asks for SSL by default. We
+still recommend creating a separate database user that can only read the tables you want to analyze. You can read more on
+the [privacy page](/privacy).
+
+## How much does Vyuham cost?
+
+Vyuham is free during the beta, and you don't need a card to sign up. After the beta, the plan is one flat monthly price for
+the whole company, so adding a teammate won't add to the bill. Anything you build during the beta stays yours.
+
+## Frequently asked questions
+
+### Do I need to know SQL or formulas?
+
+No. You can do everything by typing short questions. If you do know SQL, SQL Lab gives you an editor and can join an uploaded
+file with a table from your database.
+
+### What file types does Vyuham accept?
+
+Excel (.xlsx) and CSV files, up to 10 MB and 1 million rows each.
+
+### Which databases can I connect?
+
+PostgreSQL and MySQL, including MariaDB through the MySQL option. Managed services work the same way as long as they accept
+SSL connections from the internet.
+
+### Can Vyuham alert me when a number changes?
+
+Yes. You can set an alert on a number that matters, such as weekly sales falling below a level, and schedule regular digests.
+
+## Try it on your own numbers
+
+The quickest way to judge Vyuham is to give it a file you already know well. Start with [the sample data](/try) if you'd
+like a look first, or read [more about why we built it](/about). When you're ready, [create a free account](/signup), upload
+one spreadsheet and type "revenue by month", using your own column name in place of revenue if it's called something else.

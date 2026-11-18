@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -10,11 +11,11 @@ const SITE_NAME = "Vyuham";
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
   title: {
-    default: `${SITE_NAME} — AI dashboards for small businesses`,
+    default: `${SITE_NAME}: dashboards from your spreadsheets and databases`,
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "Upload Excel, CSV or Google Sheets, ask questions in plain English and get the answer plus a chart. An AI dashboard built for teams of 1–100.",
+    "Upload Excel or CSV files or connect PostgreSQL or MySQL, ask in plain English and get a chart with a one-line answer. Built for teams of 1 to 100.",
   applicationName: SITE_NAME,
   // Lets feed readers find the blog from any page.
   alternates: { types: RSS_ALTERNATE },
@@ -26,6 +27,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" suppressHydrationWarning>
       <body className={`${outfit.variable} ${geistMono.variable} antialiased`}>
         <RootProviders>{children}</RootProviders>
+        <Analytics />
       </body>
     </html>
   );

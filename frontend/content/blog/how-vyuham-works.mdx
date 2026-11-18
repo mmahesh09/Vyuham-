@@ -1,0 +1,205 @@
+---
+title: "How Vyuham Works: Inside a Plain-English Dashboard Architecture"
+description: "See how Vyuham turns a spreadsheet into a dashboard: file ingestion, Parquet storage, a DuckDB sandbox, read-only database sync and background jobs."
+date: 2026-11-19
+author: The Vyuham team
+tags: [architecture, engineering, dashboards]
+---
+
+You upload `sales.csv`, type "revenue by month", and a line chart appears with a headline above it. From the outside, that
+looks like one step. Inside [Vyuham](/blog/what-is-vyuham), the file and the question pass through a small chain of
+components, each with one job.
+
+This post follows that file from your browser to the finished chart. Along the way you'll see how Vyuham stores data, turns
+words into a query, keeps one company's data away from another's, and refreshes a connected database while you sleep.
+
+**The short version:** Vyuham stores each dataset as a Parquet file, keeps its details in PostgreSQL, and answers every
+question with a temporary DuckDB engine that can read only your workspace's files. A separate worker handles anything that
+runs on a schedule.
+
+## The Vyuham architecture at a glance
+
+There are three groups of parts: the web app you see, the application server that does the work, and the places data is kept.
+
+<Figure
+  src="/blog/how-vyuham-works/system-overview.png"
+  alt="Vyuham system architecture. The browser talks to Next.js on Vercel, which passes API calls through Caddy to FastAPI. FastAPI uses a per-request DuckDB engine over Parquet files, PostgreSQL for records and Redis for jobs. Celery Beat and a Celery worker run scheduled work and read customer databases."
+  width="1674"
+  height="1377"
+  caption="The whole system: follow the arrows from your browser down to where data lives."
+/>
+
+| Component | Its job |
+| --- | --- |
+| Next.js on Vercel | Serves the pages, handles sign-in and forwards `/api` calls |
+| Caddy | Terminates HTTPS in front of the API |
+| FastAPI | Runs the application logic for uploads, questions and dashboards |
+| PostgreSQL | Holds accounts, dataset records, dashboards and schedules |
+| Parquet files | Hold the actual rows of your data |
+| DuckDB | Runs analytical queries over those files |
+| Redis, Celery Beat and Celery worker | Queue and run background work |
+
+The split that matters most is between PostgreSQL and Parquet. PostgreSQL is good at small, precise lookups such as "which
+dashboards belong to this team?" Your sales rows need something different, because a chart usually scans a few columns across
+many rows.
+
+## Step 1: Your spreadsheet becomes a dataset
+
+When `sales.csv` reaches the API, Vyuham reads it once and turns it into something much easier to query.
+
+<Figure
+  src="/blog/how-vyuham-works/upload-pipeline.png"
+  alt="Upload pipeline: a CSV or Excel file is read and checked, cleaned, has its column types detected, gets a dataset record in PostgreSQL and is written as a Parquet file."
+  width="1584"
+  height="582"
+  caption="The upload path, from raw file to a dataset you can question."
+/>
+
+1. **Read and check.** Vyuham accepts `.csv` and `.xlsx` files, up to 10 MB and 1 million rows during the beta.
+2. **Clean up.** The first row becomes your column headers, and completely empty rows and columns are dropped.
+3. **Detect types.** Each column is labelled as a number, date, category or text. You can correct a label later.
+4. **Save.** A dataset record goes into PostgreSQL, and the rows go into a [Parquet](https://parquet.apache.org/) file.
+
+Parquet stores data by column. When a chart needs only `date` and `amount`, the engine can skip the rest of the file. Vyuham
+writes each file to a temporary path and renames it into place, so a reader sees either the complete old file or the complete
+new one.
+
+## Step 2: A question becomes a chart
+
+Now you type "revenue by month". This path is the heart of the product, and it's deliberately plain.
+
+<Figure
+  src="/blog/how-vyuham-works/question-to-chart.png"
+  alt="Question to chart flow: a question goes to a rule-based parser, then a chart spec, an SQL compiler and the DuckDB sandbox. Result rows go to the insight writer, which produces a headline and chart. If the parser finds no match, Vyuham suggests questions that work."
+  width="1584"
+  height="1092"
+  caption="Each step hands a simple, checkable result to the next one."
+/>
+
+The **parser** uses rules, with no AI model involved today. It matches your words to column names and a list of common terms, so
+"revenue" can find an `amount` column and "by month" sets the time grouping. If several datasets could fit, it picks the one
+whose columns your question names most closely.
+
+The result is a **chart spec**, a small JSON description of what to measure and how to group it. Dashboards use the same format,
+which means a saved chart and a typed question run through the same engine.
+
+The **compiler** turns that spec into SQL, quoting column names and passing values as bound parameters. **DuckDB** runs the query,
+and the **insight writer** reads the result to produce a headline such as "Total revenue up 27% in Oct 2026" or "North leads with
+48% of total revenue".
+
+<Callout title="When Vyuham can't match a question">
+It says so and offers questions built from your own columns. A clear "try this instead" is more useful than a confident chart of
+the wrong thing.
+</Callout>
+
+This design also keeps the parser replaceable. A smarter language layer would only need to produce the same chart spec, and every
+step after it could stay as it is.
+
+## Step 3: Every query runs in its own sandbox
+
+Many companies share one Vyuham server, so the query engine needs firm walls. Vyuham creates a fresh in-memory
+[DuckDB](https://duckdb.org/) engine for each request and restricts it before any of your data is attached.
+
+<Figure
+  src="/blog/how-vyuham-works/duckdb-sandbox.png"
+  alt="DuckDB sandbox: a request from Workspace A gets an in-memory DuckDB limited to Workspace A's folder, with external access off, settings locked and extensions unable to load. Workspace B's folder, the network and other server files are blocked."
+  width="1659"
+  height="642"
+  caption="One request, one engine, one workspace folder."
+/>
+
+- **File access** is limited to your workspace's folder.
+- **External access** is switched off, which closes the network and the rest of the server's files.
+- **Settings are locked**, so a query can't loosen those rules.
+- **Extensions** can't be installed or loaded automatically.
+- **Resources are capped** at two threads and 512 MB of memory per engine.
+
+SQL Lab, where you write queries by hand, connects through the same locked-down function. That matters because hand-written SQL is
+exactly where you'd want the walls to hold.
+
+## Step 4: Your database joins the picture
+
+Files are a snapshot, while a business database keeps moving. To [connect PostgreSQL or MySQL](/#databases), you pick tables or write
+one `SELECT`, then choose how often to refresh. Vyuham copies the result into a Parquet file, so dashboards never put query load on
+your production database.
+
+<Figure
+  src="/blog/how-vyuham-works/database-sync.png"
+  alt="Database sync: a job decrypts the password and checks the host is public, connects over SSL to a read-only session with a 60 second query limit, reads a table or checked SELECT, detects column types and replaces the Parquet file atomically. If it fails, the last good data stays in place."
+  width="1674"
+  height="1020"
+  caption="A sync crosses from Vyuham into your infrastructure and back."
+/>
+
+The connection has several layers of protection:
+
+- Your password is stored encrypted and decrypted only when it's needed.
+- The host must resolve to a public address, so a connection can't be aimed at Vyuham's internal services.
+- SSL is on by default, and with SSL on, a server that doesn't offer it is refused.
+- Every session is read-only, with a 60-second limit on each statement.
+- A custom query is parsed, checked and rebuilt before it runs.
+
+We still recommend giving Vyuham its own database user that can read only the tables you want to analyze. Each protection then has
+another behind it.
+
+Failure is handled just as carefully. The new file replaces the old one only after a successful read, so if your database is down at
+2 a.m., your dashboards keep showing the last good data and the dataset shows what went wrong.
+
+## Step 5: Background jobs keep things moving
+
+Hourly syncs, alerts and scheduled reports have to run whether or not anyone is logged in. That work belongs to the worker.
+
+<Figure
+  src="/blog/how-vyuham-works/background-jobs.png"
+  alt="Background jobs: Celery Beat triggers a tick every 60 seconds. The tick checks schedules in PostgreSQL, claims each due job with a unique run record and queues it in Redis. A Celery worker then checks alerts, runs automations and reports, or syncs databases."
+  width="1584"
+  height="804"
+  caption="Beat only keeps time. The schedules themselves live in PostgreSQL."
+/>
+
+Celery Beat does one small thing: every minute it triggers a **tick**. The tick looks in PostgreSQL for alerts, automations and syncs
+that are due. Because schedules live in the database, a change you make takes effect on the next tick.
+
+Before queueing a job, the tick **claims** it by inserting a run record that's unique for that job and time slot. If two passes overlap,
+only one can claim the slot, so your alert doesn't fire twice.
+
+The worker is built to survive interruptions. If it dies mid-job, the message is delivered again, and running the job a second time is safe.
+Temporary trouble such as a network failure can be retried, while a problem only you can fix, such as a deleted table, is recorded
+and shown to you.
+
+## Why build it this way?
+
+Four decisions shape the whole system:
+
+| Decision | What it gives you | What it costs |
+| --- | --- | --- |
+| Parquet files with DuckDB | Fast analytics without running a data warehouse | Data is a copy, refreshed on a schedule |
+| A new engine per request | Strong separation between workspaces | A little setup work on every query |
+| Rules before AI | Predictable answers with numbers from real queries | Open-ended questions need rewording |
+| Schedules in PostgreSQL | Simple changes and reliable claiming | The scheduler has to check every minute |
+
+The first row is the one to remember if you're evaluating Vyuham for live operations. A connected table is as fresh as its last sync, which
+is hourly at best on a schedule, so Vyuham suits business reporting better than second-by-second monitoring.
+
+## Frequently asked questions
+
+### What database does Vyuham use?
+
+PostgreSQL stores accounts, dataset records, dashboards and schedules. Your rows are stored as Parquet files and queried with DuckDB.
+
+### Does Vyuham query my production database for every chart?
+
+No. It reads your chosen tables during a sync and stores a copy. Charts then query that copy.
+
+### Can one company's query reach another company's data?
+
+Each query runs in an engine limited to its own workspace folder, with external access switched off and its settings locked.
+
+### Does Vyuham use AI to write SQL?
+
+Not today. A rule-based parser creates a chart spec, and a compiler turns that spec into SQL.
+
+## See the path for yourself
+
+The quickest way to understand this architecture is to send something through it. [Try the sample data](/try) with no account, or
+[create a free account](/signup), upload one spreadsheet and type "revenue by month". You now know everything that happens next.

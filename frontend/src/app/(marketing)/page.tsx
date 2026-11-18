@@ -5,33 +5,34 @@ import Link from "next/link";
 import { RSS_ALTERNATE } from "@/lib/site";
 import { Hero } from "@/components/marketing/hero";
 import { LazyFilterDemo, LazyFinanceShowcase, LazyLiveDashboard, LazyStoryFeed, LazySyncCard } from "@/components/marketing/lazy-demos";
-import { MapSection } from "@/components/marketing/map-section";
+import { DATABASE_LOGOS, IntegrationGrid } from "@/components/marketing/integration-grid";
 import { MessySheet } from "@/components/marketing/messy-sheet";
 import { ParticlesBackground } from "@/components/marketing/particles-background";
 import { ColumnsShot } from "@/components/marketing/product-shots";
 import { Reveal } from "@/components/marketing/reveal";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { body, container, delay, h2, quiet, sectionY } from "@/components/marketing/tokens";
+import { LogoMark } from "@/components/layout/logo";
 import { Mark } from "@/components/ui/mark";
 
 const SITE_NAME = "Vyuham";
 const DESCRIPTION =
-  "Turn Excel, CSV and Google Sheets into an AI dashboard. Ask questions in plain English and get the answer plus a chart in seconds. Free during the beta.";
+  "Turn Excel, CSV, PostgreSQL or MySQL data into a small business dashboard. Ask in plain English and get a chart with a one-line answer. Free during the beta.";
 
 export const metadata: Metadata = {
-  title: "AI Dashboard for Small Business",
+  title: "Turn Spreadsheets Into Dashboards for Small Business",
   description: DESCRIPTION,
   alternates: { canonical: "/", types: RSS_ALTERNATE },
   openGraph: {
     type: "website",
     url: "/",
     siteName: SITE_NAME,
-    title: "Ask your spreadsheet anything: AI dashboards for small businesses",
+    title: "Turn your spreadsheets into dashboards you can question",
     description: DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Ask your spreadsheet anything",
+    title: "Turn your spreadsheets into dashboards you can question",
     description: DESCRIPTION,
   },
 };
@@ -49,10 +50,10 @@ function Eyebrow({ n, children, className = "" }: { n: string; children: React.R
 
 /** Product facts, not invented social proof. */
 const FACTS = [
-  { label: "Answer time", value: "About 4 seconds" },
-  { label: "Works with", value: "CSV, Excel, Google Sheets" },
+  { label: "Works with", value: "Excel, CSV, PostgreSQL, MySQL" },
+  { label: "File size", value: "Up to 10 MB, 1M rows" },
   { label: "Formulas needed", value: "None" },
-  { label: "Pricing", value: "One flat price, never per seat" },
+  { label: "Pricing", value: "Free in beta, then one flat price" },
 ];
 
 function PrimaryCta({ children = "Ask your first question" }: { children?: React.ReactNode }) {
@@ -81,17 +82,17 @@ const MOMENTS: { when: string; text: React.ReactNode }[] = [
     when: "Three months later",
     text: (
       <>
-        You notice a client has gone quiet. Not from a report. From a missing invoice. The signal was in your data the
-        whole time; <Mark>nobody had time to look.</Mark>
+        A client went quiet in July. You find out in October, when an invoice doesn’t go out. The signal sat in your
+        data the whole time, and <Mark>nobody had time to look.</Mark>
       </>
     ),
   },
   {
-    when: "Day 9 of the free trial",
+    when: "Day 9 of the trial",
     text: (
       <>
-        You tried Power BI. It wanted a data model, DAX formulas and a weekend of tutorials. The trial ran out first,
-        and the <Mark>spreadsheet won by default.</Mark>
+        You tried Power BI. It wanted a data model, DAX formulas and a weekend of tutorials. By day 9 you were back in
+        Excel, and the <Mark>spreadsheet had won by default.</Mark>
       </>
     ),
   },
@@ -99,11 +100,11 @@ const MOMENTS: { when: string; text: React.ReactNode }[] = [
 
 const STEPS: { title: string; text: React.ReactNode }[] = [
   {
-    title: "Upload your spreadsheet",
+    title: "Bring your data",
     text: (
       <>
-        Drop in an Excel or CSV file, or connect a Google Sheet. We detect dates, money, categories and IDs
-        automatically, so there is <Mark>nothing to set up.</Mark>
+        Drop in an Excel or CSV file, or connect PostgreSQL or MySQL. Vyuham labels every column as a number, date,
+        category or text, and <Mark>you can correct any label.</Mark>
       </>
     ),
   },
@@ -111,8 +112,8 @@ const STEPS: { title: string; text: React.ReactNode }[] = [
     title: "Ask in plain English",
     text: (
       <>
-        Type the question the way you’d ask a colleague: “Which clients grew this quarter?” You get{" "}
-        <Mark>a one-sentence answer and the right chart</Mark>, not a blank canvas.
+        Type “Top 5 customers by revenue” and you get <Mark>a one-line answer and the right chart.</Mark> If Vyuham
+        can’t match your words to a column, it says so and suggests questions that will work.
       </>
     ),
   },
@@ -120,8 +121,8 @@ const STEPS: { title: string; text: React.ReactNode }[] = [
     title: "Save it and share it",
     text: (
       <>
-        Pin answers to a dashboard that refreshes with your data. Send it as a live link to your team, investors or
-        clients, <Mark>no slide deck required.</Mark>
+        Pin answers to a dashboard, or start from one Vyuham builds for you. Then invite your team, export a PDF or{" "}
+        <Mark>send a read-only link.</Mark>
       </>
     ),
   },
@@ -136,18 +137,25 @@ const OLD_WAY = [
 ];
 
 const MESSY_FIXES = [
-  { label: "Column types", text: "Dates, currencies, percentages and IDs are detected for you, even when formats are mixed." },
-  { label: "Inconsistent labels", text: "“paid”, “Paid” and “PAID” become one value, and typos in client names are grouped." },
-  { label: "Files that belong together", text: "“customer” in one sheet is matched to “company_name” in another, so you can ask across both." },
+  { label: "Column types", text: "Numbers, dates, categories and text are labelled when the file arrives." },
+  { label: "Your corrections", text: "If a customer ID gets read as a number, change it once and later charts use the fix." },
+  { label: "Files that belong together", text: "SQL Lab spots when “customer” in one table looks like “company_name” in another and suggests the join." },
+];
+
+const DATABASE_FACTS = [
+  { label: "Read-only sessions", text: "Every connection is opened read-only, and queries have a time limit." },
+  { label: "Encrypted password", text: "Your database password is stored encrypted and never shown again." },
+  { label: "SSL by default", text: "New connections require SSL unless you turn it off yourself." },
+  { label: "Your choice of tables", text: "Only the tables you pick are copied into your workspace." },
 ];
 
 const COMPARE = [
-  { topic: "Getting started", them: "Build a data model first", us: "Drop in the file you already have" },
-  { topic: "Setup time", them: "Days to weeks of setup", us: "Your first answer in minutes" },
+  { topic: "Getting started", them: "Build a data model first", us: "Start from the file you already have" },
+  { topic: "Setup time", them: "Days to weeks of setup", us: "Your first chart in minutes" },
   { topic: "Who can use it", them: "Someone trained in the tool", us: "Anyone who can type a question" },
-  { topic: "Data team required", them: "Usually, to build and maintain reports", us: "No. The AI does the analysis." },
-  { topic: "Formulas", them: "DAX and calculated fields", us: "None. Plain English." },
-  { topic: "What you get", them: "Charts you have to interpret", us: "The answer, then the chart" },
+  { topic: "Who maintains it", them: "Usually an analyst", us: "Whoever owns the numbers" },
+  { topic: "Calculations", them: "DAX and calculated fields", us: "Short questions in plain English" },
+  { topic: "What you get", them: "Charts you have to interpret", us: "A one-line answer with the chart" },
   { topic: "Pricing", them: "Per person, per month", us: "One price for the whole company" },
 ];
 
@@ -155,75 +163,93 @@ const COMPARE = [
 const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
   {
     q: "How do I turn a spreadsheet into a dashboard?",
-    text: "Upload your Excel or CSV file, or connect a Google Sheet. We suggest four to six charts right away and build a starter dashboard you can edit. Ask more questions and save any answer to the dashboard with one click.",
+    text: "Upload your Excel or CSV file and choose to have a starter dashboard built from your columns. Edit it, ask more questions and save any answer to the dashboard.",
     a: (
       <>
-        Upload your Excel or CSV file, or connect a Google Sheet. We suggest four to six charts right away and{" "}
-        <Mark>build a starter dashboard for you</Mark>. Ask more questions and save any answer to the dashboard with one
-        click.
+        Upload your Excel or CSV file and choose to have <Mark>a starter dashboard built from your columns</Mark>. Edit
+        it, ask more questions and save any answer to the dashboard.
+      </>
+    ),
+  },
+  {
+    q: "What kinds of questions can I ask?",
+    text: "Totals, averages, counts, rankings and breakdowns over time or by category. “Revenue by month”, “Top 5 products by revenue” and “How many orders in North” all work. Naming a column helps. Vyuham can show you what changed, but it can’t explain why.",
+    a: (
+      <>
+        Totals, averages, counts, rankings and breakdowns over time or by category.{" "}
+        <Mark>“Revenue by month”, “Top 5 products by revenue” and “How many orders in North”</Mark> all work. Naming a
+        column helps. Vyuham can show you what changed, but it can’t explain why.
+      </>
+    ),
+  },
+  {
+    q: "Does Vyuham use AI?",
+    text: "Not yet. Today it matches your words to your columns using rules, then runs a real query, so every number comes from your data. If a question doesn’t match, it tells you instead of guessing.",
+    a: (
+      <>
+        Not yet. Today it matches your words to your columns using rules, then runs a real query, so{" "}
+        <Mark>every number comes from your data.</Mark> If a question doesn’t match, it tells you instead of guessing.
       </>
     ),
   },
   {
     q: "My spreadsheets are a mess. Will it still work?",
-    text: "That’s the point. We read every column, notice that “paid”, “Paid” and “PAID” mean the same thing, and ask you when something is unclear instead of guessing. Fix it once and every later answer uses the fix.",
+    text: "Usually, if there’s one header row and one record per row. Vyuham works out your column types, and you can correct them. Tidy labels first, because “Paid” and “PAID” count as two different values.",
     a: (
       <>
-        That’s the point. We read every column, notice that “paid”, “Paid” and “PAID” mean the same thing, and{" "}
-        <Mark>ask you when something is unclear</Mark> instead of guessing. Fix it once and every later answer uses the
-        fix.
-      </>
-    ),
-  },
-  {
-    q: "Can I analyze Excel data with AI without knowing formulas?",
-    text: "Yes. You ask the way you’d ask a colleague. We write the query, pick the chart and tell you what it means in a sentence. No SQL, no pivot tables, no DAX.",
-    a: (
-      <>
-        Yes. You ask the way you’d ask a colleague. We write the query, pick the chart and{" "}
-        <Mark>tell you what it means in a sentence</Mark>. No SQL, no pivot tables, no DAX.
+        Usually, if there’s <Mark>one header row and one record per row</Mark>. Vyuham works out your column types, and
+        you can correct them. Tidy labels first, because “Paid” and “PAID” count as two different values.
       </>
     ),
   },
   {
     q: "Is this a Power BI or Tableau alternative?",
-    text: "For small teams, yes. Power BI and Tableau are built for companies with a data team. We’re built for the founder, manager or owner who is the data team: no data model, no training, and one flat price instead of a per-seat license.",
+    text: "For small teams without an analyst, yes. Power BI and Tableau go much deeper and suit companies with someone to build and maintain reports. Vyuham is for the founder, manager or owner who is the data team.",
     a: (
       <>
-        For small teams, yes. Power BI and Tableau are built for companies with a data team. We’re built for the
-        founder, manager or owner who <Mark>is the data team</Mark>: no data model, no training, and one flat price
-        instead of a per-seat license.
+        For small teams without an analyst, yes. Power BI and Tableau go much deeper and suit companies with someone to
+        build and maintain reports. Vyuham is for the founder, manager or owner who <Mark>is the data team.</Mark>
       </>
     ),
   },
   {
-    q: "What data can I use?",
-    text: "Excel and CSV files, and your PostgreSQL or MySQL database: pick the tables and they refresh every hour or every day. Exports from tools like Stripe, QuickBooks or your CRM work too, and you can ask questions across a database and a spreadsheet at once.",
+    q: "Which databases can I connect?",
+    text: "PostgreSQL and MySQL, including MariaDB through the MySQL option. Hosted databases work when they accept connections from the internet. Pick the tables you want and refresh them every hour or every day.",
     a: (
       <>
-        Excel and CSV files, and <Mark>your PostgreSQL or MySQL database</Mark>: pick the tables and they refresh every
-        hour or every day. Exports from tools like Stripe, QuickBooks or your CRM work too, and you can ask questions
-        across a database and a spreadsheet at once.
+        <Mark>PostgreSQL and MySQL</Mark>, including MariaDB through the MySQL option. Hosted databases work when they
+        accept connections from the internet. Pick the tables you want and refresh them every hour or every day.
+      </>
+    ),
+  },
+  {
+    q: "Can Vyuham change anything in my database?",
+    text: "Vyuham connects in read-only sessions and copies the tables you choose into your workspace for analysis. Your password is stored encrypted. We still recommend a dedicated database user that can only read those tables.",
+    a: (
+      <>
+        Vyuham connects in <Mark>read-only sessions</Mark> and copies the tables you choose into your workspace for
+        analysis. Your password is stored encrypted. We still recommend a dedicated database user that can only read
+        those tables.
       </>
     ),
   },
   {
     q: "Who can see my data?",
-    text: "Only your team. Each company’s data is kept separately, and a dashboard is only public if you create a share link for it. You can turn a link off at any time.",
+    text: "Your team. Each company’s data is kept separately, and a dashboard is only public if you create a share link for it. You can turn a link off at any time.",
     a: (
       <>
-        Only your team. Each company’s data is kept separately, and a dashboard is only public if{" "}
+        Your team. Each company’s data is kept separately, and a dashboard is only public if{" "}
         <Mark>you create a share link</Mark> for it. You can turn a link off at any time.
       </>
     ),
   },
   {
     q: "How much does it cost?",
-    text: "It’s free during the beta. After that, paid plans will be one flat monthly price for your whole company, not per person, so adding a teammate never adds to the bill.",
+    text: "It’s free during the beta. After that, paid plans will be one flat monthly price for your whole company, so adding a teammate never adds to the bill.",
     a: (
       <>
-        It’s free during the beta. After that, paid plans will be one flat monthly price for your whole company, not
-        per person, so <Mark>adding a teammate never adds to the bill.</Mark>
+        It’s free during the beta. After that, paid plans will be one flat monthly price for your whole company, so{" "}
+        <Mark>adding a teammate never adds to the bill.</Mark>
       </>
     ),
   },
@@ -328,7 +354,7 @@ export default function LandingPage() {
                 From spreadsheet to dashboard <span className={quiet}>in three steps.</span>
               </h2>
               <p className={`${body} max-w-[46ch]`}>
-                No installs, no data modeling and no formulas. If you can write an email, you can get{" "}
+                Everything happens in your browser. If you can write an email, you can get{" "}
                 <Mark>answers from your business data.</Mark>
               </p>
             </div>
@@ -359,9 +385,8 @@ export default function LandingPage() {
                 “Are we selling more than last month?”
               </p>
               <p className={`${body} max-w-[56ch]`}>
-                One question, asked in plain English. On the left, the spreadsheet routine most small teams know too
-                well. On the right, natural-language analysis that answers in <Mark>about 4 seconds</Mark>, with
-                refunds already taken out.
+                Your co-founder’s question, answered twice. On the left, the spreadsheet routine most small teams know
+                too well. On the right, you type <Mark>“Revenue by month”</Mark> and read the result.
               </p>
             </div>
 
@@ -383,28 +408,27 @@ export default function LandingPage() {
               <div data-animate style={delay(120)}>
                 <div className="mb-6 flex items-baseline justify-between border-b-2 border-accent pb-4">
                   <h3 className="text-xl font-semibold text-white">With {SITE_NAME}</h3>
-                  <span className="font-mono text-sm text-accent">4 sec</span>
+                  <span className="font-mono text-sm text-accent">Same minute</span>
                 </div>
                 <ol className="flex flex-col gap-4">
                   <li className="grid grid-cols-[3rem_1fr] sm:grid-cols-[3.5rem_1fr] gap-3 text-[16px] text-white">
                     <span className="font-mono text-[13px] leading-6 text-highlight">9:02</span>
-                    <span className="leading-6">Type the question.</span>
+                    <span className="leading-6">Type “Revenue by month”.</span>
                   </li>
                   <li className="grid grid-cols-[3rem_1fr] sm:grid-cols-[3.5rem_1fr] gap-3 text-[16px] text-white">
                     <span className="font-mono text-[13px] leading-6 text-highlight">9:02</span>
                     <span className="leading-6">
-                      “Yes. <Mark>October is up 18% on September</Mark>, mostly from Halden &amp; Co and two new
-                      clients. Refunds are already taken out.”
+                      <Mark>Total revenue up 27% in October.</Mark>
                     </span>
                   </li>
                 </ol>
-                <p className="mt-6 text-[15px] text-white/50">And a chart, in case you want to show someone.</p>
+                <p className="mt-6 text-[15px] text-white/50">With the line chart underneath, ready to pin to a dashboard.</p>
               </div>
             </div>
 
             <div data-animate className="mt-20" style={delay(100)}>
               <LazyLiveDashboard />
-              <p className="mt-4 text-center text-[13px] text-white/40">Sample data. The dashboard keeps updating as your data does.</p>
+              <p className="mt-4 text-center text-[13px] text-white/40">Sample data, animated to show the layout. Your dashboards update when you replace a file or a database table syncs.</p>
             </div>
           </div>
         </section>
@@ -416,13 +440,13 @@ export default function LandingPage() {
               <ColumnsShot />
             </div>
             <div data-animate className="order-1 flex flex-col gap-6 lg:order-2" style={delay(120)}>
-              <Eyebrow n="04">Messy data</Eyebrow>
+              <Eyebrow n="04">Your data as it is</Eyebrow>
               <h2 className={h2}>
-                Bring the messy file. <span className={quiet}>We’ll make sense of it.</span>
+                Bring the file you have. <span className={quiet}>Vyuham reads the columns.</span>
               </h2>
               <p className={`${body} max-w-[44ch]`}>
-                No cleaning, no data model. We note that “amount” is before tax, that only “Paid” counts as revenue,
-                and that “customer” here is “company_name” in your other file. <Mark>Your file stays as it is.</Mark>
+                Export it from your accounting tool, your CRM or the shared drive. One header row and one record per
+                row is all Vyuham needs. <Mark>Your original file stays as it is.</Mark>
               </p>
               <ul className="flex max-w-[46ch] flex-col gap-4 border-t border-white/10 pt-6">
                 {MESSY_FIXES.map((f) => (
@@ -434,30 +458,42 @@ export default function LandingPage() {
                   </li>
                 ))}
               </ul>
-              <p className={`${body} max-w-[44ch]`}>
-                Not sure? We ask. <Mark>Fix one word, and every answer after it is right.</Mark>
-              </p>
             </div>
           </div>
         </section>
 
-        {/* 5 · Where — black, full-width breathing visual */}
-        <section className={sectionY}>
+        {/* 5 · Databases — black, full-width breathing visual */}
+        <section id="databases" className={`scroll-mt-4 ${sectionY}`}>
           <div className={container}>
-            <div data-animate className="mb-12 grid gap-6 lg:grid-cols-[5fr_6fr] lg:items-end">
+            <div data-animate className="mb-14 grid gap-6 lg:grid-cols-[5fr_6fr] lg:items-end">
               <h2 className={`${h2} max-w-[18ch]`}>
-                <Eyebrow n="05" className="mb-6 flex">Maps</Eyebrow>
-                Ask “where?” <span className={quiet}>Get a map.</span>
+                <Eyebrow n="05" className="mb-6 flex">Databases</Eyebrow>
+                Connect your database. <span className={quiet}>Vyuham only reads.</span>
               </h2>
               <p className={`${body} max-w-[46ch]`}>
-                “Where do our best customers live?” “Which region is slowing down?” If your sheet has a country, city
-                or postcode column, location questions come back as <Mark>an interactive map</Mark>, ready to hover
-                and compare.
+                Point Vyuham at PostgreSQL or MySQL, choose the tables you care about and set them to refresh every hour
+                or every day. In SQL Lab, you can <Mark>join a synced table with an uploaded CSV.</Mark>
               </p>
             </div>
-            <div data-animate style={delay(100)}>
-              <MapSection />
+            <div data-animate style={delay(100)} className="dark mx-auto max-w-[920px]">
+              <IntegrationGrid
+                logos={DATABASE_LOGOS}
+                mark={<LogoMark />}
+                label="Vyuham connects to PostgreSQL, MySQL and MariaDB, including databases hosted on Supabase, Neon, DigitalOcean, Google Cloud, Render, Railway and Vultr."
+              />
             </div>
+            <dl data-animate style={delay(160)} className="mt-14 grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+              {DATABASE_FACTS.map((f) => (
+                <div key={f.label} className="flex flex-col gap-2 border-l border-white/10 pl-5">
+                  <dt className="text-[16px] font-semibold text-white">{f.label}</dt>
+                  <dd className="text-[15px] font-light leading-relaxed text-white/65">{f.text}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-10 max-w-[72ch] text-[13px] leading-relaxed text-white/40">
+              PostgreSQL and MySQL are the supported connection types, and MariaDB connects through the MySQL option. The
+              other logos are examples of services that host these databases. They aren’t partners or endorsements.
+            </p>
           </div>
         </section>
 
@@ -470,11 +506,11 @@ export default function LandingPage() {
                 Monday morning, <span className={quiet}>already explained.</span>
               </h2>
               <p className={`${body} max-w-[42ch]`}>
-                Your dashboard opens with what changed, in a sentence. Revenue is up. Ad spend is too high. One client
-                carries a fifth of the business. <Mark>The insight comes first, the chart second.</Mark>
+                Every chart carries its headline. Revenue up 27%. Ad spend up 36%. One client at 22% of revenue.{" "}
+                <Mark>You read the sentence first and open the chart for the detail.</Mark>
               </p>
               <p className={`${body} max-w-[42ch]`}>
-                Every card has “Ask a follow-up”, so you can dig into the why without building a new report.
+                Set the date filter once and the whole dashboard follows it.
               </p>
             </div>
             <div data-animate style={delay(120)}>
@@ -492,8 +528,8 @@ export default function LandingPage() {
                 One spreadsheet in. <span className={quiet}>A whole dashboard out.</span>
               </h2>
               <p className={`${body} max-w-[40ch]`}>
-                This one started as a personal-finance export. <Mark>No formulas were written</Mark> to build it. Hover
-                the charts, switch the period, flip the currency.
+                A sample dashboard built around a personal-finance export. <Mark>Hover the charts</Mark> and switch the
+                period to see how it responds.
               </p>
             </div>
             <div data-animate style={delay(100)}>
@@ -513,10 +549,10 @@ export default function LandingPage() {
             <div className="grid gap-4 md:grid-cols-[3fr_2fr]">
               <div data-animate className="flex min-h-[300px] flex-col gap-6 rounded-[16px] border border-white/10 bg-black/40 p-6 sm:p-8">
                 <div>
-                  <h3 className="text-[24px] font-semibold tracking-[-0.025em] text-white">Your team keeps editing the Google Sheet.</h3>
+                  <h3 className="text-[24px] font-semibold tracking-[-0.025em] text-white">Your database keeps changing. So does the dashboard.</h3>
                   <p className="mt-2 max-w-[48ch] text-base font-light leading-relaxed text-white/65">
-                    The dashboard follows along. It refreshes every hour, or the moment you click “Refresh now”.{" "}
-                    <Mark>Nobody exports anything.</Mark>
+                    Connected tables refresh every hour or every day. For files, upload the new export over the old one
+                    and <Mark>your charts stay in place.</Mark>
                   </p>
                 </div>
                 <LazySyncCard />
@@ -536,8 +572,8 @@ export default function LandingPage() {
                     Send the board update as a link, <span className="font-light">not a 30-slide deck.</span>
                   </h3>
                   <p className="mt-3 max-w-[56ch] text-base leading-relaxed text-[#160f0a]/75">
-                    Investors, clients and your team see the live numbers, and filters still work for them. You decide
-                    what’s shared, and you can switch a link off any time.
+                    Investors, clients and teammates open a read-only view of the dashboard. You decide what’s shared,
+                    and you can switch a link off any time.
                   </p>
                 </div>
                 <div className="flex w-full min-w-0 max-w-[380px] items-center gap-2 rounded-full bg-[#160f0a] py-1.5 pl-4 pr-1.5 text-[13px] text-white/80">
@@ -562,12 +598,12 @@ export default function LandingPage() {
               </h2>
               <div className="flex flex-col gap-4">
                 <p className={`${body} max-w-[46ch]`}>
-                  You can. It’s powerful. It’s also built for companies with a data team, and priced per person. If you
-                  are the data team, you need something else.
+                  You can, and if you have an analyst you probably should. Power BI goes much deeper. It also expects
+                  someone to build the model and look after the reports.
                 </p>
                 <p className={`${body} max-w-[46ch]`}>
-                  We’re a <Mark>Power BI and Tableau alternative for small businesses</Mark>: the same answers from your
-                  data, without the setup, the training or the per-seat bill.
+                  Vyuham is a <Mark>Power BI and Tableau alternative for small businesses</Mark> whose questions are about
+                  revenue, customers and costs, and whose data team is one busy person.
                 </p>
               </div>
             </div>
@@ -616,7 +652,7 @@ export default function LandingPage() {
                 for your whole company. <Mark>Never per seat</Mark>, so the whole team can ask questions without
                 anyone counting licenses.
               </p>
-              <PrimaryCta>Claim a beta spot</PrimaryCta>
+              <PrimaryCta>Join the free beta</PrimaryCta>
             </div>
           </div>
         </section>

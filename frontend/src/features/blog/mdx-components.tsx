@@ -37,11 +37,17 @@ function Callout({ title, children, tone = "tip" }: { title?: string; children: 
   );
 }
 
-/** <Figure src="/blog/slug/chart.png" alt="…" width={1600} height={900} caption="…" />: an optimised image. */
-function Figure({ src, alt, width, height, caption }: { src: string; alt: string; width: number; height: number; caption?: string }) {
+/**
+ * <Figure src="/blog/slug/chart.png" alt="…" width="1600" height="900" caption="…" />: an optimised image.
+ * Width and height are quoted: next-mdx-remote strips {expression} props from posts.
+ */
+function Figure({ src, alt, width, height, caption }: { src: string; alt: string; width: string; height: string; caption?: string }) {
   return (
     <figure className="my-2 flex flex-col gap-2">
-      <Image src={src} alt={alt} width={width} height={height} sizes="(min-width: 768px) 720px, 100vw" className="h-auto w-full rounded-[14px] border border-line" />
+      {/* Opens the full-size image, so detailed diagrams stay readable on a phone. */}
+      <a href={src} target="_blank" rel="noopener noreferrer" aria-label={`Open full-size image: ${caption ?? alt}`}>
+        <Image src={src} alt={alt} width={Number(width)} height={Number(height)} sizes="(min-width: 768px) 720px, 100vw" className="h-auto w-full rounded-[14px] border border-line" />
+      </a>
       {caption && <figcaption className="text-center text-[13px] text-faint">{caption}</figcaption>}
     </figure>
   );

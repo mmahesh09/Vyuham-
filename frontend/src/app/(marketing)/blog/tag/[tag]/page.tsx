@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 
+import { BlogHero } from "@/components/marketing/blog-hero";
 import { PostList, TagFilter } from "@/components/marketing/post-list";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
@@ -34,15 +35,17 @@ export default async function TagPage({ params }: Props) {
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       <SiteHeader />
-      <main className="mx-auto w-full max-w-[760px] flex-1 px-5 pb-24 pt-12">
-        <Link href="/blog" className="inline-flex items-center gap-1.5 text-[13px] text-faint hover:text-text">
-          <ArrowLeft className="size-3.5" aria-hidden /> All posts
-        </Link>
-        <h1 className="mt-6 font-display text-[clamp(30px,4.5vw,42px)] font-semibold leading-[1.08] tracking-tight text-text">
-          Posts about {tag}
-        </h1>
-        <TagFilter tags={tags} active={tag} />
-        <PostList posts={tagged} />
+      <main className="w-full flex-1">
+        <BlogHero>
+          <Link href="/blog" className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium hover:underline">
+            <ArrowLeft className="size-3.5" aria-hidden /> All posts
+          </Link>
+          <h1 className="font-display text-[clamp(32px,5vw,52px)] font-semibold leading-[1.06] tracking-tight">Posts about {tag}</h1>
+        </BlogHero>
+        <div className="mx-auto w-full max-w-[760px] px-5 pb-24">
+          <TagFilter tags={tags} active={tag} />
+          <PostList posts={tagged} />
+        </div>
       </main>
       <SiteFooter />
     </div>

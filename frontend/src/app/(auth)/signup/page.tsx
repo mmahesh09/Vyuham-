@@ -8,7 +8,7 @@ import { enabledProviders } from "@/lib/auth";
 export const metadata: Metadata = {
   title: "Create your free account",
   description:
-    "Sign up free and turn your Excel, CSV or Google Sheets into an AI dashboard. Ask questions in plain English and get answers with charts. No card needed.",
+    "Sign up free and turn Excel, CSV, PostgreSQL or MySQL data into a dashboard. Ask in plain English and get answers with charts. No card needed.",
   alternates: { canonical: "/signup" },
 };
 
@@ -19,7 +19,7 @@ export default function SignupPage() {
         title="Create your free account"
         subtitle={
           <>
-            Turn your spreadsheets into <Mark sweepOnLoad>an AI dashboard in minutes</Mark>. Free during the beta, no
+            Turn your spreadsheets into <Mark sweepOnLoad>a dashboard in minutes</Mark>. Free during the beta, no
             card needed.
           </>
         }

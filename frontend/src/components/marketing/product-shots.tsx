@@ -1,19 +1,19 @@
 import { Link2 } from "lucide-react";
 
 const COLUMNS = [
-  { name: "order_date", role: "Date", text: "Day the order was placed" },
-  { name: "customer", role: "Category", text: "Client company that ordered" },
-  { name: "amount", role: "Metric", text: "Order value in USD, before tax" },
-  { name: "status", role: "Category", text: "Only “Paid” counts as revenue" },
+  { name: "order_date", role: "Date", text: "Jan 2 to Oct 31, 2026" },
+  { name: "customer", role: "Category", text: "Halden & Co, Mira Foods and 38 more" },
+  { name: "amount", role: "Number", text: "$40 to $18,200" },
+  { name: "status", role: "Category", text: "Paid, Pending, Refunded" },
 ];
 
-/** What the AI understood about an uploaded file. Sample data. */
+/** How Vyuham labels the columns of an uploaded file. Sample data. */
 export function ColumnsShot() {
   return (
     <div className="glass-strong rounded-[26px] p-2">
       <div className="flex items-center justify-between px-4 pb-2 pt-3">
         <span className="text-sm font-medium text-white">sales_2026.xlsx</span>
-        <span className="text-xs text-white/50">2,340 rows · read in 3s</span>
+        <span className="text-xs text-white/50">2,340 rows</span>
       </div>
       <ul className="flex flex-col">
         {COLUMNS.map((c) => (
@@ -24,7 +24,7 @@ export function ColumnsShot() {
             <code className="truncate font-mono text-[13px] text-white">{c.name}</code>
             <span
               className={`w-fit rounded-[4px] px-2 py-0.5 text-xs font-semibold ${
-                c.role === "Metric" ? "bg-accent text-[#160f0a]" : "bg-white/10 text-highlight"
+                c.role === "Number" ? "bg-accent text-[#160f0a]" : "bg-white/10 text-highlight"
               }`}
             >
               {c.role}
@@ -36,7 +36,7 @@ export function ColumnsShot() {
       <div className="m-2 flex items-center gap-2 rounded-[16px] border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-white">
         <Link2 className="size-4 shrink-0 text-highlight" strokeWidth={2} aria-hidden />
         <span>
-          <span className="font-semibold text-highlight">Link found:</span> customer ↔ clients.csv
+          <span className="font-semibold text-highlight">Possible join:</span> customer ↔ clients.csv
         </span>
       </div>
     </div>

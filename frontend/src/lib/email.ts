@@ -18,7 +18,7 @@ export function renderEmail(title: string, paragraphs: string[], button?: { labe
     `<!doctype html><html><body style="margin:0;background:#fbf6f1;font-family:Segoe UI,Helvetica,Arial,sans-serif">` +
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">` +
     `<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;padding:32px"><tr><td>` +
-    `<p style="margin:0 0 20px;font-weight:700;font-size:18px;color:#f07a2b">vyuham</p>` +
+    `<p style="margin:0 0 20px;font-weight:700;font-size:18px;color:#f07a2b">Vyuham</p>` +
     `<h1 style="margin:0 0 16px;font-size:22px;color:#15100c">${esc(title)}</h1>${body}${cta}` +
     `<p style="margin:24px 0 0;font-size:12px;color:#a8978a">If you didn't ask for this, you can ignore this email.</p>` +
     `</td></tr></table></td></tr></table></body></html>`

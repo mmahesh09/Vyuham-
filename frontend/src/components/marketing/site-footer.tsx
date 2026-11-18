@@ -11,6 +11,7 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
       ["Try Vyuham", "/try"],
       ["About", "/about"],
       ["How it works", "/#how-it-works"],
+      ["Connect a database", "/#databases"],
       ["Compare to Power BI", "/#compare"],
       ["Pricing", "/#pricing"],
       ["FAQ", "/#faq"],
@@ -38,7 +39,7 @@ export function SiteFooter() {
         <div className="col-span-2 flex flex-col items-start gap-3 lg:col-span-1">
           <Logo />
           <p className="max-w-[32ch] px-2.5 font-light text-muted">
-            AI dashboards and answers from your spreadsheets, for teams too small for a data team.
+            Dashboards and plain-English answers from your spreadsheets and databases, for teams without a data team.
           </p>
         </div>
         {COLUMNS.map((col) => (
