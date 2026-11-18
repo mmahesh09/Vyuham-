@@ -43,8 +43,9 @@ export const connectionKeys = {
   preview: (id: string, table: string) => ["connections", id, "preview", table] as const,
 };
 
-export function useConnections() {
-  return useQuery({ queryKey: connectionKeys.all, queryFn: () => api<Connection[]>("/connections") });
+/** Editors and owners only: the API doesn't show database details to viewers. */
+export function useConnections(enabled = true) {
+  return useQuery({ queryKey: connectionKeys.all, queryFn: () => api<Connection[]>("/connections"), enabled });
 }
 
 export function useConnectionSettings() {
@@ -132,11 +133,11 @@ export function useSyncDataset(id: string) {
   return useMutation({
     mutationFn: async () => {
       const before = await api<Dataset>(`/datasets/${id}/sync`, { method: "POST" });
-      const started = before.last_synced_at;
+      const finished = before.sync_finished_at;
       for (let i = 0; i < 60; i++) {
         await new Promise((r) => setTimeout(r, 2000));
         const now = await api<Dataset>(`/datasets/${id}`);
-        if (now.last_synced_at !== started) return now;
+        if (now.sync_finished_at !== finished) return now; // succeeded or failed: `sync_error` says which
       }
       throw new Error("The refresh is taking a while. It will keep going in the background; check back in a few minutes.");
     },
@@ -156,7 +157,7 @@ export function parseConnectionUrl(raw: string): (Partial<ConnectionFields> & { 
     const scheme = url.protocol.replace(":", "").split("+")[0];
     const kind: ConnectionKind | null = scheme.startsWith("postgres") ? "postgres" : scheme === "mysql" || scheme === "mariadb" ? "mysql" : null;
     if (!kind || !url.hostname) return null;
-    const ssl = url.searchParams.get("sslmode") ?? url.searchParams.get("ssl-mode");
+    const ssl = (url.searchParams.get("sslmode") ?? url.searchParams.get("ssl-mode"))?.toLowerCase().replace("_", "-");
     return {
       kind,
       host: url.hostname,
@@ -164,7 +165,11 @@ export function parseConnectionUrl(raw: string): (Partial<ConnectionFields> & { 
       database: decodeURIComponent(url.pathname.replace(/^\//, "")),
       username: decodeURIComponent(url.username),
       password: decodeURIComponent(url.password),
-      ...(ssl === "disable" ? { ssl_mode: "disable" as const } : ssl === "verify-full" ? { ssl_mode: "verify-full" as const } : {}),
+      ...(ssl === "disable" || ssl === "disabled"
+        ? { ssl_mode: "disable" as const }
+        : ssl === "verify-full" || ssl === "verify-identity"
+          ? { ssl_mode: "verify-full" as const }
+          : {}),
     };
   } catch {
     return null;

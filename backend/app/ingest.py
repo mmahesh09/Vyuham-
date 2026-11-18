@@ -12,6 +12,7 @@ import io
 import math
 import os
 import re
+import uuid
 import zipfile
 from dataclasses import dataclass
 from datetime import date, datetime, time
@@ -325,6 +326,7 @@ def profile_frame(df: pd.DataFrame, max_rows: int = 1_000_000) -> IngestResult:
             continue
         if kind == "number":
             nums = pd.to_numeric(col.map(lambda v: float(v) if isinstance(v, Decimal) else v), errors="coerce")
+            nums = nums.where(~nums.isin([float("inf"), float("-inf")]))  # Infinity can't be charted or sent as JSON
             whole = nums.dropna()
             if len(whole) and (whole % 1 == 0).all() and whole.abs().max() < 2**53:
                 nums = nums.astype("Int64")
@@ -349,7 +351,10 @@ def profile_frame(df: pd.DataFrame, max_rows: int = 1_000_000) -> IngestResult:
 def write_parquet(frame: pd.DataFrame, path: Path) -> int:
     """Write atomically (temp file, then rename). Returns the file size in bytes."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".parquet.tmp")
-    frame.to_parquet(tmp, index=False)
-    os.replace(tmp, path)
+    tmp = path.with_suffix(f".{uuid.uuid4().hex}.tmp")  # unique: two syncs of one dataset can overlap
+    try:
+        frame.to_parquet(tmp, index=False)
+        os.replace(tmp, path)
+    finally:
+        tmp.unlink(missing_ok=True)
     return path.stat().st_size

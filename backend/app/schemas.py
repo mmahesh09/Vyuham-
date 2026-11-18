@@ -1,7 +1,7 @@
 from datetime import date, datetime, timezone
 from typing import Annotated, Literal
 
-from pydantic import AfterValidator, BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import AfterValidator, BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
 # SQLite hands back naive datetimes; they are stored in UTC, so say so in the JSON ("...Z").
 UtcDatetime = Annotated[datetime, AfterValidator(lambda d: d if d.tzinfo else d.replace(tzinfo=timezone.utc))]
@@ -50,6 +50,8 @@ class DatasetOut(BaseModel):
     source_query: str | None = None
     refresh: str | None = None
     last_synced_at: UtcDatetime | None = None
+    sync_started_at: UtcDatetime | None = None
+    sync_finished_at: UtcDatetime | None = None
     sync_error: str | None = None
 
 
@@ -74,13 +76,13 @@ class ConnectionFields(BaseModel):
 
 class ConnectionTestIn(ConnectionFields):
     # Testing a saved connection can leave this empty to reuse its stored password.
-    password: str = Field(default="", max_length=1000)
+    password: str = Field(default="", max_length=1000, repr=False)
     connection_id: str | None = None
 
 
 class ConnectionIn(ConnectionFields):
     name: str = Field(min_length=1, max_length=120)
-    password: str = Field(min_length=1, max_length=1000)
+    password: str = Field(min_length=1, max_length=1000, repr=False)
 
 
 class ConnectionPatch(BaseModel):
@@ -89,8 +91,14 @@ class ConnectionPatch(BaseModel):
     port: int | None = Field(default=None, ge=1, le=65535)
     database: str | None = Field(default=None, min_length=1, max_length=255)
     username: str | None = Field(default=None, min_length=1, max_length=255)
-    password: str | None = Field(default=None, min_length=1, max_length=1000)  # omitted = keep the stored one
+    # Omitted = keep the stored one, unless the host, port, type or SSL protection changes (routers/connections.py).
+    password: str | None = Field(default=None, min_length=1, max_length=1000, repr=False)
     ssl_mode: SslMode | None = None
+
+    @field_validator("host", "database", "username")
+    @classmethod
+    def _strip(cls, v: str | None) -> str | None:
+        return v.strip() if v is not None else v
 
 
 class ConnectionOut(BaseModel):
@@ -137,7 +145,7 @@ class SyncDatasetsIn(BaseModel):
     """Create datasets from a connection: several tables, or one query with a name."""
 
     # Each table's first sync runs during the request, so keep a batch small.
-    tables: list[str] = Field(default_factory=list, max_length=10)
+    tables: list[Annotated[str, StringConstraints(min_length=1, max_length=255)]] = Field(default_factory=list, max_length=10)
     query: str | None = Field(default=None, max_length=20_000)
     name: str | None = Field(default=None, min_length=1, max_length=200)
     refresh: Refresh = "daily"

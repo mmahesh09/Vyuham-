@@ -8,7 +8,7 @@ DEV_SIGNING_SECRET = "dev-only-signing-secret-change-me-0123456789"
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore", hide_input_in_errors=True)
 
     environment: Literal["development", "production"] = "development"
 
@@ -97,9 +97,22 @@ class Settings(BaseSettings):
     def staff_emails(self) -> set[str]:
         return {e.strip().lower() for e in self.support_staff_emails.split(",") if e.strip()}
 
+    def _check_connections_key(self) -> None:
+        """A malformed key would otherwise only surface when the first password is saved."""
+        from cryptography.fernet import Fernet
+
+        for key in (k.strip() for k in self.connections_key.split(",")):
+            if not key:
+                continue
+            try:
+                Fernet(key.encode())
+            except ValueError:  # includes binascii.Error; the key itself is never repeated in the message
+                raise ValueError("CONNECTIONS_KEY must be one or more Fernet keys, separated by commas") from None
+
     @model_validator(mode="after")
     def _production_is_safe(self):
         """Fail at startup rather than run production on development defaults."""
+        self._check_connections_key()
         if self.environment == "production":
             if self.database_url.startswith("sqlite"):
                 raise ValueError("ENVIRONMENT=production needs DATABASE_URL pointing at Postgres, not SQLite")

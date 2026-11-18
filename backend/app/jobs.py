@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 from app.alerts import SCHEDULE_EVERY, _aware, alert_due, automation_due, check_alert, last_occurrence, run_automation
 from app.models import Alert, Automation, Dataset, JobRun
 from app.query import QueryError
-from app.sync import SyncError, next_sync_at, sync_dataset
+from app.sync import SyncError, next_sync_at, sync_dataset, sync_slot
 from app.telemetry import count, record, span
 
 log = logging.getLogger("app.jobs")
@@ -64,7 +64,7 @@ def find_due(db: Session, now: datetime) -> list[Due]:
     for ds in db.scalars(synced).all():
         at = next_sync_at(ds)
         if at is not None and at <= now:
-            due.append(Due(SYNC, ds.id, _second(at)))
+            due.append(Due(SYNC, ds.id, _second(sync_slot(at, now))))
     return due
 
 

@@ -253,7 +253,9 @@ def sync_now(
     dataset = owned_dataset(db, member, dataset_id)
     if dataset.connection_id is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Only data from a connected database can be refreshed.")
-    run = jobs.sync_now(db, dataset)
+    from app.sync import sync_in_progress
+
+    run = None if sync_in_progress(dataset) else jobs.sync_now(db, dataset)
     if run is not None:
         if get_settings().redis_url:
             from app.worker import run_job  # Celery only where it's configured

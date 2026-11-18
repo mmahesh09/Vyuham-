@@ -1,11 +1,14 @@
 """Customer database connections (PostgreSQL, MySQL) and the datasets synced from them.
 
-Editors and owners manage connections; the password is write-only. Creating datasets runs their first
-sync straight away, so the new dataset is ready to chart when the request returns.
+Connections are for editors and owners: viewers see the datasets, not the database behind them. The
+password is write-only, and a saved one is only ever sent to the server it was entered for: changing
+the host, port or type, or lowering the SSL protection, needs the password again. Creating datasets
+runs their first sync straight away, so the new dataset is ready to chart when the request returns.
 """
 
 from __future__ import annotations
 
+import logging
 import math
 from datetime import date, datetime, timezone
 from decimal import Decimal
@@ -38,6 +41,18 @@ from app.security import current_membership
 from app.sync import SyncError, sync_dataset
 
 router = APIRouter(prefix="/connections", tags=["connections"])
+log = logging.getLogger("app.connections")
+
+SSL_STRENGTH = {"disable": 0, "require": 1, "verify-full": 2}
+PASSWORD_NEEDED = "Enter the password again to use it with a different host, port, database type or a lower SSL setting."
+
+
+def _may_reuse_password(saved: Connection, kind: str, host: str, port: int, ssl_mode: str) -> bool:
+    """A stored password must not be sent anywhere the person who typed it didn't send it."""
+    return (
+        saved.kind == kind and saved.host.strip().lower() == host.strip().lower() and saved.port == port
+        and SSL_STRENGTH[ssl_mode] >= SSL_STRENGTH.get(saved.ssl_mode, 0)
+    )
 
 
 def _owned(db: Session, member: WorkspaceMember, connection_id: str) -> Connection:
@@ -74,8 +89,12 @@ def connection_settings(member: WorkspaceMember = Depends(current_membership)):
 def test_connection(body: ConnectionTestIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     require_editor(member)
     password = body.password
-    if not password and body.connection_id:
+    if not password and not body.connection_id:
+        return ConnectionTestOut(ok=False, message="Enter the password.")
+    if not password:
         saved = _owned(db, member, body.connection_id)
+        if not _may_reuse_password(saved, body.kind, body.host, body.port, body.ssl_mode):
+            return ConnectionTestOut(ok=False, message=PASSWORD_NEEDED)
         try:
             password = spec_for(saved).password
         except SecretError as e:
@@ -90,6 +109,7 @@ def test_connection(body: ConnectionTestIn, member: WorkspaceMember = Depends(cu
 
 @router.get("", response_model=list[ConnectionOut])
 def list_connections(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+    require_editor(member)
     conns = db.scalars(
         select(Connection).where(Connection.workspace_id == member.workspace_id).order_by(Connection.created_at)
     ).all()
@@ -115,6 +135,7 @@ def create_connection(body: ConnectionIn, member: WorkspaceMember = Depends(curr
     except IntegrityError as e:
         db.rollback()
         raise HTTPException(status.HTTP_409_CONFLICT, "A connection with this name already exists.") from e
+    log.info("connection created id=%s kind=%s workspace=%s", conn.id, conn.kind, conn.workspace_id)
     return _out(db, conn)
 
 
@@ -126,9 +147,13 @@ def update_connection(
     conn = _owned(db, member, connection_id)
     fields = body.model_dump(exclude_unset=True, exclude={"password", "name"})
     try:
+        # A field sent as null means "leave it as it is".
+        changes = {k: v for k, v in fields.items() if v is not None}
         current = spec_for(conn, password=body.password) if body.password else spec_for(conn)
-        spec = ConnSpec(**{**current.__dict__, **{k: (v.strip() if isinstance(v, str) else v) for k, v in fields.items()}})
-        if fields or body.password:
+        spec = ConnSpec(**{**current.__dict__, **changes})
+        if not body.password and not _may_reuse_password(conn, spec.kind, spec.host, spec.port, spec.ssl_mode):
+            raise ConnectorError(PASSWORD_NEEDED)
+        if changes or body.password:
             list_tables(spec)  # check new details before saving them
     except (ConnectorError, SecretError) as e:
         raise _fail(e) from e
@@ -138,7 +163,7 @@ def update_connection(
         conn.secret_enc = encrypt(body.password)
     if body.name is not None:
         conn.name = body.name.strip()
-    if fields or body.password:
+    if changes or body.password:
         conn.status, conn.last_error, conn.last_checked_at = "ok", None, datetime.now(timezone.utc)
     try:
         db.commit()
@@ -162,6 +187,7 @@ def delete_connection(connection_id: str, member: WorkspaceMember = Depends(curr
 
 @router.get("/{connection_id}/tables", response_model=list[TableOut])
 def connection_tables(connection_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+    require_editor(member)
     _, spec = _spec(db, member, connection_id)
     try:
         return [TableOut(**t.as_dict()) for t in list_tables(spec)]
@@ -170,12 +196,12 @@ def connection_tables(connection_id: str, member: WorkspaceMember = Depends(curr
 
 
 def _cell(v):
-    if v is None or (isinstance(v, float) and math.isnan(v)):
+    if isinstance(v, Decimal):
+        v = float(v)
+    if v is None or (isinstance(v, float) and not math.isfinite(v)):  # NaN and Infinity aren't valid JSON
         return None
     if isinstance(v, (datetime, date)):
         return v.isoformat()
-    if isinstance(v, Decimal):
-        return float(v)
     if isinstance(v, (bytes, bytearray, memoryview)):
         return "(binary)"
     if isinstance(v, (int, float, str, bool)):
@@ -188,12 +214,21 @@ def connection_preview(
     connection_id: str, table: str = Query(min_length=1, max_length=255),
     member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db),
 ):
+    require_editor(member)
     _, spec = _spec(db, member, connection_id)
     try:
         frame = preview(spec, table)
     except ConnectorError as e:
         raise _fail(e) from e
     return PreviewOut(columns=[str(c) for c in frame.columns], rows=[[_cell(v) for v in row] for row in frame.itertuples(index=False)])
+
+
+def _discard(db: Session, ds: Dataset) -> None:
+    """Remove a dataset whose first sync failed."""
+    db.rollback()
+    parquet_path(ds.workspace_id, ds.id).unlink(missing_ok=True)
+    db.delete(ds)
+    db.commit()
 
 
 @router.post("/{connection_id}/datasets", response_model=SyncCreatedOut, status_code=status.HTTP_201_CREATED)
@@ -228,9 +263,10 @@ def create_synced_datasets(
             created.append(sync_dataset(db, ds))
         except SyncError as e:
             errors[table or ds.name] = str(e)
-            parquet_path(ds.workspace_id, ds.id).unlink(missing_ok=True)
-            db.delete(ds)
-            db.commit()
+            _discard(db, ds)
+        except Exception:  # never leave an empty dataset behind
+            _discard(db, ds)
+            raise
     if not created and errors:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, next(iter(errors.values())))
     return SyncCreatedOut(datasets=created, errors=errors)

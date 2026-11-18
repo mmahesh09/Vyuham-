@@ -48,6 +48,8 @@ def test_production_refuses_unsafe_defaults():
     import pytest
     from pydantic import ValidationError
 
+    from cryptography.fernet import Fernet
+
     from app.config import Settings
 
     with pytest.raises(ValidationError, match="Postgres"):
@@ -58,7 +60,9 @@ def test_production_refuses_unsafe_defaults():
         Settings(environment="production", database_url="postgresql+psycopg://x@db/app", data_dir="/data")
     with pytest.raises(ValidationError, match="CONNECTIONS_KEY"):
         Settings(environment="production", database_url="postgresql+psycopg://x@db/app", data_dir="/data", signing_secret="s" * 32)
-    safe = {"database_url": "postgresql+psycopg://x@db/app", "data_dir": "/data", "signing_secret": "s" * 32, "connections_key": "k"}
+    safe = {"database_url": "postgresql+psycopg://x@db/app", "data_dir": "/data", "signing_secret": "s" * 32, "connections_key": Fernet.generate_key().decode()}
+    with pytest.raises(ValidationError, match="must be one or more Fernet keys"):
+        Settings(environment="production", **{**safe, "connections_key": "not-a-key"})
     with pytest.raises(ValidationError, match="CONNECTIONS_ALLOW_PRIVATE"):
         Settings(environment="production", connections_allow_private=True, **safe)
     ok = Settings(environment="production", **safe)

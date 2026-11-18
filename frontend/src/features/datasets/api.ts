@@ -24,6 +24,8 @@ export type Dataset = {
   source_query?: string | null;
   refresh?: "manual" | "hourly" | "daily" | null;
   last_synced_at?: string | null;
+  sync_started_at?: string | null;
+  sync_finished_at?: string | null;
   sync_error?: string | null;
 };
 

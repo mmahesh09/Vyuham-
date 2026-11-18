@@ -57,6 +57,7 @@ def setup_error_tracking(service: str) -> bool:
             release=s.release or None,
             server_name=service,
             send_default_pii=False,
+            include_local_variables=False,  # stack frames can hold database passwords and customer data
             traces_sample_rate=s.sentry_traces_sample_rate,
             before_send=_scrub,
         )

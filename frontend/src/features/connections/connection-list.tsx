@@ -1,7 +1,8 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Database, Plus, Trash2 } from "lucide-react";
+import { Database, Pencil, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 import {
   AlertDialog,
@@ -17,13 +18,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import { KIND_LABEL, useConnections, useDeleteConnection } from "./api";
+import { KIND_LABEL, useConnections, useDeleteConnection, type Connection } from "./api";
+import { EditConnectionDialog } from "./edit-connection-dialog";
 
-/** The workspace's database connections, with "add tables" and delete. Hidden until there is one. */
+/** The workspace's database connections, with "add tables", edit and delete. Hidden until there is one, and from viewers. */
 export function ConnectionList({ canEdit, onAddTables }: { canEdit: boolean; onAddTables: (connectionId: string) => void }) {
-  const { data } = useConnections();
+  const { data } = useConnections(canEdit);
   const remove = useDeleteConnection();
-  if (!data?.length) return null;
+  const [editing, setEditing] = useState<Connection | null>(null);
+  if (!canEdit || !data?.length) return null;
 
   return (
     <section aria-labelledby="connections-heading" className="flex flex-col gap-3">
@@ -69,6 +72,9 @@ export function ConnectionList({ canEdit, onAddTables }: { canEdit: boolean; onA
                   <Button variant="outline" size="sm" onClick={() => onAddTables(c.id)}>
                     <Plus aria-hidden /> Add tables
                   </Button>
+                  <Button variant={c.status === "error" ? "outline" : "ghost"} size="sm" onClick={() => setEditing(c)}>
+                    <Pencil aria-hidden /> {c.status === "error" ? "Fix connection" : "Edit"}
+                  </Button>
                   <AlertDialog>
                     <AlertDialogTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Remove ${c.name}`} />}>
                       <Trash2 />
@@ -95,6 +101,7 @@ export function ConnectionList({ canEdit, onAddTables }: { canEdit: boolean; onA
           </li>
         ))}
       </ul>
+      {editing && <EditConnectionDialog connection={editing} open onOpenChange={(open) => !open && setEditing(null)} />}
     </section>
   );
 }

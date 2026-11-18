@@ -215,7 +215,10 @@ export function ConnectDatabaseDialog({
                   type="button"
                   role="radio"
                   aria-checked={form.kind === k}
-                  onClick={() => setForm((f) => ({ ...f, kind: k, port: f.port === String(DEFAULT_PORT[f.kind]) ? String(DEFAULT_PORT[k]) : f.port }))}
+                  onClick={() => {
+                    setForm((f) => ({ ...f, kind: k, port: f.port === String(DEFAULT_PORT[f.kind]) ? String(DEFAULT_PORT[k]) : f.port }));
+                    test.reset();
+                  }}
                   className={cn(
                     "flex min-h-14 items-center gap-3 rounded-xl border px-4 text-left transition-colors",
                     form.kind === k ? "border-primary bg-primary/10" : "border-line hover:border-line-strong",
@@ -236,13 +239,14 @@ export function ConnectDatabaseDialog({
               <Label htmlFor="db-url">Connection URL (optional)</Label>
               <Input
                 id="db-url"
+                type="password"
                 value={urlText}
                 onChange={(e) => pasteUrl(e.target.value)}
                 placeholder={form.kind === "postgres" ? "postgres://user:password@host:5432/database" : "mysql://user:password@host:3306/database"}
-                autoComplete="off"
+                autoComplete="new-password"
                 spellCheck={false}
               />
-              <p className="text-[12px] text-faint">Paste one to fill in the fields below.</p>
+              <p className="text-[12px] text-faint">Paste one to fill in the fields below. It&apos;s hidden because it can contain your password.</p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-[1fr_7rem]">
@@ -277,6 +281,9 @@ export function ConnectDatabaseDialog({
                 <Input id="db-pass" type="password" value={form.password} onChange={(e) => set("password", e.target.value)} autoComplete="new-password" />
               </div>
             </div>
+            {form.ssl_mode === "disable" && (
+              <p className="text-[13px] text-accent">With SSL off, your password and data travel unencrypted.</p>
+            )}
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="db-label">Name in Vyuham (optional)</Label>
               <Input id="db-label" value={form.name} maxLength={120} onChange={(e) => set("name", e.target.value)} placeholder={`${KIND_LABEL[form.kind]} · ${form.database || "shop"}`} />
@@ -420,7 +427,7 @@ export function ConnectDatabaseDialog({
                   placeholder={"SELECT order_id, customer, amount, created_at\nFROM orders\nWHERE status = 'paid'"}
                   className="font-mono text-[13px]"
                 />
-                <p className="text-[12px] text-faint">One SELECT statement. It runs read-only, for up to 60 seconds, on every refresh.</p>
+                <p className="text-[12px] text-faint">One SELECT statement. It runs read-only on every refresh and can&apos;t use system tables or functions that wait, lock or read files.</p>
               </div>
             </TabsContent>
 

@@ -101,7 +101,9 @@ class Dataset(Base):
     source_table: Mapped[str | None] = mapped_column(String(255))  # "schema"."table" as picked
     source_query: Mapped[str | None] = mapped_column(Text)  # a single SELECT, instead of a table
     refresh: Mapped[str | None] = mapped_column(String(8))  # manual | hourly | daily
-    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # last successful sync
+    sync_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # last attempt, successful or not
+    sync_finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sync_error: Mapped[str | None] = mapped_column(String(500))
 
 
