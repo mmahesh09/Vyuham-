@@ -17,6 +17,7 @@ import { useMe } from "@/features/auth/hooks";
 import type { Dashboard } from "@/features/dashboards/api";
 import { dashboardKeys } from "@/features/dashboards/hooks";
 import { useDatasets } from "@/features/datasets/api";
+import { ChartTemplateGallery } from "@/features/templates/chart-template-gallery";
 import { api } from "@/lib/api/client";
 
 type TemplateField = { key: string; label: string; type: "number" | "date" | "category"; required: boolean };
@@ -188,6 +189,7 @@ export function TemplatesScreen() {
         })}
         {templates.isPending && [0, 1, 2].map((i) => <li key={i} className="h-80 animate-pulse rounded-[18px] bg-surface" />)}
       </ul>
+      <ChartTemplateGallery />
     </PageContainer>
   );
 }
