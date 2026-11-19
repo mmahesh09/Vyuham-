@@ -1,11 +1,16 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useEffect, useRef, type ReactNode } from "react";
 
 /*
- * The blog's header: a slowly shifting quilt of coral tiles behind the page title. This is only the
- * "Pixel coral" look from a Feral UI gradient export, so the blog doesn't load the whole gradient engine.
+ * The blog's header: a slowly shifting quilt of tiles behind the page title. Coral is only the
+ * "Pixel coral" look from a Feral UI gradient export, so most pages don't load the gradient engine.
+ * Matcha is the full export, loaded after the title has painted over its CSS fallback.
  */
+
+const PixelMatchaGradient = dynamic(() => import("./pixel-matcha-gradient"), { ssr: false });
+const MATCHA_FALLBACK = "linear-gradient(100deg, #12A06C, #3DC68C, #80E1B5, #BFF0D7, #EDF6EF)";
 
 const STOPS = ["#F04E36", "#F87A5C", "#FBA184", "#FFCBB4", "#F9EFEA"];
 const STOP_POSITIONS = [0.1, 0.3, 0.5, 0.7, 0.9];
@@ -171,13 +176,28 @@ function QuiltCanvas() {
 }
 
 /** The gradient banner at the top of the blog article. Its children sit in the same column as the page below. */
-export function BlogHero({ children, column = "max-w-[760px]" }: { children: ReactNode; column?: string }) {
+export function BlogHero({
+  children,
+  column = "max-w-[760px]",
+  variant = "coral",
+}: {
+  children: ReactNode;
+  column?: string;
+  variant?: "coral" | "matcha";
+}) {
+  const matcha = variant === "matcha";
   return (
     <header
-      className="relative isolate mx-auto mt-2 w-[calc(100%-16px)] max-w-[1280px] overflow-hidden rounded-[24px] text-[#2a0d07]"
-      style={{ background: FALLBACK }}
+      className={`relative isolate mx-auto mt-2 w-[calc(100%-16px)] max-w-[1280px] overflow-hidden rounded-[24px] ${matcha ? "text-[#06291c]" : "text-[#2a0d07]"}`}
+      style={{ background: matcha ? MATCHA_FALLBACK : FALLBACK }}
     >
-      <QuiltCanvas />
+      {matcha ? (
+        <div aria-hidden className="absolute inset-0 -z-10">
+          <PixelMatchaGradient style={{ position: "absolute", inset: 0, height: "100%", aspectRatio: "auto" }} />
+        </div>
+      ) : (
+        <QuiltCanvas />
+      )}
       <div className={`mx-auto flex w-full flex-col gap-6 px-5 py-[clamp(64px,10vw,136px)] ${column}`}>{children}</div>
     </header>
   );

@@ -13,13 +13,11 @@ const nextConfig: NextConfig = {
   //
   // /decks is the open-slide deck app (my-deck/, built into public/decks). Its files are served
   // as-is; any other /decks path is one of its client-side routes, so it gets its index.html.
-  // The blog is one article for now, so its index and old addresses all lead there.
+  // Old blog addresses lead to the page that replaced them.
   async redirects() {
-    const destination = "/blog/what-is-vyuham";
     return [
-      { source: "/blog", destination, permanent: false },
-      { source: "/blog/tag/:tag*", destination, permanent: false },
-      { source: "/blog/how-vyuham-works", destination, permanent: true },
+      { source: "/blog/tag/:tag*", destination: "/blog", permanent: false },
+      { source: "/blog/how-vyuham-works", destination: "/blog/what-is-vyuham", permanent: true },
     ];
   },
   async rewrites() {

@@ -8,6 +8,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const posts = (await getAllPosts()).filter((p) => !p.draft);
   return [
     { url: `${SITE_URL}/`, lastModified, changeFrequency: "weekly", priority: 1 },
+    { url: `${SITE_URL}/blog`, lastModified, changeFrequency: "weekly", priority: 0.7 },
     ...posts.map((p) => ({
       url: `${SITE_URL}/blog/${p.slug}`,
       lastModified: new Date(p.updated ?? p.date),

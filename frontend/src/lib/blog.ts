@@ -25,12 +25,15 @@ const isoDate = z.preprocess(
 
 const Frontmatter = z.object({
   title: z.string().min(1).max(120),
+  // A shorter title for search results and share cards. The page heading keeps `title`.
+  seoTitle: z.string().min(1).max(70).optional(),
   description: z.string().min(1).max(300),
   date: isoDate,
   updated: isoDate.optional(),
   author: z.string().min(1).default("The Vyuham team"),
   tags: z.array(z.string().min(1)).default([]),
   draft: z.boolean().default(false),
+  header: z.enum(["coral", "matcha"]).default("coral"),
   // A file under public/, e.g. /blog/what-is-vyuham/cover.png. Without one, the generated share image is used.
   image: z.string().startsWith("/").optional(),
 });

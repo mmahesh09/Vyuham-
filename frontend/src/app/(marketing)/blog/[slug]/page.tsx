@@ -28,8 +28,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const post = await getPost((await params).slug);
   if (!post) return {};
   const url = `/blog/${post.slug}`;
+  const title = post.seoTitle ?? post.title;
   return {
-    title: post.title,
+    title,
     description: post.description,
     authors: [{ name: post.author }],
     keywords: post.tags,
@@ -38,7 +39,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
     openGraph: {
       type: "article",
       url,
-      title: post.title,
+      title,
       description: post.description,
       siteName: SITE_NAME,
       publishedTime: post.date,
@@ -47,7 +48,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
       tags: post.tags,
       ...(post.image && { images: [post.image] }),
     },
-    twitter: { card: "summary_large_image", title: post.title, description: post.description },
+    twitter: { card: "summary_large_image", title, description: post.description },
   };
 }
 
@@ -106,7 +107,7 @@ export default async function BlogPost({ params }: Params) {
       <SiteHeader />
       <main>
         <article>
-          <BlogHero column="max-w-[1120px]">
+          <BlogHero column="max-w-[1120px]" variant={post.header}>
             <p className="flex flex-wrap items-center gap-x-2 font-mono text-[12px] font-medium uppercase tracking-[0.08em]">
               <time dateTime={post.date}>{formatDate(post.date)}</time>
               <span aria-hidden>·</span>
