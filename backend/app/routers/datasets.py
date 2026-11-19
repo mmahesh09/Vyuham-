@@ -3,7 +3,7 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -37,6 +37,18 @@ def _read_capped(file: UploadFile, limit: int) -> bytes:
     return b"".join(chunks)
 
 
+def check_quota(db: Session, workspace_id: str, new_datasets: int = 0, new_bytes: int = 0) -> None:
+    """Stop one workspace from filling the disk every customer shares."""
+    s = get_settings()
+    datasets, used = db.execute(
+        select(func.count(Dataset.id), func.coalesce(func.sum(Dataset.file_size), 0)).where(Dataset.workspace_id == workspace_id)
+    ).one()
+    if datasets + new_datasets > s.max_workspace_datasets:
+        raise HTTPException(status.HTTP_409_CONFLICT, f"This workspace has reached its limit of {s.max_workspace_datasets} datasets. Delete one first.")
+    if used + new_bytes > s.max_workspace_bytes:
+        raise HTTPException(status.HTTP_409_CONFLICT, "This workspace has reached its storage limit. Delete a dataset first.")
+
+
 def _unique_name(db: Session, workspace_id: str, base: str) -> str:
     taken = set(db.scalars(select(Dataset.name).where(Dataset.workspace_id == workspace_id)))
     name, n = base, 1
@@ -56,8 +68,10 @@ def upload_dataset(
     if member.role not in CAN_UPLOAD:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Viewers can't add data. Ask an owner for editor access.")
     s = get_settings()
+    check_quota(db, member.workspace_id, new_datasets=1)
     filename = Path(file.filename or "").name  # never trust a client path
     raw = _read_capped(file, s.max_upload_bytes)
+    check_quota(db, member.workspace_id, new_bytes=len(raw))
     try:
         result = ingest(raw, filename, sheet=sheet or None, max_rows=s.max_upload_rows)
     except IngestError as e:
@@ -211,6 +225,7 @@ def replace_file(
     s = get_settings()
     filename = Path(file.filename or "").name
     raw = _read_capped(file, s.max_upload_bytes)
+    check_quota(db, member.workspace_id, new_bytes=max(0, len(raw) - (dataset.file_size or 0)))
     try:
         result = ingest(raw, filename, sheet=sheet or None, max_rows=s.max_upload_rows)
     except IngestError as e:

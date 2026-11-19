@@ -9,6 +9,7 @@ import hashlib
 import io
 import json
 import logging
+import os
 import shutil
 import zipfile
 from datetime import datetime, timezone
@@ -21,10 +22,10 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from app.auth_tables import account_table, session_table, user_table, verification_table
-from app.db import get_db
+from app.config import get_settings
+from app.db import Base, get_db
 from app.models import (
     Alert,
-    AlertEvent,
     Automation,
     Chart,
     Dashboard,
@@ -33,14 +34,18 @@ from app.models import (
     Invite,
     LeaveRecord,
     Notification,
+    ReportRun,
     SavedQuery,
+    SupportTicket,
     Task,
+    TicketMessage,
     UserPresence,
     UserProfile,
     Workspace,
     WorkspaceMember,
 )
 from app.query import workspace_dir
+from app.reports.storage import get_storage
 from app.routers.datasets import parquet_path
 from app.security import AuthUser, current_membership, current_user
 
@@ -110,11 +115,22 @@ def export_my_data(user: AuthUser = Depends(current_user), member: WorkspaceMemb
 
 
 def _erase_workspace(db: Session, workspace_id: str) -> None:
-    """Everything in a workspace: rows first (children before parents), then its files."""
-    dash_ids = select(Dashboard.id).where(Dashboard.workspace_id == workspace_id)
-    db.execute(delete(Chart).where(Chart.dashboard_id.in_(dash_ids)))
-    for model in (AlertEvent, Notification, Alert, Automation, Task, Invite, SavedQuery, LeaveRecord, Dashboard, Dataset, Feedback, WorkspaceMember):
-        db.execute(delete(model).where(model.workspace_id == workspace_id))
+    """Everything in a workspace: exported files, rows (children before parents), then its data folder.
+
+    Every table with a workspace_id is covered automatically, so a new table can't be forgotten here.
+    """
+    storage = get_storage()
+    for key in db.scalars(select(ReportRun.file_key).where(ReportRun.workspace_id == workspace_id, ReportRun.file_key.is_not(None))):
+        try:
+            storage.delete(key)
+        except Exception:  # keep erasing; this is logged for staff to finish by hand
+            log.exception("[erasure] couldn't delete a report file")
+    shutil.rmtree(os.path.join(get_settings().data_dir, "reports", workspace_id), ignore_errors=True)
+    db.execute(delete(Chart).where(Chart.dashboard_id.in_(select(Dashboard.id).where(Dashboard.workspace_id == workspace_id))))
+    db.execute(delete(TicketMessage).where(TicketMessage.ticket_id.in_(select(SupportTicket.id).where(SupportTicket.workspace_id == workspace_id))))
+    for table in reversed(Base.metadata.sorted_tables):
+        if "workspace_id" in table.c:
+            db.execute(table.delete().where(table.c.workspace_id == workspace_id))
     db.execute(delete(Workspace).where(Workspace.id == workspace_id))
     shutil.rmtree(workspace_dir(workspace_id), ignore_errors=True)
 

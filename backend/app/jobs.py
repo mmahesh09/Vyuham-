@@ -31,6 +31,9 @@ log = logging.getLogger("app.jobs")
 
 ALERT, AUTOMATION, SYNC = "alert", "automation", "sync"
 FINISHED = ("done", "failed")
+# Longer than a job can legitimately take with all its retries (4 x 6 minutes plus backoff).
+STALE_AFTER = timedelta(minutes=45)
+RETRY_FAILED_AFTER = timedelta(hours=1)
 
 
 @dataclass(frozen=True)
@@ -82,6 +85,31 @@ def claim(db: Session, d: Due) -> JobRun | None:
     except IntegrityError:
         db.rollback()
         return None
+    return run
+
+
+def reclaim(db: Session, d: Due, now: datetime) -> JobRun | None:
+    """A claimed job that will never finish by itself, ready to queue again.
+
+    Redis keeps nothing across a restart and a worker can die, while the claim stays in Postgres. An alert's
+    slot doesn't move until the alert has run, so without this one lost message would silence it for good.
+    """
+    if d.kind == SYNC:  # sync slots already move on by themselves (sync_slot)
+        return None
+    run = db.scalar(select(JobRun).where(JobRun.kind == d.kind, JobRun.target_id == d.target_id, JobRun.scheduled_for == d.scheduled_for))
+    if run is None or run.status == "done":
+        return None
+    if run.status == "failed":
+        finished = _aware(run.finished_at)
+        if finished is None or now - finished < RETRY_FAILED_AFTER:
+            return None
+    else:
+        last_activity = _aware(run.started_at) or _aware(run.created_at)
+        if last_activity is None or now - last_activity < STALE_AFTER:
+            return None
+    log.warning("requeueing job %s (%s), last status %s", run.id, run.kind, run.status)
+    run.status, run.finished_at = "queued", None
+    db.commit()
     return run
 
 
@@ -189,7 +217,7 @@ def tick(db: Session, now: datetime | None = None, enqueue: Callable[[str], None
     counts = {"alerts_checked": 0, "automations_run": 0, "datasets_synced": 0, "skipped": 0}
     label = {ALERT: "alerts_checked", AUTOMATION: "automations_run", SYNC: "datasets_synced"}
     for d in find_due(db, now):
-        run = claim(db, d)
+        run = claim(db, d) or reclaim(db, d, now)
         if run is None:
             counts["skipped"] += 1
             continue

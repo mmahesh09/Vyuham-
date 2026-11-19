@@ -6,7 +6,8 @@ REDIS_URL is set (shared by every API process) and in memory otherwise (local de
 
 Who is counted:
 - signed-in requests: the Better Auth session (hashed), so people behind one office IP don't share a budget;
-- everyone else: the first X-Forwarded-For address, else the connecting address. Browsers reach the API
+- routes that work without signing in, and everyone else: the first X-Forwarded-For address, else the
+  connecting address. A session cookie isn't checked here, so on these routes it can't earn a fresh budget. Browsers reach the API
   through the Next.js proxy, so the connecting address is the proxy's; X-Forwarded-For carries the
   visitor's. That header can be forged by a client that calls the API directly, which only lets them
   spread their own requests over more budgets, so anonymous limits are a speed bump, not a wall.
@@ -61,6 +62,7 @@ RULES: list[tuple[str, str, str]] = [
     ("GET", "/status", "60/minute"),  # public status page
 ]
 DEFAULT = "300/minute"
+ANONYMOUS_ROUTES = ("/public/", "/report-files/", "/print/", "/support/errors/", "/support/webhooks/", "/kb/", "/status")
 
 
 def _rule(method: str, path: str) -> tuple[str, str] | None:
@@ -72,7 +74,7 @@ def _rule(method: str, path: str) -> tuple[str, str] | None:
 
 
 def client_key(request: Request) -> str:
-    token = session_token(request)
+    token = None if request.url.path.startswith(ANONYMOUS_ROUTES) else session_token(request)
     if token:
         return "s:" + hashlib.sha256(token.encode()).hexdigest()[:24]
     forwarded = request.headers.get("x-forwarded-for", "")

@@ -83,6 +83,7 @@ def tick() -> dict:
     db = SessionLocal()
     try:
         counts = jobs.tick(db, enqueue=lambda job_id: run_job.delay(job_id))
+        runner.fail_stale(db)
         _status_checks(db)
     finally:
         db.close()

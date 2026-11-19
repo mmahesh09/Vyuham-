@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -102,6 +102,9 @@ def sync_dataset(db: Session, ds: Dataset, now: datetime | None = None) -> Datas
                 raise SyncError("Its database connection was deleted. Reconnect the database to refresh this data.")
             if not table and not query:
                 raise SyncError("Nothing to sync: this dataset has no table or query.")
+            used = db.scalar(select(func.coalesce(func.sum(Dataset.file_size), 0)).where(Dataset.workspace_id == workspace_id))
+            if used > get_settings().max_workspace_bytes:
+                raise SyncError("This workspace has reached its storage limit. Delete a dataset, then refresh again.")
             spec = spec_for(conn)
             db.commit()  # no transaction stays open on our database during a long read
             frame = extract(spec, table=table, query=query, max_rows=max_rows)

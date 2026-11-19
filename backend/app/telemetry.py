@@ -143,9 +143,27 @@ class _TraceIdFilter(logging.Filter):
         return True
 
 
+_LINK_TOKEN = re.compile(r"(/(?:public/dashboards|print/dashboards|report-files|invites)/)[^/?\s\"]+|([?&]secret=)[^&\s\"]+")
+
+
+def redact_link_tokens(text: str) -> str:
+    """Share links, invites and download links work without signing in, so they stay out of access logs."""
+    return _LINK_TOKEN.sub(lambda m: f"{m.group(1) or m.group(2)}[token]", text)
+
+
+class _AccessLogFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if isinstance(record.args, tuple):
+            record.args = tuple(redact_link_tokens(a) if isinstance(a, str) else a for a in record.args)
+        return True
+
+
 def configure_logging(level: str | None = None) -> None:
     """Give the API process a log handler (uvicorn only configures its own loggers, so app INFO logs were
     dropped). Leaves logging alone when something (e.g. Celery) already configured the root logger."""
+    access = logging.getLogger("uvicorn.access")
+    if not any(isinstance(f, _AccessLogFilter) for f in access.filters):
+        access.addFilter(_AccessLogFilter())
     root = logging.getLogger()
     if root.handlers:
         for h in root.handlers:

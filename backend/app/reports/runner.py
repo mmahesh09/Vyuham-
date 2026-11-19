@@ -28,6 +28,7 @@ log = logging.getLogger("app.reports")
 FINISHED = ("done", "failed")
 EXT = {"pdf": "pdf", "csv": "csv", "xlsx": "xlsx"}
 PRINT_TOKEN_SECONDS = 10 * 60
+STALE_AFTER = timedelta(hours=1)  # longer than a report can take with its retries
 
 
 def period(options: dict, today: date | None = None) -> tuple[date | None, date | None]:
@@ -133,7 +134,8 @@ def _generate(db: Session, run_id: str) -> ReportRun | None:
         db.rollback()
         run = db.get(ReportRun, run_id)
         if run is not None:
-            run.status, run.error = "retry", f"{type(e).__name__}: {e}"[:500]
+            log.warning("report run %s will retry after %s", run_id, type(e).__name__)
+            run.status, run.error = "retry", "A temporary problem interrupted this report. Trying again."
             db.commit()
         raise
     run.finished_at = datetime.now(timezone.utc)
@@ -150,6 +152,17 @@ def mark_failed(db: Session, run_id: str, error: BaseException | str) -> None:
     run.error = (error if isinstance(error, str) else "Couldn't generate the report. Try again in a few minutes.")[:500]
     run.finished_at = datetime.now(timezone.utc)
     db.commit()
+
+
+def fail_stale(db: Session, now: datetime | None = None) -> int:
+    """End runs whose queue message was lost, so nobody watches a spinner forever."""
+    cutoff = (now or datetime.now(timezone.utc)) - STALE_AFTER
+    stale = db.scalars(select(ReportRun).where(ReportRun.status.not_in(FINISHED), ReportRun.created_at < cutoff)).all()
+    for run in stale:
+        run.status, run.finished_at = "failed", now or datetime.now(timezone.utc)
+        run.error = "This report didn't finish. Please run it again."
+    db.commit()
+    return len(stale)
 
 
 def prune(db: Session, keep_days: int, now: datetime | None = None) -> int:

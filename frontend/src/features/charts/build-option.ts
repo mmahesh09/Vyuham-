@@ -6,6 +6,10 @@ import { ROW_FIELD, type ChartSpec, type ResultRow } from "./chart-spec";
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
+/** ECharts puts a custom tooltip's text into the page as HTML, and these labels come from uploaded data. */
+const escapeHtml = (text: string) =>
+  text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
+
 /** The column name a metric produces in query results, e.g. "sum_amount". Matches backend metric_key(). */
 export const metricKey = (m: ChartSpec["metrics"][number]) => `${m.agg}_${m.field}`;
 
@@ -133,7 +137,7 @@ export function buildOption(spec: ChartSpec, rows: ResultRow[], { highlightLast 
       grid: { left: 8, right: 16, top: 16, bottom: 24, containLabel: true },
       tooltip: {
         trigger: "item",
-        formatter: (p: { data: [number, number, string] }) => `${p.data[2]}<br/>${formatNumber(p.data[0])} · ${formatNumber(p.data[1])}`,
+        formatter: (p: { data: [number, number, string] }) => `${escapeHtml(p.data[2])}<br/>${formatNumber(p.data[0])} · ${formatNumber(p.data[1])}`,
       },
       xAxis: { type: "value", name: spec.metrics[0].field, nameLocation: "middle", nameGap: 26, axisLabel: { formatter: (v: number) => compact.format(v) } },
       yAxis: { type: "value", name: spec.metrics[1]?.field, axisLabel: { formatter: (v: number) => compact.format(v) } },

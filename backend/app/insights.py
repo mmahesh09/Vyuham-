@@ -12,7 +12,7 @@ from datetime import date, timedelta
 import duckdb
 
 from app.models import Dataset
-from app.query import ROW_KEY, Filters, metric_key, quote, run_spec, view_name
+from app.query import ROW_KEY, Filters, _run, metric_key, quote, run_spec, view_name
 from app.telemetry import span
 
 MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -203,11 +203,11 @@ ID_HINT = re.compile(r"(^|[^a-z])id$|_id$|^id[^a-z]|number$|^no\.?$|phone|zip|po
 
 
 def _distinct_count(con: duckdb.DuckDBPyConnection, dataset: Dataset, col: str) -> int:
-    return con.execute(f"SELECT COUNT(DISTINCT {quote(col)}) FROM {view_name(dataset.id)}").fetchone()[0]  # quoted identifiers  # nosec B608
+    return _run(con, f"SELECT COUNT(DISTINCT {quote(col)}) FROM {view_name(dataset.id)}", [], op="profile")[1][0][0]  # quoted identifiers  # nosec B608
 
 
 def _date_span(con: duckdb.DuckDBPyConnection, dataset: Dataset, col: str) -> tuple[date | None, date | None]:
-    lo, hi = con.execute(f"SELECT MIN({quote(col)}), MAX({quote(col)}) FROM {view_name(dataset.id)}").fetchone()  # quoted identifiers  # nosec B608
+    lo, hi = _run(con, f"SELECT MIN({quote(col)}), MAX({quote(col)}) FROM {view_name(dataset.id)}", [], op="profile")[1][0]  # quoted identifiers  # nosec B608
     return (lo.date() if lo else None, hi.date() if hi else None)
 
 

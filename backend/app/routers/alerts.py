@@ -116,6 +116,13 @@ def _validate_alert(db: Session, member: WorkspaceMember, body: AlertIn, user: A
     return data
 
 
+def _for_member(out, member: WorkspaceMember):
+    """Webhook URLs work like passwords and email lists are personal data: viewers don't get them."""
+    if member.role not in CAN_UPLOAD:
+        out.channels = {"inapp": bool((out.channels or {}).get("inapp", True)), "emails": [], "webhook": None}
+    return out
+
+
 def _alert(db: Session, member: WorkspaceMember, aid: str) -> Alert:
     a = db.get(Alert, aid)
     if a is None or a.workspace_id != member.workspace_id:
@@ -125,7 +132,8 @@ def _alert(db: Session, member: WorkspaceMember, aid: str) -> Alert:
 
 @router.get("/alerts", response_model=list[AlertOut])
 def list_alerts(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    return db.scalars(select(Alert).where(Alert.workspace_id == member.workspace_id).order_by(Alert.created_at.desc())).all()
+    rows = db.scalars(select(Alert).where(Alert.workspace_id == member.workspace_id).order_by(Alert.created_at.desc())).all()
+    return [_for_member(AlertOut.model_validate(a), member) for a in rows]
 
 
 @router.post("/alerts", response_model=AlertOut, status_code=status.HTTP_201_CREATED)
@@ -232,11 +240,12 @@ def _validate_automation(db: Session, member: WorkspaceMember, body: AutomationI
 @router.get("/automations", response_model=list[AutomationOut])
 def list_automations(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     # Scheduled SQL Lab queries are managed in SQL Lab (routers/sql_lab.py), not here.
-    return db.scalars(
+    rows = db.scalars(
         select(Automation)
         .where(Automation.workspace_id == member.workspace_id, Automation.kind != "saved_query")
         .order_by(Automation.created_at.desc())
     ).all()
+    return [_for_member(AutomationOut.model_validate(a), member) for a in rows]
 
 
 @router.post("/automations", response_model=AutomationOut, status_code=status.HTTP_201_CREATED)

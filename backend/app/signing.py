@@ -43,9 +43,10 @@ def verify(purpose: str, token: str, now: float | None = None) -> dict:
     """The signed data, or BadToken when the token is forged, expired or for another purpose."""
     try:
         body, mac = token.split(".", 1)
-    except ValueError:
+        body.encode("ascii")
+    except ValueError:  # includes UnicodeEncodeError
         raise BadToken("malformed") from None
-    if not hmac.compare_digest(mac, _mac(body)):
+    if not hmac.compare_digest(mac.encode(), _mac(body).encode()):
         raise BadToken("bad signature")
     try:
         payload = json.loads(_unb64(body))

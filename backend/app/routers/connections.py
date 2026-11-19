@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import logging
 import math
+import threading
+from collections.abc import Iterator
 from datetime import date, datetime, timezone
 from decimal import Decimal
 
@@ -25,7 +27,7 @@ from app.connectors.introspect import list_tables, preview
 from app.crypto import SecretError, encrypt
 from app.db import get_db
 from app.models import Connection, Dataset, WorkspaceMember
-from app.routers.datasets import _unique_name, parquet_path, require_editor
+from app.routers.datasets import _unique_name, check_quota, parquet_path, require_editor
 from app.schemas import (
     ConnectionIn,
     ConnectionOut,
@@ -44,7 +46,37 @@ router = APIRouter(prefix="/connections", tags=["connections"])
 log = logging.getLogger("app.connections")
 
 SSL_STRENGTH = {"disable": 0, "require": 1, "verify-full": 2}
+# Requests that wait on a customer's database. They can be slow through no fault of ours, so one workspace
+# (or a database built to stall) must not tie up the threads every other customer needs.
+PER_WORKSPACE_CONNECTOR_CALLS = 2
+_ALL_CONNECTOR_CALLS = threading.BoundedSemaphore(12)
+_slots: dict[str, threading.BoundedSemaphore] = {}
+_slots_lock = threading.Lock()
 PASSWORD_NEEDED = "Enter the password again to use it with a different host, port, database type or a lower SSL setting."
+
+
+def workspace_slot(workspace_id: str) -> threading.BoundedSemaphore:
+    with _slots_lock:
+        return _slots.setdefault(workspace_id, threading.BoundedSemaphore(PER_WORKSPACE_CONNECTOR_CALLS))
+
+
+def connector_slot(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)) -> Iterator[None]:
+    """Held while a request talks to a customer's database. Our own database connection is released first."""
+    workspace_id = member.workspace_id
+    db.commit()
+    busy = HTTPException(status.HTTP_429_TOO_MANY_REQUESTS, "Too many database requests are running. Try again in a moment.")
+    slot = workspace_slot(workspace_id)
+    if not slot.acquire(blocking=False):
+        raise busy
+    try:
+        if not _ALL_CONNECTOR_CALLS.acquire(blocking=False):
+            raise busy
+        try:
+            yield
+        finally:
+            _ALL_CONNECTOR_CALLS.release()
+    finally:
+        slot.release()
 
 
 def _may_reuse_password(saved: Connection, kind: str, host: str, port: int, ssl_mode: str) -> bool:
@@ -74,9 +106,11 @@ def _fail(e: Exception) -> HTTPException:
 def _spec(db: Session, member: WorkspaceMember, conn_id: str) -> tuple[Connection, ConnSpec]:
     conn = _owned(db, member, conn_id)
     try:
-        return conn, spec_for(conn)
+        spec = spec_for(conn)
     except (ConnectorError, SecretError) as e:
         raise _fail(e) from e
+    db.commit()  # don't hold a connection to our own database while waiting on theirs
+    return conn, spec
 
 
 @router.get("/settings")
@@ -85,7 +119,7 @@ def connection_settings(member: WorkspaceMember = Depends(current_membership)):
     return {"egress_ip": get_settings().public_egress_ip or None}
 
 
-@router.post("/test", response_model=ConnectionTestOut)
+@router.post("/test", response_model=ConnectionTestOut, dependencies=[Depends(connector_slot)])
 def test_connection(body: ConnectionTestIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     require_editor(member)
     password = body.password
@@ -99,6 +133,7 @@ def test_connection(body: ConnectionTestIn, member: WorkspaceMember = Depends(cu
             password = spec_for(saved).password
         except SecretError as e:
             return ConnectionTestOut(ok=False, message=str(e))
+    db.commit()
     try:
         spec = ConnSpec(body.kind, body.host, body.port, body.database, body.username, password, body.ssl_mode)
         tables = list_tables(spec)
@@ -116,7 +151,7 @@ def list_connections(member: WorkspaceMember = Depends(current_membership), db: 
     return [_out(db, c) for c in conns]
 
 
-@router.post("", response_model=ConnectionOut, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ConnectionOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(connector_slot)])
 def create_connection(body: ConnectionIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     require_editor(member)
     try:
@@ -139,7 +174,7 @@ def create_connection(body: ConnectionIn, member: WorkspaceMember = Depends(curr
     return _out(db, conn)
 
 
-@router.patch("/{connection_id}", response_model=ConnectionOut)
+@router.patch("/{connection_id}", response_model=ConnectionOut, dependencies=[Depends(connector_slot)])
 def update_connection(
     connection_id: str, body: ConnectionPatch, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)
 ):
@@ -154,6 +189,7 @@ def update_connection(
         if not body.password and not _may_reuse_password(conn, spec.kind, spec.host, spec.port, spec.ssl_mode):
             raise ConnectorError(PASSWORD_NEEDED)
         if changes or body.password:
+            db.commit()
             list_tables(spec)  # check new details before saving them
     except (ConnectorError, SecretError) as e:
         raise _fail(e) from e
@@ -185,7 +221,7 @@ def delete_connection(connection_id: str, member: WorkspaceMember = Depends(curr
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-@router.get("/{connection_id}/tables", response_model=list[TableOut])
+@router.get("/{connection_id}/tables", response_model=list[TableOut], dependencies=[Depends(connector_slot)])
 def connection_tables(connection_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     require_editor(member)
     _, spec = _spec(db, member, connection_id)
@@ -209,7 +245,7 @@ def _cell(v):
     return str(v)
 
 
-@router.get("/{connection_id}/preview", response_model=PreviewOut)
+@router.get("/{connection_id}/preview", response_model=PreviewOut, dependencies=[Depends(connector_slot)])
 def connection_preview(
     connection_id: str, table: str = Query(min_length=1, max_length=255),
     member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db),
@@ -231,7 +267,7 @@ def _discard(db: Session, ds: Dataset) -> None:
     db.commit()
 
 
-@router.post("/{connection_id}/datasets", response_model=SyncCreatedOut, status_code=status.HTTP_201_CREATED)
+@router.post("/{connection_id}/datasets", response_model=SyncCreatedOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(connector_slot)])
 def create_synced_datasets(
     connection_id: str, body: SyncDatasetsIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)
 ):
@@ -246,6 +282,7 @@ def create_synced_datasets(
         sources = [(body.name or "Query", None, body.query)]
     else:
         sources = [(t.split(".")[-1].replace("_", " ").strip().capitalize() or t, t, None) for t in dict.fromkeys(body.tables)]
+    check_quota(db, member.workspace_id, new_datasets=len(sources))
 
     created: list[Dataset] = []
     errors: dict[str, str] = {}

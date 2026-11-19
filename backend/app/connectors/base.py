@@ -17,7 +17,8 @@ import logging
 import re
 import socket
 import ssl
-from collections.abc import Iterator
+import threading
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 
@@ -38,6 +39,10 @@ SSL_MODES = ("require", "verify-full", "disable")
 DEFAULT_PORT = {"postgres": 5432, "mysql": 3306}
 CONNECT_TIMEOUT = 10
 STATEMENT_TIMEOUT_MS = 60_000
+# A customer's server enforces the statement timeout only if it is honest and alive, so we keep our own clock.
+INTERACTIVE_DEADLINE = 60  # testing a connection, listing tables, previews: a person is waiting
+SESSION_DEADLINE = 270  # a sync, inside the worker's 300-second job limit
+TOO_SLOW = "The database took too long to answer, so we stopped waiting. Try again, or check that it's healthy."
 MYSQL_SYSTEM_DATABASES = {"information_schema", "mysql", "performance_schema", "sys"}
 
 
@@ -86,7 +91,8 @@ def spec_for(conn, password: str | None = None) -> ConnSpec:
     )
 
 
-def _blocked(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+def blocked_address(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """True for anything that isn't a public internet address."""
     if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
         ip = ip.ipv4_mapped
     return (
@@ -111,7 +117,7 @@ def resolve_public(host: str) -> str:
         raise ConnectorError(f"We couldn't find the host “{host}”. Check the spelling.")
     if not get_settings().connections_allow_private:
         for a in addrs:
-            if _blocked(ipaddress.ip_address(a.split("%")[0])):
+            if blocked_address(ipaddress.ip_address(a.split("%")[0])):
                 raise ConnectorError(
                     "That host is on a private network. Use the database's public address, and allowlist our IP in its firewall."
                 )
@@ -166,7 +172,36 @@ def _connect_mysql(spec: ConnSpec, addr: str) -> pymysql.connections.Connection:
     return conn
 
 
-def engine_for(spec: ConnSpec) -> Engine:
+class _Deadline:
+    """Cuts the connection when time is up, so a server that stops answering can't hold a thread forever."""
+
+    def __init__(self, seconds: float) -> None:
+        self.raw = None
+        self.fired = False
+        self.timer = threading.Timer(seconds, self._fire)
+        self.timer.daemon = True
+
+    def watch(self, raw):
+        self.raw = raw
+        return raw
+
+    def _fire(self) -> None:
+        self.fired = True
+        raw = self.raw
+        if raw is None:  # still connecting: the driver's connect timeout covers that
+            return
+        own = getattr(raw, "_sock", None)  # PyMySQL keeps its socket; psycopg gives a descriptor
+        sock = own or socket.fromfd(raw.fileno(), socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass  # already closed
+        finally:
+            if own is None:
+                sock.close()
+
+
+def engine_for(spec: ConnSpec, on_connect: Callable = lambda raw: raw) -> Engine:
     """A single-use engine (no pool) for one sync, test or listing."""
     addr = resolve_public(spec.host)
     if spec.kind == "postgres":
@@ -183,9 +218,15 @@ def engine_for(spec: ConnSpec) -> Engine:
         }
         if spec.ssl_mode == "verify-full" and (ca := _ca_file()):
             args["sslrootcert"] = ca
-        return create_engine(url, poolclass=NullPool, connect_args=args)
+        engine = create_engine(url, poolclass=NullPool, connect_args=args)
 
-    engine = create_engine("mysql+pymysql://", poolclass=NullPool, creator=lambda: _connect_mysql(spec, addr))
+        @event.listens_for(engine, "do_connect")
+        def _watch(dialect, _record, cargs, cparams):  # before SQLAlchemy's own first queries
+            return on_connect(dialect.connect(*cargs, **cparams))
+
+        return engine
+
+    engine = create_engine("mysql+pymysql://", poolclass=NullPool, creator=lambda: on_connect(_connect_mysql(spec, addr)))
 
     @event.listens_for(engine, "connect")
     def _read_only(dbapi_conn, _record):  # before any transaction starts
@@ -203,7 +244,7 @@ def engine_for(spec: ConnSpec) -> Engine:
 
 
 @contextmanager
-def session(spec: ConnSpec) -> Iterator[SAConnection]:
+def session(spec: ConnSpec, deadline: float | None = None) -> Iterator[SAConnection]:
     """A read-only transaction on the customer's database, closed (and rolled back) afterwards.
 
     Failures become a ConnectorError. Once the session is open they are a QueryProblem, because the
@@ -211,8 +252,10 @@ def session(spec: ConnSpec) -> Iterator[SAConnection]:
     """
     engine: Engine | None = None
     opened = False
+    clock = _Deadline(SESSION_DEADLINE if deadline is None else deadline)
+    clock.timer.start()
     try:
-        engine = engine_for(spec)
+        engine = engine_for(spec, clock.watch)
         with engine.connect() as conn:
             with conn.begin() as tx:
                 if spec.kind == "postgres":
@@ -230,15 +273,21 @@ def session(spec: ConnSpec) -> Iterator[SAConnection]:
         raise
     except SQLAlchemyError as e:
         _log_failure(spec, e, opened)
-        raise (QueryProblem if opened else ConnectorError)(friendly_error(e, spec)) from e
+        raise (QueryProblem if opened else ConnectorError)(TOO_SLOW if clock.fired else friendly_error(e, spec)) from e
     except (OSError, EOFError, UnicodeError, OverflowError) as e:  # the network, or a value the driver can't decode
         _log_failure(spec, e, opened)
         raise (QueryProblem if opened else ConnectorError)(
-            "The connection to the database failed while reading. Try again in a moment."
+            TOO_SLOW if clock.fired else "The connection to the database failed while reading. Try again in a moment."
         ) from e
     finally:
+        clock.timer.cancel()
         if engine is not None:
             engine.dispose()
+
+
+def interactive_session(spec: ConnSpec):
+    """A session for something a person is waiting on."""
+    return session(spec, deadline=INTERACTIVE_DEADLINE)
 
 
 def _codes(e: BaseException) -> tuple[BaseException | None, str | None, int | None]:

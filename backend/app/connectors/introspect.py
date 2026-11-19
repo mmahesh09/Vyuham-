@@ -9,7 +9,7 @@ from sqlalchemy import inspect, select, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.sql import table as sa_table
 
-from app.connectors.base import ConnSpec, QueryProblem, session
+from app.connectors.base import ConnSpec, QueryProblem, interactive_session
 
 MAX_TABLES = 500
 SYSTEM_SCHEMAS = {"information_schema", "pg_catalog", "mysql", "performance_schema", "sys"}
@@ -47,7 +47,7 @@ def _estimates(conn, spec: ConnSpec) -> dict[str, int]:
 
 def list_tables(spec: ConnSpec, limit: int | None = MAX_TABLES) -> list[TableInfo]:
     """Tables and views this user can see, sorted; `limit=None` returns all of them."""
-    with session(spec) as conn:
+    with interactive_session(spec) as conn:
         insp = inspect(conn)
         if spec.kind == "postgres":
             schemas = [s for s in insp.get_schema_names() if s not in SYSTEM_SCHEMAS and not s.startswith("pg_")]
@@ -80,7 +80,7 @@ def table_ref(info: TableInfo):
 def preview(spec: ConnSpec, key: str, limit: int = 50) -> pd.DataFrame:
     """The first rows exactly as the driver returns them (object columns, so nothing is coerced)."""
     info = find_table(spec, key)
-    with session(spec) as conn:
+    with interactive_session(spec) as conn:
         result = conn.execute(select(text("*")).select_from(table_ref(info)).limit(limit))
         columns = list(result.keys())
         return pd.DataFrame([tuple(r) for r in result.fetchall()], columns=columns, dtype=object)

@@ -30,7 +30,8 @@ async function database() {
   if (url?.startsWith("postgres")) {
     const { Pool } = await import("pg");
     // Accept the backend's SQLAlchemy form (postgresql+psycopg://…) as well.
-    return new Pool({ connectionString: url.replace(/^postgresql\+\w+:/, "postgresql:") });
+    // Each serverless instance gets its own pool, so keep it small or a traffic spike exhausts the database.
+    return new Pool({ connectionString: url.replace(/^postgresql\+\w+:/, "postgresql:"), max: 3, idleTimeoutMillis: 10_000 });
   }
   // Local dev: share the backend's SQLite file. Run `alembic upgrade head` first.
   const { default: Database } = await import("better-sqlite3");
@@ -49,6 +50,7 @@ async function createAuth() {
       minPasswordLength: 8,
       maxPasswordLength: 72,
       autoSignIn: true,
+      revokeSessionsOnPasswordReset: true, // a stolen session stops working once the password is reset
       sendResetPassword: async ({ user, url }) => {
         const text = "Someone asked to reset the password for your Vyuham account. The link works for 1 hour.";
         await sendEmail(user.email, "Reset your Vyuham password", renderEmail("Reset your password", [text], { label: "Choose a new password", url }), `${text}\n\n${url}`);

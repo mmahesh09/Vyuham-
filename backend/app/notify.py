@@ -6,10 +6,12 @@ to a private, loopback, link-local or otherwise internal address (no SSRF into o
 
 from __future__ import annotations
 
+import http.client
 import ipaddress
 import json
 import logging
 import socket
+import ssl
 import urllib.error
 import urllib.request
 from urllib.parse import urlparse
@@ -17,6 +19,7 @@ from urllib.parse import urlparse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.connectors.base import blocked_address
 from app.models import Notification, WorkspaceMember
 
 log = logging.getLogger("app.notify")
@@ -27,8 +30,8 @@ class WebhookError(ValueError):
     pass
 
 
-def check_webhook_url(url: str) -> None:
-    """Raise WebhookError unless the URL is https and points at a public address."""
+def check_webhook_url(url: str) -> str:
+    """The public address to connect to; WebhookError unless the URL is https and every address is public."""
     parsed = urlparse(url)
     if parsed.scheme != "https" or not parsed.hostname:
         raise WebhookError("Webhook URLs must start with https://")
@@ -38,10 +41,10 @@ def check_webhook_url(url: str) -> None:
         infos = socket.getaddrinfo(parsed.hostname, parsed.port or 443, proto=socket.IPPROTO_TCP)
     except socket.gaierror as e:
         raise WebhookError("That webhook address doesn't resolve") from e
-    for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved or ip.is_multicast or ip.is_unspecified:
-            raise WebhookError("Webhook URLs must point to a public internet address")
+    addresses = [info[4][0] for info in infos]
+    if not addresses or any(blocked_address(ipaddress.ip_address(a.split("%")[0])) for a in addresses):
+        raise WebhookError("Webhook URLs must point to a public internet address")
+    return sorted(addresses, key=lambda a: ":" in a)[0]  # IPv4 first
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -51,13 +54,40 @@ class _NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+class _PinnedConnection(http.client.HTTPSConnection):
+    """Connects to the address that was checked, while TLS still verifies the URL's host name."""
+
+    pinned_address = ""
+
+    def connect(self) -> None:
+        raw = socket.create_connection((self.pinned_address, self.port), self.timeout)
+        self.sock = ssl.create_default_context().wrap_socket(raw, server_hostname=self.host)
+
+
+class _PinnedHTTPS(urllib.request.HTTPSHandler):
+    """DNS is asked once: a name can't pass the check and then point somewhere internal."""
+
+    def __init__(self, address: str) -> None:
+        super().__init__()
+        self.address = address
+
+    def https_open(self, req):  # noqa: ANN001
+        address = self.address
+
+        class Connection(_PinnedConnection):
+            pinned_address = address
+
+        return self.do_open(Connection, req)
+
+
 def send_webhook(url: str, payload: dict) -> str:
     try:
-        check_webhook_url(url)
+        address = check_webhook_url(url)
         # Slack/Teams incoming webhooks read "text"; other tools get the whole payload.
         data = json.dumps({"text": f"*{payload['title']}*\n{payload['body']}", **payload}).encode()
         req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json", "User-Agent": "Vyuham-Alerts/1.0"})
-        with urllib.request.build_opener(_NoRedirect).open(req, timeout=WEBHOOK_TIMEOUT) as resp:
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), _NoRedirect, _PinnedHTTPS(address))
+        with opener.open(req, timeout=WEBHOOK_TIMEOUT) as resp:
             return f"ok ({resp.status})"
     except WebhookError as e:
         return f"blocked: {e}"

@@ -297,7 +297,10 @@ def get_run(run_id: str, member: WorkspaceMember = Depends(current_membership), 
 
 @router.get("/report-runs/{run_id}/download")
 def download(run_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    return _file_response(_run(db, member, run_id))
+    run = _run(db, member, run_id)
+    if run.source == "saved_query":
+        _editor(member, "Downloading SQL Lab exports")
+    return _file_response(run)
 
 
 @router.get("/report-files/{token}")

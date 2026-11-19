@@ -7,7 +7,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import exists, func, select
+from sqlalchemy import exists, func, select, update
 from sqlalchemy.orm import Session
 
 from app.auth_tables import user_table
@@ -150,6 +150,10 @@ def accept_invite(token: str, user: AuthUser = Depends(current_user), db: Sessio
     current = db.scalar(select(WorkspaceMember).where(WorkspaceMember.user_id == user.id))
     if current and current.workspace_id == inv.workspace_id:
         return {"workspace_id": inv.workspace_id}
+    if inv.email:  # sent to one person: a forwarded or leaked link doesn't work for anyone else
+        if inv.email.strip().lower() != user.email.strip().lower():
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "This invite was sent to a different email address. Sign in with that address.")
+        require_verified_email(user)
     if current:
         # v1: one workspace per person. Only an untouched, solo workspace can be given up.
         ws_id = current.workspace_id
@@ -168,8 +172,14 @@ def accept_invite(token: str, user: AuthUser = Depends(current_user), db: Sessio
         old = db.get(Workspace, ws_id)
         if old:
             db.delete(old)
+    # Atomic, so two people racing on one link can't both get in.
+    claimed = db.execute(
+        update(Invite).where(Invite.token == token, Invite.used_at.is_(None)).values(used_at=_now(), used_by=user.id)
+    ).rowcount
+    if claimed != 1:
+        db.rollback()
+        raise HTTPException(status.HTTP_410_GONE, "This invite has already been used.")
     db.add(WorkspaceMember(user_id=user.id, workspace_id=inv.workspace_id, role=inv.role))
-    inv.used_at, inv.used_by = _now(), user.id
     db.commit()
     return {"workspace_id": inv.workspace_id}
 

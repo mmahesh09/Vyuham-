@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # Uploads (beta limits; the browser checks the same size before sending).
     max_upload_bytes: int = 10 * 1024 * 1024
     max_upload_rows: int = 1_000_000
+    # What one workspace may keep on the shared data volume, so one customer can't fill it for everyone.
+    max_workspace_datasets: int = 200
+    max_workspace_bytes: int = 2 * 1024 * 1024 * 1024
+    # DuckDB queries running at once in one API process (each may use up to 512 MB).
+    max_concurrent_queries: int = 4
     # An .xlsx is a zip: a 10 MB file can unpack to gigabytes and take the API down. Refuse workbooks
     # whose contents add up to more than this, before opening them.
     max_xlsx_uncompressed_bytes: int = 150 * 1024 * 1024

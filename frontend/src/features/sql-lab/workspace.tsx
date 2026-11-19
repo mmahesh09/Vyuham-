@@ -54,6 +54,25 @@ const isTyping = (el: EventTarget | null) =>
  * Desktop: schema explorer | editor over results, all resizable (sizes remembered in this browser).
  * Phones: one pane at a time (Schema / Query / Results).
  */
+
+/** The panel library defaults to localStorage, which doesn't exist while the page renders on the server. */
+const panelStorage = {
+  getItem(key: string) {
+    try {
+      return typeof window === "undefined" ? null : window.localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+  setItem(key: string, value: string) {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      /* storage blocked: the layout just isn't remembered */
+    }
+  },
+};
+
 export function SqlWorkspace() {
   const { data: me } = useMe();
   const qc = useQueryClient();
@@ -74,8 +93,8 @@ export function SqlWorkspace() {
   const editor = useRef<SqlEditorHandle>(null);
   const explorerPanel = usePanelRef();
   const resultsPanel = usePanelRef();
-  const outer = useDefaultLayout({ id: "vyuham:sql-lab:outer", panelIds: ["explorer", "main"] });
-  const inner = useDefaultLayout({ id: "vyuham:sql-lab:inner", panelIds: ["editor", "results"] });
+  const outer = useDefaultLayout({ id: "vyuham:sql-lab:outer", panelIds: ["explorer", "main"], storage: panelStorage });
+  const inner = useDefaultLayout({ id: "vyuham:sql-lab:inner", panelIds: ["editor", "results"], storage: panelStorage });
 
   const [outputs, setOutputs] = useState<Record<string, Output>>({});
   const [pane, setPane] = useState<Pane>("rows");

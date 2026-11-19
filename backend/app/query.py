@@ -27,7 +27,7 @@ from sqlglot import exp
 
 from app.config import get_settings
 from app.models import Dataset
-from app.telemetry import span, timed
+from app.telemetry import count, span, timed
 
 AGGS = {"sum": "SUM", "count": "COUNT", "avg": "AVG", "min": "MIN", "max": "MAX", "count_distinct": "COUNT_DISTINCT"}
 NUMERIC_AGGS = {"sum", "avg"}
@@ -38,6 +38,8 @@ ROW_KEY = "*"  # count(*) is written as {"field": "*", "agg": "count"}
 
 MAX_ROWS = 5_000
 TIMEOUT_SECONDS = 10
+QUERY_WAIT_SECONDS = 8  # how long a query waits for a free slot before asking the person to retry
+QUERY_SLOTS = threading.BoundedSemaphore(get_settings().max_concurrent_queries)
 
 
 class QueryError(ValueError):
@@ -89,7 +91,10 @@ def connect(workspace_id: str, datasets: list[Dataset]) -> duckdb.DuckDBPyConnec
     folder = workspace_dir(workspace_id)
     con = duckdb.connect(
         ":memory:",
-        config={"autoinstall_known_extensions": False, "autoload_known_extensions": False, "threads": 2, "memory_limit": "512MB"},
+        config={
+            "autoinstall_known_extensions": False, "autoload_known_extensions": False, "threads": 2, "memory_limit": "512MB",
+            "temp_directory": "",  # no spilling to disk: a big sort can't fill the volume every customer shares
+        },
     )
     con.execute("SET allowed_directories=[?]", [folder + os.sep])
     con.execute("SET enable_external_access=false")
@@ -111,6 +116,17 @@ def connect(workspace_id: str, datasets: list[Dataset]) -> duckdb.DuckDBPyConnec
 
 
 def _run(con: duckdb.DuckDBPyConnection, sql: str, params: list[Any], op: str = "sql") -> tuple[list[str], list[tuple]]:
+    """Run one query when a slot is free, so a burst of heavy queries can't exhaust the server's memory."""
+    if not QUERY_SLOTS.acquire(timeout=QUERY_WAIT_SECONDS):
+        count("vyuham.query.rejected", op=op)
+        raise QueryError("Vyuham is busy right now. Try again in a moment.")
+    try:
+        return _execute(con, sql, params, op)
+    finally:
+        QUERY_SLOTS.release()
+
+
+def _execute(con: duckdb.DuckDBPyConnection, sql: str, params: list[Any], op: str) -> tuple[list[str], list[tuple]]:
     """Execute with a wall-clock timeout.
 
     Traced as `vyuham.query` with the kind of query (`op`), row count and outcome only: the SQL text
@@ -130,6 +146,9 @@ def _run(con: duckdb.DuckDBPyConnection, sql: str, params: list[Any], op: str = 
         except duckdb.InterruptException as e:
             m["outcome"] = "timeout"
             raise QueryError("That query took too long. Try a shorter date range or fewer groups.") from e
+        except duckdb.OutOfMemoryException as e:
+            m["outcome"] = "memory"
+            raise QueryError("That query needs too much memory. Try fewer groups or a filter.") from e
         except Exception:
             m["outcome"] = "error"
             raise
@@ -313,7 +332,7 @@ def page_rows(
         like = " OR ".join(f"CAST({quote(c)} AS VARCHAR) ILIKE ?" for c in cols)
         where = f"{where} AND ({like})" if where else f" WHERE ({like})"
         params.extend([f"%{q.strip()}%"] * len(cols))
-    total = con.execute(f"SELECT COUNT(*) FROM {view_name(dataset.id)}{where}", params).fetchone()[0]  # values are bound  # nosec B608
+    total = _run(con, f"SELECT COUNT(*) FROM {view_name(dataset.id)}{where}", list(params), op="count")[1][0][0]  # values are bound  # nosec B608
     order = ""
     if sort:
         _need(cols, sort)
@@ -330,8 +349,7 @@ def distinct_values(con: duckdb.DuckDBPyConnection, dataset: Dataset, column: st
         f"SELECT CAST({c} AS VARCHAR) AS v, COUNT(*) AS n FROM {view_name(dataset.id)} "
         f"WHERE {c} IS NOT NULL GROUP BY 1 ORDER BY n DESC, v LIMIT {int(limit)}"
     )
-    with span("vyuham.query", **{"vyuham.query.op": "values", "db.system": "duckdb"}):
-        return [r[0] for r in con.execute(sql).fetchall()]
+    return [r[0] for r in _run(con, sql, [], op="values")[1]]
 
 
 # ---------- raw SQL (groundwork for the AI round) ----------
