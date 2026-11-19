@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
 import { compileMDX } from "next-mdx-remote/rsc";
 import Link from "next/link";
@@ -11,6 +11,7 @@ import { BlogHero } from "@/components/marketing/blog-hero";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 import { mdxComponents } from "@/features/blog/mdx-components";
+import { PostContents } from "@/features/blog/post-contents";
 import { formatDate, getAllPosts, getPost } from "@/lib/blog";
 import { RSS_ALTERNATE, SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -50,6 +51,14 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   };
 }
 
+/** The post's level-two headings, with the same ids rehype-slug gives them. */
+function sectionsOf(body: string) {
+  return [...body.matchAll(/^## (.+)$/gm)].map(([, title]) => ({
+    title,
+    id: title.toLowerCase().replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-"),
+  }));
+}
+
 export default async function BlogPost({ params }: Params) {
   const post = await getPost((await params).slug);
   if (!post) notFound();
@@ -84,6 +93,9 @@ export default async function BlogPost({ params }: Params) {
     keywords: post.tags.join(", "),
   };
 
+  // "What is Vyuham? Dashboards from…" reads as a question and a quieter answer.
+  const [, question, answer] = post.title.match(/^(.+?\?)\s+(.+)$/) ?? [null, post.title, null];
+
   return (
     <div className="min-h-screen bg-bg">
       <script
@@ -94,34 +106,46 @@ export default async function BlogPost({ params }: Params) {
       <SiteHeader />
       <main>
         <article>
-          <BlogHero column="max-w-[720px]">
-            <Link href="/blog" className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium hover:underline">
-              <ArrowLeft className="size-3.5" aria-hidden /> All posts
-            </Link>
-            <p className="flex flex-wrap items-center gap-x-2 text-[13px] font-medium">
+          <BlogHero column="max-w-[1120px]">
+            <p className="flex flex-wrap items-center gap-x-2 font-mono text-[12px] font-medium uppercase tracking-[0.08em]">
               <time dateTime={post.date}>{formatDate(post.date)}</time>
               <span aria-hidden>·</span>
               <span>{post.readingMinutes} min read</span>
-              <span aria-hidden>·</span>
-              <span>{post.author}</span>
-              {post.draft && <span className="rounded-full bg-[#2a0d07]/10 px-2 py-0.5 text-[11px] font-semibold">Draft: only visible in dev</span>}
+              {post.draft && <span className="rounded-[4px] bg-[#2a0d07]/10 px-2 py-0.5">Draft</span>}
             </p>
-            <h1 className="font-display text-[clamp(32px,5.4vw,52px)] font-semibold leading-[1.06] tracking-tight">{post.title}</h1>
-            <p className="text-[18px] font-medium leading-[1.55]">{post.description}</p>
+            <h1 className="max-w-[15ch] font-display text-[clamp(52px,9.5vw,124px)] font-semibold leading-[0.96] tracking-[-0.045em]">
+              {question}
+              {answer && (
+                <span className="mt-5 block max-w-[24ch] text-[clamp(24px,3.4vw,42px)] font-light leading-[1.12] tracking-[-0.025em]">
+                  {answer}
+                </span>
+              )}
+            </h1>
           </BlogHero>
 
-          <div className="mx-auto flex max-w-[720px] flex-col gap-5 px-5 pt-12">{content}</div>
+          <div className="mx-auto grid max-w-[1120px] gap-12 px-5 pt-[clamp(56px,8vw,96px)] lg:grid-cols-[208px_minmax(0,680px)] lg:justify-between">
+            <aside className="hidden lg:block">
+              <PostContents sections={sectionsOf(post.body)} />
+            </aside>
+            <div className="post-body flex min-w-0 flex-col gap-5">{content}</div>
+          </div>
         </article>
 
-        <aside className="mx-auto mb-24 mt-16 flex w-[calc(100%-40px)] max-w-[680px] flex-col items-start gap-4 rounded-[18px] border border-line bg-surface p-7">
-          <p className="font-display text-[22px] font-semibold leading-snug text-text">Try it on your own spreadsheet</p>
-          <p className="text-[15.5px] leading-[1.7] text-muted">
-            Upload a CSV or Excel file, ask a question in plain English, and get the answer with a chart.
-          </p>
-          <Link href="/signup" className="btn-primary inline-flex min-h-12 items-center gap-2 rounded-full px-7 text-[16px] font-semibold">
-            Join the beta
-            <ArrowRight className="size-4" strokeWidth={2.2} aria-hidden />
-          </Link>
+        <aside className="mx-auto mt-[clamp(72px,10vw,128px)] max-w-[1120px] px-5 pb-[clamp(72px,10vw,128px)]">
+          <div className="flex flex-col items-start justify-between gap-8 border-t-2 border-text pt-8 md:flex-row md:items-end">
+            <div className="flex flex-col">
+              <p className="font-display text-[clamp(34px,5vw,60px)] font-semibold leading-[1.02] tracking-[-0.035em] text-text">
+                Bring one spreadsheet.
+              </p>
+              <p className="font-display text-[clamp(34px,5vw,60px)] font-extralight leading-[1.02] tracking-[-0.03em] text-muted">
+                Ask it something.
+              </p>
+            </div>
+            <Link href="/signup" className="btn-primary inline-flex min-h-12 shrink-0 items-center gap-2 rounded-full px-7 text-[16px] font-semibold">
+              Create a free account
+              <ArrowRight className="size-4" strokeWidth={2.2} aria-hidden />
+            </Link>
+          </div>
         </aside>
       </main>
       <SiteFooter />

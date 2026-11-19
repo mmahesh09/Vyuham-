@@ -170,7 +170,7 @@ function QuiltCanvas() {
   return <canvas ref={ref} aria-hidden className="absolute inset-0 -z-10 size-full" />;
 }
 
-/** The gradient banner at the top of blog pages. Its children sit in the same column as the page below. */
+/** The gradient banner at the top of the blog article. Its children sit in the same column as the page below. */
 export function BlogHero({ children, column = "max-w-[760px]" }: { children: ReactNode; column?: string }) {
   return (
     <header
@@ -178,7 +178,7 @@ export function BlogHero({ children, column = "max-w-[760px]" }: { children: Rea
       style={{ background: FALLBACK }}
     >
       <QuiltCanvas />
-      <div className={`mx-auto flex w-full flex-col gap-4 px-5 py-[clamp(48px,8vw,96px)] ${column}`}>{children}</div>
+      <div className={`mx-auto flex w-full flex-col gap-6 px-5 py-[clamp(64px,10vw,136px)] ${column}`}>{children}</div>
     </header>
   );
 }

@@ -558,6 +558,13 @@ body {
   }
 }
 
+/* ---------- Blog article ---------- */
+/* An opening paragraph with presence, and numbered sections like the landing page's. */
+.post-body { counter-reset: post-section; }
+.post-body > p:first-child { color: var(--text); font-size: clamp(20px, 2.2vw, 24px); font-weight: 300; line-height: 1.45; letter-spacing: -0.01em; }
+.post-body > h2 { counter-increment: post-section; margin-top: 40px; padding-top: 32px; border-top: 1px solid var(--line); font-size: clamp(28px, 3.4vw, 38px); letter-spacing: -0.025em; }
+.post-body > h2::before { content: counter(post-section, decimal-leading-zero); display: block; margin-bottom: 12px; font-family: var(--font-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.08em; color: var(--highlight); }
+
 /* ---------- Highlighter: marker swipe ---------- */
 /* A translucent orange band behind the lower part of a key phrase, slightly slanted
    with soft ends. It sweeps in left to right when its [data-animate] ancestor is revealed. */

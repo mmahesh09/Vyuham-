@@ -31,7 +31,7 @@ const Frontmatter = z.object({
   author: z.string().min(1).default("The Vyuham team"),
   tags: z.array(z.string().min(1)).default([]),
   draft: z.boolean().default(false),
-  // A file under public/, e.g. /blog/excel-to-dashboard/cover.png. Without one, the generated share image is used.
+  // A file under public/, e.g. /blog/what-is-vyuham/cover.png. Without one, the generated share image is used.
   image: z.string().startsWith("/").optional(),
 });
 
@@ -80,11 +80,4 @@ export async function getPost(slug: string): Promise<Post | null> {
 
 export function formatDate(iso: string): string {
   return new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
-}
-
-/** Every tag used by a visible post, most-used first. */
-export async function getAllTags(): Promise<string[]> {
-  const counts = new Map<string, number>();
-  for (const p of await loadAll()) for (const t of p.tags) counts.set(t, (counts.get(t) ?? 0) + 1);
-  return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([t]) => t);
 }

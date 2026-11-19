@@ -59,6 +59,22 @@ carries a one-line headline, so you can read the page before you study it. A dat
 When it's ready, invite teammates, create a read-only share link that you can turn off later, or export a PDF, CSV or Excel
 copy.
 
+## How Vyuham is built
+
+Vyuham keeps your rows and its own records in separate places, because each job needs a different kind of storage.
+
+<Figure
+  src="/blog/what-is-vyuham/architecture.png"
+  alt="Vyuham architecture. The browser reaches Next.js on Vercel, which passes requests through Caddy to the FastAPI application. FastAPI runs queries in a per-request DuckDB sandbox over Parquet files, stores accounts and dashboards in PostgreSQL, and queues work in Redis. Celery Beat and a Celery worker run scheduled jobs and read connected customer databases."
+  width="1674"
+  height="1377"
+  caption="From your browser to your data. Open the image for a larger view."
+/>
+
+Your data lives in **Parquet files**, one folder per workspace. Each question opens a temporary **DuckDB** engine that can read only your folder, then closes. **PostgreSQL** holds accounts, dataset records and dashboards.
+
+Anything on a schedule goes through **Redis** to a background **worker**. That's how connected tables refresh and alerts run while nobody is logged in. The worker reads your database in a read-only session and saves a copy, so your charts never add load to it.
+
 ## Who is Vyuham for?
 
 Vyuham suits you if most of these sound familiar:
