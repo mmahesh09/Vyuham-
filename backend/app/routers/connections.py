@@ -20,6 +20,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.audit import record_action
 from app.config import get_settings
 from app.connectors.base import ConnectorError, ConnSpec, spec_for
 from app.connectors.extract import validate_query
@@ -165,6 +166,7 @@ def create_connection(body: ConnectionIn, member: WorkspaceMember = Depends(curr
         secret_enc=encrypt(body.password), ssl_mode=body.ssl_mode, status="ok", last_checked_at=datetime.now(timezone.utc),
     )
     db.add(conn)
+    record_action(db, member, "connection.create", "connection", None, {"kind": body.kind})
     try:
         db.commit()
     except IntegrityError as e:
@@ -216,6 +218,7 @@ def delete_connection(connection_id: str, member: WorkspaceMember = Depends(curr
     conn = _owned(db, member, connection_id)
     for ds in db.scalars(select(Dataset).where(Dataset.connection_id == conn.id)).all():
         ds.connection_id, ds.refresh = None, "manual"
+    record_action(db, member, "connection.delete", "connection", conn.id)
     db.delete(conn)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

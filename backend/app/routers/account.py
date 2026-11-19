@@ -26,16 +26,22 @@ from app.config import get_settings
 from app.db import Base, get_db
 from app.models import (
     Alert,
+    AuditLog,
     Automation,
+    CalculatedColumn,
     Chart,
     Dashboard,
     Dataset,
     Feedback,
     Invite,
     LeaveRecord,
+    MetricVersion,
     Notification,
+    QueryExecution,
     ReportRun,
     SavedQuery,
+    SemanticDimension,
+    SemanticMetric,
     SupportTicket,
     Task,
     TicketMessage,
@@ -198,8 +204,11 @@ def delete_account(body: ConfirmIn, user: AuthUser = Depends(current_user), db: 
     db.execute(delete(UserProfile).where(UserProfile.user_id == uid))
     db.execute(update(LeaveRecord).where(LeaveRecord.backup_user_id == uid).values(backup_user_id=None))
     db.execute(update(Task).where(Task.assignee_id == uid).values(assignee_id=None))
-    for model in (Task, Dashboard, Dataset, Alert, Automation, SavedQuery, Invite):
+    for model in (Task, Dashboard, Dataset, Alert, Automation, SavedQuery, Invite, SemanticMetric, MetricVersion, SemanticDimension, CalculatedColumn):
         db.execute(update(model).where(model.created_by == uid).values(created_by=None))
+    db.execute(update(SemanticMetric).where(SemanticMetric.owner_id == uid).values(owner_id=None))
+    for model in (AuditLog, QueryExecution):
+        db.execute(update(model).where(model.user_id == uid).values(user_id=None))
     db.execute(update(Invite).where(Invite.used_by == uid).values(used_by=None))
     db.execute(delete(session_table).where(session_table.c.userId == uid))
     db.execute(delete(account_table).where(account_table.c.userId == uid))

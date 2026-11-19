@@ -15,6 +15,7 @@ import {
   MoreHorizontal,
   Play,
   Search,
+  Sigma,
   Tag,
   Trash2,
   Type,
@@ -27,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { isApproved, metricSql, useMetrics } from "@/features/metrics/api";
 import { api } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -112,11 +114,45 @@ export function Explorer(props: ExplorerProps) {
 
         <div className="min-h-0 flex-1 overflow-y-auto pr-0.5" data-lenis-prevent>
           {side === "schema" && <SchemaTree {...props} filter={filter.trim().toLowerCase()} />}
+          {side === "schema" && <ApprovedMetrics filter={filter.trim().toLowerCase()} onOpenSql={props.onOpenSql} />}
           {side === "saved" && <SavedList {...props} filter={filter.trim().toLowerCase()} />}
           {side === "history" && <HistoryList {...props} />}
         </div>
       </aside>
     </TooltipProvider>
+  );
+}
+
+/* ---------- approved metrics ---------- */
+
+function ApprovedMetrics({ filter, onOpenSql }: { filter: string; onOpenSql: ExplorerProps["onOpenSql"] }) {
+  const { data } = useMetrics();
+  const [failed, setFailed] = useState<string | null>(null);
+  const metrics = (data ?? []).filter((m) => isApproved(m) && m.name.toLowerCase().includes(filter));
+  if (!metrics.length) return null;
+  return (
+    <section className="mt-3 border-t border-line pt-2" aria-label="Approved metrics">
+      <p className="px-1.5 pb-1 text-[11.5px] font-medium text-faint">Approved metrics</p>
+      <ul>
+        {metrics.map((m) => (
+          <li key={m.id}>
+            <button
+              type="button"
+              title={m.approved_formula ?? undefined}
+              className="flex min-h-7 w-full items-center gap-1.5 rounded-md px-1.5 text-left text-[13px] hover:bg-surface-2"
+              onClick={() => {
+                setFailed(null);
+                metricSql(m.id).then(({ sql }) => onOpenSql(m.name, sql, true), (e: Error) => setFailed(e.message));
+              }}
+            >
+              <Sigma className="size-3.5 shrink-0 text-faint" />
+              <span className="min-w-0 truncate">{m.name}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {failed && <p role="alert" className="px-1.5 pt-1 text-xs text-destructive">{failed}</p>}
+    </section>
   );
 }
 

@@ -71,7 +71,12 @@ def world(client, engine):
     }).json()
     report = a.post("/reports", json={"name": "R", "source": "dataset", "source_id": ds["id"], "format": "csv"}).json()
     run = a.post("/exports", json={"source": "dataset", "source_id": ds["id"], "format": "csv"}).json()
+    metric = a.post("/metrics", json={"name": "Total pay", "dataset_id": ds["id"], "formula": "SUM(salary)"}).json()
+    column = a.post("/calculated-columns", json={"dataset_id": ds["id"], "name": "Double", "formula": "salary * 2"}).json()
+    dimension = a.post("/dimensions", json={"name": "Client", "dataset_id": ds["id"], "column": "customer"}).json()
+    metric_test = a.post(f"/metrics/{metric['id']}/tests", json={"name": "t", "expected": 999}).json()
     ids = {
+        "metric": metric["id"], "column": column["id"], "dimension": dimension["id"], "metric_test": metric_test["id"],
         "dataset": ds["id"], "dashboard": dash["id"], "chart": chart["id"], "query": query["id"], "task": task["id"],
         "alert": alert["id"], "report": report["id"], "run": run["id"],
     }
@@ -89,6 +94,7 @@ def test_every_route_with_an_id_refuses_the_other_company(world, client):
         "dataset_id": ids["dataset"], "dashboard_id": ids["dashboard"], "chart_id": ids["chart"], "qid": ids["query"],
         "task_id": ids["task"], "rid": ids["report"], "run_id": ids["run"], "connection_id": "x", "ticket_id": "x",
         "column": "salary", "template_id": "sales",
+        "metric_id": ids["metric"], "column_id": ids["column"], "dimension_id": ids["dimension"], "test_id": ids["metric_test"],
     }
     seen, leaks = 0, []
     for path, methods in client.get("/openapi.json").json()["paths"].items():

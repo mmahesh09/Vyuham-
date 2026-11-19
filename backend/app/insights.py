@@ -53,6 +53,10 @@ def trend_of(change: float | None) -> str:
 
 
 def metric_label(m: dict) -> str:
+    if m.get("label"):
+        return m["label"]
+    if m.get("agg") == "metric":
+        return "Metric"
     if m.get("field") == ROW_KEY:
         return "Rows"
     name = m["field"]

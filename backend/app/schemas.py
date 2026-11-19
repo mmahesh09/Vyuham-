@@ -30,6 +30,7 @@ class ColumnOut(BaseModel):
     type: str
     empty_ratio: float
     examples: list[str]
+    calculated: bool = False  # a formula column (app/analytics)
 
 
 class DatasetOut(BaseModel):
@@ -315,7 +316,7 @@ class RowsOut(BaseModel):
 
 # ---------- charts & dashboards ----------
 
-Agg = Literal["sum", "count", "avg", "min", "max", "count_distinct"]
+Agg = Literal["sum", "count", "avg", "min", "max", "count_distinct", "metric"]  # "metric": `field` is an approved metric's id
 ChartType = Literal["line", "bar", "pie", "kpi", "table", "area", "hbar", "combo", "scatter", "funnel", "treemap", "gauge"]
 HEX = r"^#[0-9a-fA-F]{6}$"
 
@@ -323,6 +324,7 @@ HEX = r"^#[0-9a-fA-F]{6}$"
 class SpecMetric(BaseModel):
     field: str = Field(min_length=1, max_length=255)
     agg: Agg
+    label: str | None = Field(default=None, max_length=200)  # set by the server for approved metrics
 
 
 class SqlParam(BaseModel):

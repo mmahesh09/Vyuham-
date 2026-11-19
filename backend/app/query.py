@@ -104,10 +104,13 @@ def connect(workspace_id: str, datasets: list[Dataset]) -> duckdb.DuckDBPyConnec
         if not os.path.exists(path):
             continue
         cols = ", ".join(
-            f"TRY_CAST({quote(c['name'])} AS {CAST.get(c['type'], 'VARCHAR')}) AS {quote(c['name'])}" for c in d.columns
+            f"TRY_CAST({quote(c['name'])} AS {CAST.get(c['type'], 'VARCHAR')}) AS {quote(c['name'])}" for c in d.columns if not c.get("sql")
         )
         literal = path.replace("'", "''")  # server-built path (hex ids); escaped anyway
-        con.execute(f"CREATE VIEW {view_name(d.id)} AS SELECT {cols} FROM read_parquet('{literal}')")  # server-built names and path  # nosec B608
+        typed = f"SELECT {cols} FROM read_parquet('{literal}')"  # server-built names and path  # nosec B608
+        # Calculated columns are compiled by app/analytics/formula.py and work on the typed columns.
+        extra = "".join(f", ({c['sql']}) AS {quote(c['name'])}" for c in d.columns if c.get("sql"))
+        con.execute(f"CREATE VIEW {view_name(d.id)} AS SELECT *{extra} FROM ({typed})")  # nosec B608
     # Friendly names for SQL Lab: SELECT * FROM sales
     present = [d for d in datasets if os.path.exists(os.path.join(folder, f"{d.id}.parquet"))]
     for ds_id, alias in table_names(present).items():
@@ -275,6 +278,11 @@ def compile_spec(spec: dict, dataset: Dataset, dash: Filters | None = None) -> t
             selects.append(f"CAST({quote(group_by)} AS VARCHAR) AS {quote(group_by)}")
     for m in metrics:
         agg, name = m.get("agg"), m.get("field")
+        if agg == "metric":
+            from app.analytics.semantic import metric_sql
+
+            selects.append(f"{metric_sql(dataset, name)} AS {quote(metric_key(m))}")
+            continue
         if agg not in AGGS:
             raise QueryError(f"Unknown calculation: {agg}")
         if name == ROW_KEY:

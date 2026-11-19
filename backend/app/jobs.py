@@ -17,12 +17,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.alerts import SCHEDULE_EVERY, _aware, alert_due, automation_due, check_alert, last_occurrence, run_automation
-from app.models import Alert, Automation, Dataset, JobRun
+from app.models import Alert, AuditLog, Automation, Dataset, JobRun, QueryExecution
 from app.query import QueryError
 from app.sync import SyncError, next_sync_at, sync_dataset, sync_slot
 from app.telemetry import count, record, span
@@ -207,6 +207,8 @@ def prune(db: Session, now: datetime | None = None, keep_days: int = 30) -> int:
     old = db.scalars(select(JobRun).where(JobRun.created_at < cutoff, JobRun.status.in_(FINISHED))).all()
     for r in old:
         db.delete(r)
+    db.execute(delete(QueryExecution).where(QueryExecution.created_at < cutoff))
+    db.execute(delete(AuditLog).where(AuditLog.created_at < (now or datetime.now(timezone.utc)) - timedelta(days=365)))
     db.commit()
     return len(old)
 

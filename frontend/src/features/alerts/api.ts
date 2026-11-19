@@ -13,7 +13,7 @@ export type Alert = {
   id: string;
   name: string;
   dataset_id: string | null;
-  metric: { field: string; agg: Aggregation };
+  metric: { field: string; agg: Aggregation; label?: string | null };
   filters: unknown[];
   date_field: string | null;
   window_days: number;

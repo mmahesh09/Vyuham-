@@ -4,7 +4,8 @@ import { z } from "zod";
  * The one chart description shared by the chart builder, the backend and the renderer.
  * Mirrors backend/app/schemas.py ChartSpecIn; the backend compiles it to SQL (app/query.py).
  */
-export const aggregationSchema = z.enum(["sum", "count", "avg", "min", "max", "count_distinct"]);
+/** "metric": `field` is the id of an approved metric (features/metrics). */
+export const aggregationSchema = z.enum(["sum", "count", "avg", "min", "max", "count_distinct", "metric"]);
 export const chartTypeSchema = z.enum(["line", "area", "bar", "hbar", "combo", "scatter", "pie", "funnel", "treemap", "gauge", "kpi", "table"]);
 export const dateBucketSchema = z.enum(["day", "week", "month", "quarter", "year"]);
 
@@ -13,7 +14,7 @@ export const ROW_FIELD = "*";
 
 export const chartSpecSchema = z.object({
   dataset: z.string().min(1),
-  metrics: z.array(z.object({ field: z.string().min(1), agg: aggregationSchema })).min(1).max(5),
+  metrics: z.array(z.object({ field: z.string().min(1), agg: aggregationSchema, label: z.string().nullish() })).min(1).max(5),
   groupBy: z.string().optional(),
   dateBucket: dateBucketSchema.optional(),
   filters: z
@@ -61,9 +62,11 @@ export const AGG_LABEL: Record<Aggregation, string> = {
   count_distinct: "Unique count",
   min: "Lowest",
   max: "Highest",
+  metric: "Metric",
 };
 
 export function metricLabel(m: ChartSpec["metrics"][number]) {
+  if (m.label) return m.label;
   if (m.field === ROW_FIELD) return "Rows";
   return `${AGG_LABEL[m.agg]} ${m.field}`;
 }

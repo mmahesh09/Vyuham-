@@ -10,6 +10,7 @@ from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import exists, func, select, update
 from sqlalchemy.orm import Session
 
+from app.audit import record_action
 from app.auth_tables import user_table
 from app.db import get_db
 from app.models import Dashboard, Dataset, Invite, LeaveRecord, Task, Workspace, WorkspaceMember
@@ -209,6 +210,7 @@ def change_role(user_id: str, body: RoleIn, member: WorkspaceMember = Depends(cu
     if m.role == "owner" and body.role != "owner" and _owners(db, member.workspace_id) <= 1:
         raise HTTPException(status.HTTP_409_CONFLICT, "A workspace needs at least one owner. Make someone else an owner first.")
     m.role = body.role
+    record_action(db, member, "member.role", "user", user_id, {"role": body.role})
     db.commit()
     return {"user_id": user_id, "role": m.role}
 
@@ -222,6 +224,7 @@ def remove_member(user_id: str, member: WorkspaceMember = Depends(current_member
     # Their tasks stay, unassigned, so nothing falls through the cracks silently.
     for t in db.scalars(select(Task).where(Task.workspace_id == member.workspace_id, Task.assignee_id == user_id)):
         t.assignee_id = None
+    record_action(db, member, "member.remove", "user", user_id)
     db.delete(m)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)

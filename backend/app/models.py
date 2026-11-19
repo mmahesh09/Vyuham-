@@ -570,3 +570,126 @@ class IncidentUpdate(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     incident: Mapped[Incident] = relationship(back_populates="updates")
+
+
+# --- Semantic layer and audit trails -------------------------------------------------------------
+
+
+class SemanticMetric(Base):
+    """A business metric, defined once. Its formulas live in MetricVersion."""
+
+    __tablename__ = "semantic_metrics"
+    __table_args__ = (UniqueConstraint("workspace_id", "name", name="uq_semantic_metrics_name"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(String(1000))
+    format: Mapped[str] = mapped_column(String(12), default="number")  # number | currency | percent
+    currency: Mapped[str | None] = mapped_column(String(3))
+    unit: Mapped[str | None] = mapped_column(String(24))
+    default_date_column: Mapped[str | None] = mapped_column(String(255))
+    synonyms: Mapped[list] = mapped_column(JSON, default=list)  # other names people use for it
+    owner_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    # Versions up to this one are official. None: still a draft, invisible to charts and Ask.
+    approved_version: Mapped[int | None] = mapped_column(Integer)
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class MetricVersion(Base):
+    """One formula for a metric. Never edited: a change adds a new version."""
+
+    __tablename__ = "metric_versions"
+    __table_args__ = (UniqueConstraint("metric_id", "version", name="uq_metric_versions_number"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    metric_id: Mapped[str] = mapped_column(ForeignKey("semantic_metrics.id", ondelete="CASCADE"), index=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    formula: Mapped[str] = mapped_column(Text)
+    effective_from: Mapped[date] = mapped_column(Date)
+    note: Mapped[str | None] = mapped_column(String(300))
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class MetricTest(Base):
+    """An expected result for a metric, optionally on filtered rows. All must pass before approval."""
+
+    __tablename__ = "metric_tests"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    metric_id: Mapped[str] = mapped_column(ForeignKey("semantic_metrics.id", ondelete="CASCADE"), index=True)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    filters: Mapped[list] = mapped_column(JSON, default=list)
+    expected: Mapped[float | None] = mapped_column(Float)
+    tolerance: Mapped[float] = mapped_column(Float, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class SemanticDimension(Base):
+    """A business name for a column ("Territory" is the region column), which Ask understands."""
+
+    __tablename__ = "semantic_dimensions"
+    __table_args__ = (UniqueConstraint("workspace_id", "name", name="uq_semantic_dimensions_name"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(120))
+    column: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(String(1000))
+    synonyms: Mapped[list] = mapped_column(JSON, default=list)
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class CalculatedColumn(Base):
+    """A formula column. Its compiled form is kept in Dataset.columns (app/analytics/semantic.py)."""
+
+    __tablename__ = "calculated_columns"
+    __table_args__ = (UniqueConstraint("dataset_id", "name", name="uq_calculated_columns_name"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    formula: Mapped[str] = mapped_column(Text)
+    type: Mapped[str | None] = mapped_column(String(12))
+    error: Mapped[str | None] = mapped_column(String(500))  # why it no longer works, after the data changed
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class QueryExecution(Base):
+    """That an analytics query ran, and how it went. Never its text or values."""
+
+    __tablename__ = "query_executions"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    kind: Mapped[str] = mapped_column(String(16))  # sql | formula | dashboard | ask
+    status: Mapped[str] = mapped_column(String(10), default="ok")  # ok | partial | error
+    rows: Mapped[int | None] = mapped_column(Integer)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+class AuditLog(Base):
+    """Who changed something important in a workspace."""
+
+    __tablename__ = "audit_logs"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    action: Mapped[str] = mapped_column(String(40))
+    target_type: Mapped[str] = mapped_column(String(24))
+    target_id: Mapped[str | None] = mapped_column(String(64))
+    detail: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)

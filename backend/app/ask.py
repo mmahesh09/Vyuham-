@@ -9,11 +9,13 @@ The AI round will replace `parse_question` and keep everything after it.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
 import duckdb
 
+from app.analytics.semantic import AskTerm
 from app.insights import AMOUNT_HINT, ENTITY_HINT, ID_HINT, metric_label
 from app.models import Dataset
 from app.query import ROW_KEY, Filters, distinct_values
@@ -212,23 +214,68 @@ def _parse_one(question: str, ds: Dataset, con: duckdb.DuckDBPyConnection, today
     return Parsed(ds, spec, filters, understood, score)
 
 
-def parse_question(question: str, datasets: list[Dataset], con: duckdb.DuckDBPyConnection, today: date | None = None) -> Parsed | None:
+def phrase_words(text: str) -> list[str]:
+    return [singular(w) for w in words(text)]
+
+
+def _has_phrase(tokens: list[str], phrase: tuple[str, ...]) -> bool:
+    return any(tuple(tokens[i : i + len(phrase)]) == phrase for i in range(len(tokens) - len(phrase) + 1))
+
+
+def _apply_vocabulary(p: Parsed, question: str, vocabulary: Sequence[AskTerm]) -> None:
+    """Prefer the workspace's approved definitions over a guess from column names."""
+    tokens = phrase_words(question)
+    terms = [t for t in vocabulary if t.dataset_id == p.dataset.id and _has_phrase(tokens, t.phrase)]
+    metric = next((t for t in terms if t.kind == "metric"), None)
+    dimension = next((t for t in terms if t.kind == "dimension"), None)
+    types = {c["name"]: c["type"] for c in p.dataset.columns}
+    if dimension and types.get(dimension.target):
+        column, is_date = dimension.target, types[dimension.target] == "date"
+        p.spec["groupBy"] = column
+        p.spec["chartType"] = "line" if is_date else "bar"
+        if is_date:
+            p.spec.setdefault("dateBucket", "month")
+        p.understood.append(f"by {dimension.label}")
+        p.score += 2
+    if metric is None:
+        return
+    p.spec["metrics"] = [{"field": metric.target, "agg": "metric", "label": metric.label}]
+    p.understood[0] = metric.label
+    group = p.spec.get("groupBy")
+    if metric.date_column and types.get(metric.date_column) == "date":
+        if p.filters:
+            p.filters.date_field = metric.date_column
+        if group and types.get(group) == "date":
+            p.spec["groupBy"] = group = metric.date_column
+    suffix = "" if not group else " over time" if types.get(group) == "date" else f" by {group}"
+    p.spec["title"] = f"{metric.label}{suffix}"[:200]
+    p.score += 5
+
+
+def parse_question(
+    question: str, datasets: list[Dataset], con: duckdb.DuckDBPyConnection, today: date | None = None,
+    vocabulary: Sequence[AskTerm] = (),
+) -> Parsed | None:
     """Best interpretation across the workspace's datasets, or None if nothing matched.
 
     Traced as `vyuham.ask.parse`: how many datasets were tried and whether it matched, never the question.
     """
     with span("vyuham.ask.parse", **{"vyuham.ask.datasets": len(datasets), "vyuham.ask.words": len(words(question))}) as s:
-        parsed = _parse_question(question, datasets, con, today)
+        parsed = _parse_question(question, datasets, con, today, vocabulary)
         s.set_attribute("vyuham.ask.matched", parsed is not None)
         count("vyuham.ask.questions", matched=parsed is not None)
         return parsed
 
 
-def _parse_question(question: str, datasets: list[Dataset], con: duckdb.DuckDBPyConnection, today: date | None = None) -> Parsed | None:
+def _parse_question(
+    question: str, datasets: list[Dataset], con: duckdb.DuckDBPyConnection, today: date | None = None,
+    vocabulary: Sequence[AskTerm] = (),
+) -> Parsed | None:
     today = today or date.today()
     best: Parsed | None = None
     for ds in datasets:
         p = _parse_one(question, ds, con, today)
+        _apply_vocabulary(p, question, vocabulary)
         # Prefer the dataset whose columns the question actually names.
         p.score += len({singular(t) for t in words(question)} & set().union(*(column_words(c["name"]) for c in ds.columns)))
         if best is None or p.score > best.score:

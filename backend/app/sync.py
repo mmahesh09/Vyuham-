@@ -15,6 +15,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.analytics.semantic import refresh_calculated
 from app.config import get_settings
 from app.connectors.base import ConnectorError, QueryProblem, spec_for
 from app.connectors.extract import extract
@@ -128,6 +129,7 @@ def sync_dataset(db: Session, ds: Dataset, now: datetime | None = None) -> Datas
         finished = now or datetime.now(timezone.utc)
         ds.file_size, ds.row_count = size, len(result.frame)
         ds.columns = [c.as_dict() for c in result.columns]
+        refresh_calculated(db, ds)
         ds.last_synced_at, ds.sync_finished_at, ds.sync_error = started, finished, None
         conn.status, conn.last_error, conn.last_checked_at = "ok", None, finished
         db.commit()

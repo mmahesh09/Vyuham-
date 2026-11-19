@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.audit import log_query
 from app.db import get_db
 from app.models import Automation, Dataset, SavedQuery, WorkspaceMember
 from app.query import MAX_ROWS, QueryError, connect, explain_sql, run_sql, table_names
@@ -196,9 +197,11 @@ def run(body: RunIn, member: WorkspaceMember = Depends(current_membership), db: 
     try:
         rows = run_sql(con, *bind(body.sql, body.params))
     except QueryError as e:
+        log_query(db, member.workspace_id, member.user_id, "sql", started, "error")
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     finally:
         con.close()
+    log_query(db, member.workspace_id, member.user_id, "sql", started, rows=len(rows))
     columns = list(rows[0].keys()) if rows else []
     return RunOut(columns=columns, rows=rows, row_count=len(rows), truncated=len(rows) >= MAX_ROWS,
                   elapsed_ms=int((time.perf_counter() - started) * 1000))

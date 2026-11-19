@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from app.analytics.semantic import refresh_calculated
 from app.config import get_settings
 from app.db import get_db
 from app.ingest import IngestError, ingest, write_parquet
@@ -184,8 +185,11 @@ def update_dataset(
         unknown = set(body.column_types) - known
         if unknown:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown column: {sorted(unknown)[0]}")
+        if any(c.get("calculated") and c["name"] in body.column_types for c in dataset.columns):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A calculated column's type comes from its formula.")
         # New list so SQLAlchemy sees the JSON change.
         dataset.columns = [{**c, "type": body.column_types.get(c["name"], c["type"])} for c in dataset.columns]
+        refresh_calculated(db, dataset)
     if body.refresh is not None:
         if dataset.connection_id is None:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Only data from a connected database refreshes on a schedule.")
@@ -236,6 +240,7 @@ def replace_file(
     dataset.sheet = result.sheet
     dataset.row_count = len(result.frame)
     dataset.columns = [c.as_dict() for c in result.columns]
+    refresh_calculated(db, dataset)
     db.commit()
     db.refresh(dataset)
     return dataset

@@ -17,6 +17,7 @@ import { ChartBody, InsightHeadline } from "@/features/dashboards/insight-card";
 import { useDatasets, type Dataset } from "@/features/datasets/api";
 import { cn } from "@/lib/utils";
 
+import { useApprovedMetrics, type Metric } from "@/features/metrics/api";
 import { AGG_LABEL, ROW_FIELD, type Aggregation, type ChartSpec, type ChartType, type DateBucket } from "./chart-spec";
 
 const STEPS = ["Data", "Measure", "Group", "Type", "Style"] as const;
@@ -100,8 +101,9 @@ type Draft = {
   note: string;
 };
 
-function autoTitle(d: Draft, ds?: Dataset) {
-  const what = d.field === ROW_FIELD ? "Rows" : `${AGG_LABEL[d.agg]} ${d.field}`;
+function autoTitle(d: Draft, ds?: Dataset, metrics: Metric[] = []) {
+  const metric = d.agg === "metric" ? metrics.find((m) => m.id === d.field) : undefined;
+  const what = metric ? metric.name : d.field === ROW_FIELD ? "Rows" : `${AGG_LABEL[d.agg]} ${d.field}`;
   if (d.kind === "kpi" || !d.groupBy) return what;
   const isDate = ds?.columns.find((c) => c.name === d.groupBy)?.type === "date";
   return isDate ? `${what} over time` : `${what} by ${d.groupBy}`;
@@ -154,7 +156,7 @@ function initialDraft(ds: Dataset | undefined, kind: ChartKind): Draft {
   };
 }
 
-export function toSpec(d: Draft, ds?: Dataset): ChartSpec | null {
+export function toSpec(d: Draft, ds?: Dataset, approved: Metric[] = []): ChartSpec | null {
   if (!d.datasetId || !d.field) return null;
   const gauge = d.kind === "card" && d.chartType === "gauge";
   const groupBy = d.kind === "kpi" || gauge ? undefined : d.groupBy || undefined;
@@ -170,7 +172,7 @@ export function toSpec(d: Draft, ds?: Dataset): ChartSpec | null {
     filters: [],
     chartType: d.kind === "kpi" ? "kpi" : gauge ? "gauge" : groupBy ? d.chartType : "kpi",
     target: target !== undefined && Number.isFinite(target) ? target : undefined,
-    title: (d.titleTouched ? d.title : autoTitle(d, ds)).trim() || autoTitle(d, ds),
+    title: (d.titleTouched ? d.title : autoTitle(d, ds, approved)).trim() || autoTitle(d, ds, approved),
     sort: d.sort || undefined,
     limit: d.limit ? Math.max(1, Math.min(1000, Number(d.limit))) : undefined,
     color: d.color ?? undefined,
@@ -204,7 +206,8 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
   }, [open, chart, datasets, defaultDatasetId, defaultKind]);
 
   const ds = datasets?.find((d) => d.id === draft?.datasetId);
-  const spec = useMemo(() => (draft ? toSpec(draft, ds) : null), [draft, ds]);
+  const approved = useApprovedMetrics(ds?.id);
+  const spec = useMemo(() => (draft ? toSpec(draft, ds, approved) : null), [draft, ds, approved]);
 
   // Debounce the preview so typing a title doesn't fire a query per key.
   const [debounced, setDebounced] = useState<ChartSpec | null>(null);
@@ -361,10 +364,23 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                       value={draft.field}
                       onChange={(e) => {
                         const f = e.target.value;
+                        if (approved.some((m) => m.id === f)) {
+                          set({ field: f, agg: "metric" });
+                          return;
+                        }
                         const num = ds.columns.find((c) => c.name === f)?.type === "number";
                         set({ field: f, agg: f === ROW_FIELD ? "count" : num ? (draft.agg === "count" || draft.agg === "count_distinct" ? "sum" : draft.agg) : "count_distinct" });
                       }}
                     >
+                      {approved.length > 0 && (
+                        <optgroup label="Approved metrics">
+                          {approved.map((m) => (
+                            <option key={m.id} value={m.id} className="bg-surface">
+                              {m.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
                       <option value={ROW_FIELD} className="bg-surface">
                         Number of rows
                       </option>
@@ -375,6 +391,12 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                       ))}
                     </NativeSelect>
                   </Field>
+                  {draft.agg === "metric" ? (
+                    <Field>
+                      <FieldLabel>Calculation</FieldLabel>
+                      <FieldDescription>{approved.find((m) => m.id === draft.field)?.description || "Uses the approved definition."}</FieldDescription>
+                    </Field>
+                  ) : (
                   <Field>
                     <FieldLabel htmlFor="cb-agg">Calculation</FieldLabel>
                     <NativeSelect id="cb-agg" className="w-full" value={draft.agg} onChange={(e) => set({ agg: e.target.value as Aggregation })} disabled={aggs.length === 1}>
@@ -386,6 +408,7 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                     </NativeSelect>
                     {!isNumber && draft.field !== ROW_FIELD && <FieldDescription>Text and category columns can only be counted.</FieldDescription>}
                   </Field>
+                  )}
                   {draft.kind === "card" && TWO_MEASURES.has(draft.chartType) && (
                     <Field className="sm:col-span-2">
                       <FieldLabel htmlFor="cb-field2">
@@ -399,13 +422,18 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                           onChange={(e) =>
                             set({
                               field2: e.target.value,
-                              agg2: e.target.value === ROW_FIELD ? "count" : ds.columns.find((c) => c.name === e.target.value)?.type === "number" ? "sum" : "count_distinct",
+                              agg2: approved.some((m) => m.id === e.target.value) ? "metric" : e.target.value === ROW_FIELD ? "count" : ds.columns.find((c) => c.name === e.target.value)?.type === "number" ? "sum" : "count_distinct",
                             })
                           }
                         >
                           <option value="" className="bg-surface">
                             None
                           </option>
+                          {approved.map((m) => (
+                            <option key={m.id} value={m.id} className="bg-surface">
+                              {m.name} (metric)
+                            </option>
+                          ))}
                           <option value={ROW_FIELD} className="bg-surface">
                             Number of rows
                           </option>
@@ -415,7 +443,7 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                             </option>
                           ))}
                         </NativeSelect>
-                        {draft.field2 && draft.field2 !== ROW_FIELD && (
+                        {draft.field2 && draft.field2 !== ROW_FIELD && draft.agg2 !== "metric" && (
                           <NativeSelect aria-label="Second calculation" className="w-full" value={draft.agg2} onChange={(e) => set({ agg2: e.target.value as Aggregation })}>
                             {(ds.columns.find((c) => c.name === draft.field2)?.type === "number"
                               ? (["sum", "avg", "min", "max", "count", "count_distinct"] as Aggregation[])
@@ -540,7 +568,7 @@ export function ChartBuilder({ open, onOpenChange, chart, defaultKind = "card", 
                     <Input
                       id="cb-title"
                       maxLength={200}
-                      value={draft.titleTouched ? draft.title : autoTitle(draft, ds)}
+                      value={draft.titleTouched ? draft.title : autoTitle(draft, ds, approved)}
                       onChange={(e) => set({ title: e.target.value, titleTouched: true })}
                     />
                   </Field>

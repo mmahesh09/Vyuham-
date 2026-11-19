@@ -46,6 +46,8 @@ RULES: list[tuple[str, str, str]] = [
     ("*", "/invites/", "30/minute"),
     ("POST", "/sql/", "60/minute"),
     # Expensive work (from the rate-limit review in PR #4): AI answers, chart previews, new dashboards.
+    ("POST", "/formulas/", "120/minute"),  # validation runs as people type
+    ("POST", "/metrics", "60/minute"),
     ("POST", "/ask", "30/minute"),  # each question parses the text and runs DuckDB queries
     ("POST", "/charts/preview", "120/minute"),
     ("POST", "/templates/", "30/hour"),  # applying a template builds a whole dashboard

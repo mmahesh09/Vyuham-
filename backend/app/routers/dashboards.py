@@ -2,6 +2,7 @@
 
 import json
 import secrets
+import time
 from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
@@ -10,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.insights import chart_insight, previous_period, starter_specs
+from app.analytics.semantic import require_approved
+from app.audit import log_query, record_action
 from app.models import Chart, Dashboard, Dataset, UserProfile, WorkspaceMember
 from app.query import Filters, QueryError, connect, distinct_values, validate_select
 from app.routers.datasets import CAN_UPLOAD, owned_dataset
@@ -117,8 +120,11 @@ def _all_datasets(db: Session, workspace_id: str) -> dict[str, Dataset]:
 def _view(db: Session, d: Dashboard, date_from: date | None, date_to: date | None, equals: dict[str, str]) -> DashboardViewOut:
     """Every chart's rows and insight. Traced as `vyuham.dashboard.view` (counts only, no data)."""
     with span("vyuham.dashboard.view", **{"vyuham.workspace_id": d.workspace_id, "vyuham.dashboard.charts": len(d.charts)}) as s:
+        started = time.perf_counter()
+        workspace_id = d.workspace_id
         view = _view_impl(db, d, date_from, date_to, equals)
         failed = sum(1 for c in view.charts if c.error)
+        log_query(db, workspace_id, None, "dashboard", started, "partial" if failed else "ok", len(view.charts))
         s.set_attribute("vyuham.dashboard.failed_charts", failed)
         count("vyuham.dashboard.views", outcome="partial" if failed else "ok")
         return view
@@ -169,7 +175,13 @@ def _check_spec_dataset(db: Session, member: WorkspaceMember, spec: dict) -> Dat
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
         return ds
     cols = {c["name"] for c in ds.columns}
-    missing = [m["field"] for m in spec["metrics"] if m["field"] != "*" and m["field"] not in cols]
+    for m in spec["metrics"]:
+        if m["agg"] == "metric":
+            try:
+                m["label"] = require_approved(db, ds, m["field"]).name
+            except QueryError as e:
+                raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
+    missing = [m["field"] for m in spec["metrics"] if m["agg"] != "metric" and m["field"] != "*" and m["field"] not in cols]
     if spec.get("groupBy") and spec["groupBy"] not in cols:
         missing.append(spec["groupBy"])
     if missing:
@@ -440,6 +452,7 @@ def share(dashboard_id: str, member: WorkspaceMember = Depends(current_membershi
     d.share_token = d.share_token or secrets.token_urlsafe(24)
     if not d.created_by:
         d.created_by = member.user_id
+    record_action(db, member, "dashboard.share", "dashboard", d.id)
     db.commit()
     return ShareOut(share_token=d.share_token)
 
@@ -449,6 +462,7 @@ def unshare(dashboard_id: str, member: WorkspaceMember = Depends(current_members
     _editor(member)
     d = _dashboard(db, member, dashboard_id)
     d.share_token = None
+    record_action(db, member, "dashboard.unshare", "dashboard", d.id)
     db.commit()
     return ShareOut(share_token=None)
 

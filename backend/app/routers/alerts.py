@@ -9,6 +9,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.alerts import check_alert, run_automation
+from app.analytics.semantic import require_approved
 from app.db import get_db
 from app.models import Alert, AlertEvent, Automation, Dashboard, Dataset, Notification, WorkspaceMember
 from app.notify import WebhookError, check_webhook_url
@@ -101,7 +102,12 @@ def _validate_alert(db: Session, member: WorkspaceMember, body: AlertIn, user: A
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dataset not found")
     cols = {c["name"]: c["type"] for c in ds.columns}
     m = body.metric
-    if m.field != "*" and m.field not in cols:
+    if m.agg == "metric":
+        try:
+            m.label = require_approved(db, ds, m.field).name
+        except QueryError as e:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
+    elif m.field != "*" and m.field not in cols:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f'"{m.field}" isn\'t a column in {ds.name}')
     if m.agg in ("sum", "avg") and cols.get(m.field) != "number":
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f'"{m.field}" isn\'t a number column')

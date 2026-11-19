@@ -20,6 +20,7 @@ import { formatNumber } from "@/features/charts/build-option";
 import { AGG_LABEL, ROW_FIELD, type Aggregation } from "@/features/charts/chart-spec";
 import { useDashboards } from "@/features/dashboards/hooks";
 import { useDatasets } from "@/features/datasets/api";
+import { useApprovedMetrics } from "@/features/metrics/api";
 
 import {
   CONDITION_LABEL,
@@ -52,6 +53,7 @@ function AlertDialog({ open, onOpenChange, alert }: { open: boolean; onOpenChang
   const { data: datasets } = useDatasets();
   const save = useSaveAlert();
   const [form, setForm] = useState<AlertInput | null>(null);
+  const approved = useApprovedMetrics(form?.dataset_id);
 
   useEffect(() => {
     if (!open) return;
@@ -136,10 +138,23 @@ function AlertDialog({ open, onOpenChange, alert }: { open: boolean; onOpenChang
                 value={form.metric.field}
                 onChange={(e) => {
                   const f = e.target.value;
+                  if (approved.some((m) => m.id === f)) {
+                    set({ metric: { field: f, agg: "metric" } });
+                    return;
+                  }
                   const num = ds?.columns.find((c) => c.name === f)?.type === "number";
                   set({ metric: { field: f, agg: f === ROW_FIELD ? "count" : num ? "sum" : "count_distinct" } });
                 }}
               >
+                {approved.length > 0 && (
+                  <optgroup label="Approved metrics">
+                    {approved.map((m) => (
+                      <option key={m.id} value={m.id} className="bg-surface">
+                        {m.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
                 <option value={ROW_FIELD} className="bg-surface">
                   Number of rows
                 </option>
@@ -152,8 +167,8 @@ function AlertDialog({ open, onOpenChange, alert }: { open: boolean; onOpenChang
             </Field>
             <Field>
               <FieldLabel htmlFor="al-agg">As</FieldLabel>
-              <NativeSelect id="al-agg" className="w-full" value={form.metric.agg} onChange={(e) => set({ metric: { ...form.metric, agg: e.target.value as Aggregation } })}>
-                {aggs.map((a) => (
+              <NativeSelect id="al-agg" className="w-full" disabled={form.metric.agg === "metric"} value={form.metric.agg} onChange={(e) => set({ metric: { ...form.metric, agg: e.target.value as Aggregation } })}>
+                {(form.metric.agg === "metric" ? (["metric"] as Aggregation[]) : aggs).map((a) => (
                   <option key={a} value={a} className="bg-surface">
                     {AGG_LABEL[a]}
                   </option>
@@ -418,7 +433,7 @@ export function AlertsScreen() {
                         {!a.enabled && <Badge variant="outline" size="sm">Paused</Badge>}
                       </span>
                       <span className="text-[13px] text-muted">
-                        {a.metric.field === ROW_FIELD ? "Rows" : `${AGG_LABEL[a.metric.agg]} ${a.metric.field}`}
+                        {a.metric.label ?? (a.metric.field === ROW_FIELD ? "Rows" : `${AGG_LABEL[a.metric.agg]} ${a.metric.field}`)}
                         {a.date_field && a.window_days ? ` (last ${a.window_days} days)` : ""} {CONDITION_LABEL[a.condition].replace(" (%)", "")} {a.condition.startsWith("change") ? `${a.threshold}%` : formatNumber(a.threshold)} · {dsName} · checked {a.schedule}
                       </span>
                       <span className="text-xs text-faint">

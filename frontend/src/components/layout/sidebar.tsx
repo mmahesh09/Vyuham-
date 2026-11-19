@@ -16,6 +16,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Presentation,
+  Sigma,
   UserRound,
   Users,
   type LucideIcon,
@@ -48,6 +49,7 @@ export const NAV_GROUPS: { label?: string; items: NavItem[] }[] = [
   {
     label: "Build",
     items: [
+      { href: "/metrics", label: "Metrics", icon: Sigma },
       { href: "/sql", label: "SQL Lab", icon: Code2 },
       { href: "/lab", label: "Dashboard Lab", icon: LayoutGrid },
     ],
