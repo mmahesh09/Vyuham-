@@ -28,7 +28,7 @@ const COLUMNS: { title: string; links: [string, string][] }[] = [
     ],
   },
   { title: "Account", links: [["Join the beta", "/signup"], ["Log in", "/login"]] },
-  { title: "Legal", links: [["Privacy", "/privacy"], ["Terms", "#"]] },
+  { title: "Legal", links: [["Privacy", "/privacy"], ["Terms", "/terms"]] },
 ];
 
 /** The site footer for every marketing page. */

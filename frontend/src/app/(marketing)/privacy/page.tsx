@@ -2,22 +2,10 @@ import type { Metadata } from "next";
 
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
-import { PRIVACY_VERSION } from "@/lib/legal";
+import { LEGAL, PRIVACY_VERSION } from "@/lib/legal";
 
-/*
- * ─── FILL THESE IN BEFORE LAUNCH ──────────────────────────────────────────────
- * The DPDP Act requires a named Data Fiduciary and a reachable grievance contact.
- * Have a lawyer review this page before it goes live.
- */
-const LEGAL = {
-  entity: "[Registered company name]",
-  address: "[Registered office address, India]",
-  grievanceOfficer: "[Name of Grievance Officer]",
-  grievanceEmail: "[privacy@your-domain]",
-  hosting: "[Hosting region, e.g. India (Mumbai)]",
-};
 // Bump PRIVACY_VERSION in src/lib/legal.ts when this page changes.
-const UPDATED = "9 November 2026";
+const UPDATED = "19 November 2026";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -181,11 +169,12 @@ export default function PrivacyPage() {
               don&apos;t use it for targeted advertising or behavioural monitoring.
             </li>
             <li className={li}>
-              <strong className="text-text">No AI training on your data.</strong> Neither we nor our AI provider use your uploaded data or
-              account data to train AI models.
+              <strong className="text-text">No AI training on your data.</strong> We don&apos;t use your uploaded data or account data to
+              train AI models.
             </li>
             <li className={li}>
-              <strong className="text-text">No tracking cookies</strong> and no third-party advertising or analytics scripts (see section 12).
+              <strong className="text-text">No tracking cookies</strong> and no advertising scripts. We use cookie-free website analytics to
+              count page visits (see section 12).
             </li>
           </ul>
 
@@ -204,26 +193,19 @@ export default function PrivacyPage() {
 
           <H2 id="ai">5. AI features</H2>
           <p className={p}>
-            Some features, like suggested charts, plain-English answers and insight summaries, use a third-party AI model (Anthropic&apos;s
-            Claude). These features are rolling out during the beta. When they are on, we keep personal data out of the model as far as
-            possible:
+            Vyuham doesn&apos;t currently send your data to a third-party AI model. Suggested charts, plain-English answers and insight
+            summaries are produced on our own servers using rules and calculations from your data.
           </p>
-          <ul className="flex list-disc flex-col gap-2 pl-5">
-            <li className={li}>
-              We send column names, column types, a few example values per column, your question, and the{" "}
-              <strong className="text-text">totals and summaries</strong> that we calculate on our own servers. We don&apos;t send your full
-              file.
-            </li>
-            <li className={li}>The AI provider processes this only to produce your answer, under a contract that forbids training on it.</li>
-            <li className={li}>The numbers in answers are calculated by our database, not invented by the AI. The AI only writes the explanation.</li>
-          </ul>
+          <p className={p}>
+            If we add an AI provider, we will update this policy first and tell you what would be sent, why, and which choices you have.
+          </p>
 
           <H2 id="purposes">6. Why we process data (lawful basis)</H2>
           <p className={p}>Under the DPDP Act we process personal data on one of two grounds:</p>
           <ul className="flex list-disc flex-col gap-2 pl-5">
             <li className={li}>
               <strong className="text-text">Your consent</strong> (section 6), which you give when you create an account, for running your
-              account, your profile features, chart usage insights and AI features. You can withdraw it at any time, as easily as you gave
+              account, your profile features and chart usage insights. You can withdraw it at any time, as easily as you gave
               it (see section 9).
             </li>
             <li className={li}>
@@ -245,8 +227,8 @@ export default function PrivacyPage() {
               view it.
             </li>
             <li className={li}>
-              <strong className="text-text">Service providers (Data Processors)</strong> who help us run Vyuham, such as cloud hosting, the
-              AI provider, email delivery and, later, the payment gateway. They act only on our instructions, under contracts that require
+              <strong className="text-text">Service providers (Data Processors)</strong> who help us run Vyuham, such as cloud hosting,
+              website analytics, email delivery and, later, the payment gateway. They act only on our instructions, under contracts that require
               DPDP-level protection.
             </li>
             <li className={li}>
@@ -267,6 +249,8 @@ export default function PrivacyPage() {
             <li className={li}>Leave history: while your account is active, so you and your team have a record.</li>
             <li className={li}>Data tasks: while the workspace exists. If someone leaves the workspace, their tasks stay but become unassigned.</li>
             <li className={li}>Invite links: until used, revoked or expired (7 days).</li>
+            <li className={li}>Exported report files: 30 days, or until the workspace is deleted.</li>
+            <li className={li}>Backups: deleted data can remain in server backups for up to 14 days before they expire.</li>
             <li className={li}>
               When you delete your account, or the purpose is over, we erase your personal data, except what the law requires us to keep.
               Security logs (sign-in and access records) are kept for <strong className="text-text">one year</strong>, as the DPDP Rules,
@@ -336,10 +320,14 @@ export default function PrivacyPage() {
             We use one essential cookie, the sign-in session cookie that keeps you logged in. It expires after 7 days without use or when you
             log out. We don&apos;t use advertising cookies, tracking pixels or third-party analytics cookies.
           </p>
+          <p className={p}>
+            We use Vercel Web Analytics to understand website traffic in aggregate, such as pages viewed, referring sites, device type and
+            approximate country. It doesn&apos;t use cookies.
+          </p>
 
           <H2 id="transfers">13. Where data is stored</H2>
           <p className={p}>
-            Your data is stored in {LEGAL.hosting}. Some service providers, such as the AI provider, may process data outside India. The DPDP
+            Your data is stored in {LEGAL.hosting}. Some service providers, such as hosting, analytics or email providers, may process data outside India. The DPDP
             Act allows this except to countries the Central Government restricts, and we will not transfer data to any restricted country.
           </p>
 
