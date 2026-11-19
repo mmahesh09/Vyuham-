@@ -12,13 +12,15 @@ import { useEffect, useRef, type ReactNode } from "react";
 const PixelMatchaGradient = dynamic(() => import("./pixel-matcha-gradient"), { ssr: false });
 const MATCHA_FALLBACK = "linear-gradient(100deg, #12A06C, #3DC68C, #80E1B5, #BFF0D7, #EDF6EF)";
 
-const STOPS = ["#F04E36", "#F87A5C", "#FBA184", "#FFCBB4", "#F9EFEA"];
+const QUILTS = {
+  coral: { stops: ["#F04E36", "#F87A5C", "#FBA184", "#FFCBB4", "#F9EFEA"], startTime: 51.35, seam: "rgba(240,78,54,0.075)", ink: "text-[#2a0d07]" },
+  amber: { stops: ["#F59410", "#FFB23C", "#FFCB70", "#FFE2A6", "#F8F1E0"], startTime: 46.83, seam: "rgba(245,148,16,0.075)", ink: "text-[#2b1a03]" },
+};
+type Quilt = (typeof QUILTS)[keyof typeof QUILTS];
 const STOP_POSITIONS = [0.1, 0.3, 0.5, 0.7, 0.9];
-const FALLBACK = `linear-gradient(100deg, ${STOPS.join(", ")})`;
 
 const TILES_ON_SHORT_EDGE = 12;
 const BANDS = 12;
-const START_TIME = 51.35;
 const TIME_PER_SECOND = 0.36;
 const FRAME_MS = 1000 / 30;
 const MAX_EDGE = 2560;
@@ -55,8 +57,8 @@ function oklabToCss([L, a, b]: Lab) {
 }
 
 /** 256 colours along the palette, so a frame never has to convert colours. */
-function buildPalette() {
-  const labs = STOPS.map(hexToOklab);
+function buildPalette(stops: string[]) {
+  const labs = stops.map(hexToOklab);
   return Array.from({ length: 256 }, (_, i) => {
     const t = i / 255;
     const next = STOP_POSITIONS.findIndex((p) => t <= p);
@@ -73,7 +75,7 @@ function tileNoise(row: number, col: number) {
   return n - Math.floor(n);
 }
 
-/** How far along the palette one tile sits: light around a focus on the right, coral away from it. */
+/** How far along the palette one tile sits: light around a focus on the right, saturated away from it. */
 function tileValue(x: number, y: number, row: number, col: number, time: number) {
   const focusX = 0.82 + 0.014 * Math.sin(time * 0.72);
   const focusY = 0.52 + 0.01 * Math.cos(time * 0.58);
@@ -88,7 +90,7 @@ function tileValue(x: number, y: number, row: number, col: number, time: number)
   return clamp01(Math.round(value * BANDS) / BANDS + jitter + shimmer);
 }
 
-function paint(ctx: CanvasRenderingContext2D, width: number, height: number, palette: string[], time: number) {
+function paint(ctx: CanvasRenderingContext2D, width: number, height: number, palette: string[], seam: string, time: number) {
   const tile = Math.min(width, height) / TILES_ON_SHORT_EDGE;
   const cols = Math.max(4, Math.round(width / tile));
   const rows = Math.max(4, Math.round(height / tile));
@@ -102,28 +104,28 @@ function paint(ctx: CanvasRenderingContext2D, width: number, height: number, pal
   }
   // A light and a dark hairline side by side give each tile a soft edge.
   const line = Math.max(0.65, Math.min(cw, ch) * 0.014);
-  for (const [style, offset] of [["rgba(255,255,255,0.12)", -line], ["rgba(240,78,54,0.075)", 0]] as const) {
+  for (const [style, offset] of [["rgba(255,255,255,0.12)", -line], [seam, 0]] as const) {
     ctx.fillStyle = style;
     for (let col = 1; col < cols; col++) ctx.fillRect(Math.round(col * cw) + offset, 0, line, height);
     for (let row = 1; row < rows; row++) ctx.fillRect(0, Math.round(row * ch) + offset, width, line);
   }
 }
 
-function QuiltCanvas() {
+function QuiltCanvas({ quilt }: { quilt: Quilt }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = ref.current;
     const ctx = canvas?.getContext("2d");
     if (!canvas || !ctx) return;
-    const palette = buildPalette();
+    const palette = buildPalette(quilt.stops);
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let time = START_TIME;
+    let time = quilt.startTime;
     let onScreen = true;
     let frame = 0;
     let last = 0;
 
-    const draw = () => paint(ctx, canvas.width, canvas.height, palette, time);
+    const draw = () => paint(ctx, canvas.width, canvas.height, palette, quilt.seam, time);
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
       const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -170,12 +172,12 @@ function QuiltCanvas() {
       document.removeEventListener("visibilitychange", sync);
       motion.removeEventListener("change", sync);
     };
-  }, []);
+  }, [quilt]);
 
   return <canvas ref={ref} aria-hidden className="absolute inset-0 -z-10 size-full" />;
 }
 
-/** The gradient banner at the top of the blog article. Its children sit in the same column as the page below. */
+/** The gradient banner at the top of the blog and About pages. Its children sit in the same column as the page below. */
 export function BlogHero({
   children,
   column = "max-w-[760px]",
@@ -183,20 +185,20 @@ export function BlogHero({
 }: {
   children: ReactNode;
   column?: string;
-  variant?: "coral" | "matcha";
+  variant?: "coral" | "amber" | "matcha";
 }) {
-  const matcha = variant === "matcha";
+  const quilt = variant === "matcha" ? null : QUILTS[variant];
   return (
     <header
-      className={`relative isolate mx-auto mt-2 w-[calc(100%-16px)] max-w-[1280px] overflow-hidden rounded-[24px] ${matcha ? "text-[#06291c]" : "text-[#2a0d07]"}`}
-      style={{ background: matcha ? MATCHA_FALLBACK : FALLBACK }}
+      className={`relative isolate mx-auto mt-2 w-[calc(100%-16px)] max-w-[1280px] overflow-hidden rounded-[24px] ${quilt ? quilt.ink : "text-[#06291c]"}`}
+      style={{ background: quilt ? `linear-gradient(100deg, ${quilt.stops.join(", ")})` : MATCHA_FALLBACK }}
     >
-      {matcha ? (
+      {quilt ? (
+        <QuiltCanvas quilt={quilt} />
+      ) : (
         <div aria-hidden className="absolute inset-0 -z-10">
           <PixelMatchaGradient style={{ position: "absolute", inset: 0, height: "100%", aspectRatio: "auto" }} />
         </div>
-      ) : (
-        <QuiltCanvas />
       )}
       <div className={`mx-auto flex w-full flex-col gap-6 px-5 py-[clamp(64px,10vw,136px)] ${column}`}>{children}</div>
     </header>

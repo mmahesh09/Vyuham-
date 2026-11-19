@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { BlogHero } from "@/components/marketing/blog-hero";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 
@@ -22,20 +23,19 @@ export default function AboutPage() {
   return (
     <div className="flex min-h-screen flex-col bg-bg">
       <SiteHeader />
+      <BlogHero column="max-w-[860px]" variant="amber">
+        <p className="font-mono text-[11px] uppercase tracking-[0.16em]">About Vyuham</p>
+        <h1 className="font-display text-[clamp(34px,5vw,56px)] font-semibold leading-[1.05] tracking-tight">
+          Answers from your spreadsheets, without a data team.
+        </h1>
+        <p className="max-w-[60ch] text-[16.5px] leading-[1.7]">
+          Small businesses run on spreadsheets, and simple questions about revenue or costs still take hours of copying and
+          checking. Business intelligence tools can help, but they expect an analyst to run them. Vyuham is for the teams
+          that don&apos;t have one.
+        </p>
+      </BlogHero>
       <main className="mx-auto w-full max-w-[860px] flex-1 px-5 pb-24 pt-14">
-        <div className="flex flex-col gap-4 pb-10">
-          <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-faint">About Vyuham</p>
-          <h1 className="font-display text-[clamp(34px,5vw,48px)] font-semibold leading-[1.05] tracking-tight text-text">
-            Answers from your spreadsheets, without a data team.
-          </h1>
-          <p className="max-w-[60ch] text-[16.5px] leading-[1.7] text-muted">
-            Small businesses run on spreadsheets, and simple questions about revenue or costs still take hours of copying and
-            checking. Business intelligence tools can help, but they expect an analyst to run them. Vyuham is for the teams
-            that don&apos;t have one.
-          </p>
-        </div>
-
-        <section className="flex flex-col gap-3 border-t border-line pt-10">
+        <section className="flex flex-col gap-3">
           <h2 className="text-[20px] font-semibold text-text">Who it&apos;s for</h2>
           <p className="max-w-[65ch] text-[16px] leading-[1.75] text-muted">
             Founders, owners and managers at companies of 1 to 100 people: startups tracking revenue, small businesses running
