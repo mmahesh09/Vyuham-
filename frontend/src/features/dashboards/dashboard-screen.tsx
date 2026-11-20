@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ChartBuilder } from "@/features/charts/chart-builder";
+import { ChartEditor } from "@/features/charts/studio/chart-editor";
 import { TaskDialog } from "@/features/team/task-dialog";
 import { ExportMenu } from "@/features/reports/export-menu";
 import { cn } from "@/lib/utils";
@@ -285,7 +285,7 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
 
       {canEdit && (
         <>
-          <ChartBuilder
+          <ChartEditor
             open={builder.open}
             onOpenChange={(open) => {
               setBuilder((b) => ({ ...b, open }));

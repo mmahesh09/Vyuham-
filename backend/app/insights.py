@@ -191,9 +191,12 @@ def chart_insight(
     # Traced as `vyuham.insights`: the chart kind and whether it compared periods, never the data.
     with span("vyuham.insights", **{"vyuham.chart.type": str(spec.get("type") or "unknown"), "vyuham.chart.sql": bool(spec.get("sql"))}) as s:
         rows = run_spec(con, spec, dataset, filters)
+        # A chart split by colour has one row per (label, series); its headline describes the whole, unsplit total.
+        whole = {k: v for k, v in spec.items() if k != "seriesBy"} if spec.get("seriesBy") else spec
+        whole_rows = run_spec(con, whole, dataset, filters) if whole is not spec else rows
         prev = None if spec.get("sql") else previous_period(filters)  # SQL charts ignore dashboard filters
-        prev_rows = run_spec(con, spec, dataset, prev) if prev else None
-        insight = describe(spec, rows, prev_rows, dataset, has_period=prev is not None)
+        prev_rows = run_spec(con, whole, dataset, prev) if prev else None
+        insight = describe(whole, whole_rows, prev_rows, dataset, has_period=prev is not None)
         s.set_attribute("vyuham.insights.compared", prev is not None)
         s.set_attribute("vyuham.insights.trend", insight.trend)
         return rows, insight

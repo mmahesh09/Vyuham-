@@ -182,8 +182,7 @@ def _check_spec_dataset(db: Session, member: WorkspaceMember, spec: dict) -> Dat
             except QueryError as e:
                 raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     missing = [m["field"] for m in spec["metrics"] if m["agg"] != "metric" and m["field"] != "*" and m["field"] not in cols]
-    if spec.get("groupBy") and spec["groupBy"] not in cols:
-        missing.append(spec["groupBy"])
+    missing += [spec[k] for k in ("groupBy", "seriesBy") if spec.get(k) and spec[k] not in cols]
     if missing:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f'"{missing[0]}" isn\'t a column in {ds.name}')
     return ds

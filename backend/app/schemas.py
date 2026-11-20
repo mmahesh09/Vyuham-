@@ -318,6 +318,8 @@ class RowsOut(BaseModel):
 
 Agg = Literal["sum", "count", "avg", "min", "max", "count_distinct", "metric"]  # "metric": `field` is an approved metric's id
 ChartType = Literal["line", "bar", "pie", "kpi", "table", "area", "hbar", "combo", "scatter", "funnel", "treemap", "gauge"]
+# Chart types that can show one series per value of a second dimension (the Colour shelf).
+SPLITTABLE = ("line", "area", "bar", "hbar", "table")
 HEX = r"^#[0-9a-fA-F]{6}$"
 
 
@@ -348,6 +350,8 @@ class ChartSpecIn(BaseModel):
     dataset: str = Field(min_length=1, max_length=32)
     metrics: list[SpecMetric] = Field(min_length=1, max_length=5)
     groupBy: str | None = Field(default=None, max_length=255)
+    # The Colour shelf: a second dimension that splits the chart into one series per value.
+    seriesBy: str | None = Field(default=None, max_length=255)
     dateBucket: Literal["day", "week", "month", "quarter", "year"] | None = None
     filters: list[SpecFilter] = Field(default_factory=list, max_length=20)
     chartType: ChartType
@@ -362,6 +366,15 @@ class ChartSpecIn(BaseModel):
     sql: str | None = Field(default=None, max_length=10_000)
     # Values for the query's {{name}} placeholders, fixed when the chart was saved.
     params: list[SqlParam] | None = Field(default=None, max_length=20)
+
+    @model_validator(mode="after")
+    def _series_fits(self):
+        if self.seriesBy is not None:
+            if self.sql is not None:
+                raise ValueError("Charts from SQL Lab can't be split by colour.")
+            if self.chartType not in SPLITTABLE:
+                raise ValueError("Only line, area, bar and table charts can be split by colour.")
+        return self
 
 
 class ChartIn(BaseModel):

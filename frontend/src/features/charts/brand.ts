@@ -30,9 +30,12 @@ export const BRAND_LIGHT: typeof BRAND = {
   faint: "#6f5f53",
 };
 
-/** Same order as --chart-1..5 in globals.css. */
-export const SERIES_COLORS = [BRAND.highlight, BRAND.primary, BRAND.accent, "#a8978a", "#8a4a24"];
-const SERIES_COLORS_LIGHT = [BRAND_LIGHT.highlight, BRAND_LIGHT.primary, BRAND_LIGHT.accent, "#8a7768", "#a5531f"];
+/**
+ * Same order as --chart-1..5 in globals.css, then three muted extras so a chart split by colour
+ * (up to 8 series) never repeats a colour.
+ */
+export const SERIES_COLORS = [BRAND.highlight, BRAND.primary, BRAND.accent, "#a8978a", "#8a4a24", "#e8c872", "#6fb7a8", "#c98bb9"];
+const SERIES_COLORS_LIGHT = [BRAND_LIGHT.highlight, BRAND_LIGHT.primary, BRAND_LIGHT.accent, "#8a7768", "#a5531f", "#9a7a12", "#2f7d6d", "#9c4f86"];
 
 /** Dark hex (lowercase) -> light hex, for recolouring options built with BRAND. */
 const TO_LIGHT: Record<string, string> = Object.fromEntries([

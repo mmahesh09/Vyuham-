@@ -296,8 +296,20 @@ def compile_spec(spec: dict, dataset: Dataset, dash: Filters | None = None) -> t
             expr = f"COUNT(DISTINCT {quote(name)})" if agg == "count_distinct" else f"{AGGS[agg]}({quote(name)})"
         selects.append(f"{expr} AS {quote(metric_key(m))}")
 
+    series_by = spec.get("seriesBy") or None
+    if series_by:
+        if not group_by:
+            raise QueryError("Put a field on Columns before splitting by colour.")
+        if series_by == group_by:
+            raise QueryError("Colour needs a different field from Columns.")
+        if _need(cols, series_by) not in ("category", "text"):
+            raise QueryError(f"“{series_by}” can’t split the chart by colour. Use a category or text column.")
+        selects.insert(1, f"CAST({quote(series_by)} AS VARCHAR) AS {quote(series_by)}")
+
     sql = f"SELECT {', '.join(selects)} FROM {view_name(dataset.id)}"
     sql += _where(cols, spec.get("filters") or [], dash, params)
+    if series_by:
+        return _series_sql(sql, spec, quote(group_by), quote(series_by), [quote(metric_key(m)) for m in metrics], is_date_group), params
     if group_by:
         # Filter/sort in an outer query so the bucketed label (not the raw column) is what we test.
         g = quote(group_by)
@@ -307,6 +319,30 @@ def compile_spec(spec: dict, dataset: Dataset, dash: Filters | None = None) -> t
         limit = int(spec.get("limit") or (500 if is_date_group else 50))
         sql = f"SELECT * FROM ({sql} GROUP BY 1) AS q WHERE {g} IS NOT NULL ORDER BY {order} LIMIT {max(1, min(limit, 1000))}"
     return sql, params
+
+
+MAX_SERIES = 8
+
+
+def _series_sql(inner: str, spec: dict, g: str, s: str, measures: list[str], is_date_group: bool) -> str:
+    """A chart split by colour: one row per (label, series), keeping the MAX_SERIES largest series.
+
+    Series are ranked by the first measure's total; labels are ordered and limited like an unsplit chart,
+    with "value" sorts using each label's total across the kept series.
+    """
+    first = measures[0]
+    sort = spec.get("sort") or ("label" if is_date_group else "value_desc")
+    rank_order = {"label": f"{g} ASC", "value_desc": "__total DESC NULLS LAST", "value_asc": "__total ASC NULLS LAST"}.get(sort, f"{g} ASC")
+    limit = max(1, min(int(spec.get("limit") or (500 if is_date_group else 50)), 1000))
+    picked = ", ".join([g, s, *measures])
+    return (
+        f"WITH q AS ({inner} GROUP BY 1, 2), "
+        f"top AS (SELECT {s} AS __s FROM q WHERE {s} IS NOT NULL AND {g} IS NOT NULL "
+        f"GROUP BY 1 ORDER BY SUM({first}) DESC NULLS LAST, 1 LIMIT {MAX_SERIES}), "
+        f"r AS (SELECT q.*, SUM({first}) OVER (PARTITION BY {g}) AS __total FROM q JOIN top ON q.{s} = top.__s WHERE q.{g} IS NOT NULL), "
+        f"k AS (SELECT r.*, DENSE_RANK() OVER (ORDER BY {rank_order}, {g}) AS __rank FROM r) "
+        f"SELECT {picked} FROM k WHERE __rank <= {limit} ORDER BY __rank, {s}"
+    )
 
 
 def run_spec(con: duckdb.DuckDBPyConnection, spec: dict, dataset: Dataset, dash: Filters | None = None) -> list[dict]:

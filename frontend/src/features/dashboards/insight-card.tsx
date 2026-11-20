@@ -20,15 +20,17 @@ const TREND = {
   flat: { icon: Circle, tone: "text-faint", label: "Flat" },
 };
 
-/** A small table for "table" charts: the group and each measure. */
+/** A small table for "table" charts: the group, the Colour split if any, and each measure. */
 function ResultTable({ spec, rows }: { spec: ChartSpec; rows: ResultRow[] }) {
   const group = spec.groupBy;
+  const split = group ? spec.seriesBy : undefined;
   return (
     <div className="mt-5 max-h-72 overflow-auto rounded-lg border border-line">
       <table className="w-full text-left text-[14px]">
         <thead className="sticky top-0 bg-surface-2 text-muted">
           <tr>
             {group && <th className="px-3 py-2 font-medium">{group}</th>}
+            {split && <th className="px-3 py-2 font-medium">{split}</th>}
             {spec.metrics.map((m) => (
               <th key={metricKey(m)} className="px-3 py-2 text-right font-medium">
                 {metricLabel(m)}
@@ -40,6 +42,7 @@ function ResultTable({ spec, rows }: { spec: ChartSpec; rows: ResultRow[] }) {
           {rows.map((r, n) => (
             <tr key={n}>
               {group && <td className="px-3 py-2">{axisLabel(String(r[group] ?? "—"))}</td>}
+              {split && <td className="px-3 py-2">{String(r[split] ?? "—")}</td>}
               {spec.metrics.map((m) => (
                 <td key={metricKey(m)} className="px-3 py-2 text-right tabular-nums">
                   {formatNumber(r[metricKey(m)])}

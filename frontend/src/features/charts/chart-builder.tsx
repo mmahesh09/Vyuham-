@@ -18,6 +18,7 @@ import { useDatasets, type Dataset } from "@/features/datasets/api";
 import { cn } from "@/lib/utils";
 
 import { useApprovedMetrics, type Metric } from "@/features/metrics/api";
+import { SPLITTABLE } from "./build-option";
 import { AGG_LABEL, ROW_FIELD, type Aggregation, type ChartSpec, type ChartType, type DateBucket } from "./chart-spec";
 
 const STEPS = ["Data", "Measure", "Group", "Type", "Style"] as const;
@@ -99,6 +100,9 @@ type Draft = {
   limit: string;
   color: string | null;
   note: string;
+  /** Kept from the chart being edited (set in the studio), so editing here doesn't drop them. */
+  seriesBy: string;
+  filters: ChartSpec["filters"];
 };
 
 function autoTitle(d: Draft, ds?: Dataset, metrics: Metric[] = []) {
@@ -128,6 +132,8 @@ function fromRecord(c: ChartRecord): Draft {
     limit: s.limit ? String(s.limit) : "",
     color: s.color ?? null,
     note: c.note ?? "",
+    seriesBy: s.seriesBy ?? "",
+    filters: s.filters ?? [],
   };
 }
 
@@ -153,6 +159,8 @@ function initialDraft(ds: Dataset | undefined, kind: ChartKind): Draft {
     limit: "",
     color: null,
     note: "",
+    seriesBy: "",
+    filters: [],
   };
 }
 
@@ -169,7 +177,8 @@ export function toSpec(d: Draft, ds?: Dataset, approved: Metric[] = []): ChartSp
     metrics,
     groupBy,
     dateBucket: isDate ? d.dateBucket : undefined,
-    filters: [],
+    seriesBy: groupBy && d.seriesBy && d.seriesBy !== groupBy && SPLITTABLE.has(d.chartType) ? d.seriesBy : undefined,
+    filters: d.filters,
     chartType: d.kind === "kpi" ? "kpi" : gauge ? "gauge" : groupBy ? d.chartType : "kpi",
     target: target !== undefined && Number.isFinite(target) ? target : undefined,
     title: (d.titleTouched ? d.title : autoTitle(d, ds, approved)).trim() || autoTitle(d, ds, approved),

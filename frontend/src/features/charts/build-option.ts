@@ -35,7 +35,61 @@ function alpha(hex: string, a: number) {
  * KPI and table charts are rendered as HTML instead (see insight-card.tsx).
  * `highlightLast` paints the final bar/point in the accent colour (the "what changed" point).
  */
+/** Chart types that can be split into one series per value of `seriesBy` (the Colour shelf). */
+export const SPLITTABLE = new Set<ChartSpec["chartType"]>(["line", "area", "bar", "hbar", "table"]);
+
+/**
+ * Rows arrive one per (label, series). Pivot them into labels in query order and one value list per series,
+ * with null where a series has no row for a label.
+ */
+export function pivotSeries(rows: ResultRow[], x: string, s: string, y: string) {
+  const labels: string[] = [];
+  const names: string[] = [];
+  const cells = new Map<string, Map<string, number | null>>();
+  for (const r of rows) {
+    const label = String(r[x] ?? "");
+    const name = String(r[s] ?? "");
+    if (!cells.has(label)) {
+      labels.push(label);
+      cells.set(label, new Map());
+    }
+    if (!names.includes(name)) names.push(name);
+    cells.get(label)!.set(name, r[y] === null || r[y] === undefined ? null : Number(r[y]));
+  }
+  // Largest series first, so the legend and the colours follow importance.
+  const total = (name: string) => labels.reduce((sum, l) => sum + (cells.get(l)!.get(name) ?? 0), 0);
+  names.sort((a, b) => total(b) - total(a));
+  return { labels, series: names.map((name) => ({ name, values: labels.map((l) => cells.get(l)!.get(name) ?? null) })) };
+}
+
+/** Line, area or bar charts with one series per Colour value. Colours come from the theme (SERIES_COLORS). */
+function splitOption(spec: ChartSpec, rows: ResultRow[]): EChartsCoreOption {
+  const { labels, series } = pivotSeries(rows, spec.groupBy ?? "", spec.seriesBy ?? "", metricKey(spec.metrics[0]));
+  const horizontal = spec.chartType === "hbar";
+  const isBar = spec.chartType === "bar" || horizontal;
+  const categoryAxis = horizontal
+    ? { type: "category", data: [...labels].reverse().map(axisLabel), axisLabel: { width: 120, overflow: "truncate" } }
+    : { type: "category", data: labels, boundaryGap: isBar, axisLabel: { formatter: axisLabel, hideOverlap: true } };
+  const valueAxis = { type: "value", axisLabel: { formatter: (v: number) => compact.format(v) } };
+  return {
+    grid: { left: 8, right: 8, top: 32, bottom: 4, containLabel: true },
+    tooltip: { trigger: "axis", valueFormatter: formatNumber },
+    legend: { type: "scroll", top: 0, left: 0, icon: "circle", itemWidth: 8, itemHeight: 8, textStyle: { fontSize: 12 } },
+    xAxis: horizontal ? valueAxis : categoryAxis,
+    yAxis: horizontal ? categoryAxis : valueAxis,
+    series: series.map((s) => ({
+      type: isBar ? "bar" : "line",
+      name: s.name,
+      ...(isBar
+        ? { barMaxWidth: horizontal ? 18 : 28, itemStyle: { borderRadius: horizontal ? [0, 4, 4, 0] : [4, 4, 0, 0] } }
+        : { smooth: true, showSymbol: labels.length < 3, connectNulls: true, lineStyle: { width: 2 }, ...(spec.chartType === "area" ? { areaStyle: { opacity: 0.12 } } : {}) }),
+      data: horizontal ? [...s.values].reverse() : s.values,
+    })),
+  };
+}
+
 export function buildOption(spec: ChartSpec, rows: ResultRow[], { highlightLast = false } = {}): EChartsCoreOption {
+  if (spec.seriesBy && spec.groupBy && SPLITTABLE.has(spec.chartType) && spec.chartType !== "table") return splitOption(spec, rows);
   const x = spec.groupBy ?? "";
   const y = metricKey(spec.metrics[0]);
   const labels = rows.map((r) => String(r[x] ?? ""));

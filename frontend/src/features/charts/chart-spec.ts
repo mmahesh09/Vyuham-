@@ -16,6 +16,8 @@ export const chartSpecSchema = z.object({
   dataset: z.string().min(1),
   metrics: z.array(z.object({ field: z.string().min(1), agg: aggregationSchema, label: z.string().nullish() })).min(1).max(5),
   groupBy: z.string().optional(),
+  /** The Colour shelf: a second dimension that splits line, area, bar and table charts into series. */
+  seriesBy: z.string().optional(),
   dateBucket: dateBucketSchema.optional(),
   filters: z
     .array(
