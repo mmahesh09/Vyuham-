@@ -110,7 +110,7 @@ def _date_range(text: str, today: date) -> tuple[date, date, str] | None:
     return None
 
 
-def _parse_one(question: str, ds: Dataset, con: duckdb.DuckDBPyConnection, today: date) -> Parsed:
+def _parse_one(question: str, ds: Dataset, con: duckdb.DuckDBPyConnection, today: date, lookup_values: bool = True) -> Parsed:
     tokens = words(question)
     tokset = set(tokens)
     cols = ds.columns
@@ -183,8 +183,9 @@ def _parse_one(question: str, ds: Dataset, con: duckdb.DuckDBPyConnection, today
                 spec["sort"] = "value_asc" if top[1] in ("bottom", "worst") else "value_desc"
                 understood.append(f"{top[1]} {n}")
 
-    # Values mentioned in the question ("in North", "for Acme")
-    for c in groupable:
+    # Values mentioned in the question ("in North", "for Acme"). Each column's values are a scan of the
+    # data, so this only runs for the datasets that are already the best matches (see _parse_question).
+    for c in groupable if lookup_values else []:
         if c["name"] == group:
             continue
         try:
@@ -267,17 +268,29 @@ def parse_question(
         return parsed
 
 
+VALUE_LOOKUP_DATASETS = 2
+
+
 def _parse_question(
     question: str, datasets: list[Dataset], con: duckdb.DuckDBPyConnection, today: date | None = None,
     vocabulary: Sequence[AskTerm] = (),
 ) -> Parsed | None:
     today = today or date.today()
-    best: Parsed | None = None
-    for ds in datasets:
-        p = _parse_one(question, ds, con, today)
+    asked = {singular(t) for t in words(question)}
+
+    def parse(ds: Dataset, lookup_values: bool) -> Parsed:
+        p = _parse_one(question, ds, con, today, lookup_values)
         _apply_vocabulary(p, question, vocabulary)
         # Prefer the dataset whose columns the question actually names.
-        p.score += len({singular(t) for t in words(question)} & set().union(*(column_words(c["name"]) for c in ds.columns)))
+        p.score += len(asked & set().union(*(column_words(c["name"]) for c in ds.columns)))
+        return p
+
+    # Rank every dataset on its columns alone, then look up mentioned values ("in North") only in the
+    # best few: a values lookup scans a column, and doing it for every dataset made Ask slow.
+    ranked = sorted((parse(ds, False) for ds in datasets), key=lambda p: p.score, reverse=True)
+    best: Parsed | None = None
+    for p in ranked[:VALUE_LOOKUP_DATASETS]:
+        p = parse(p.dataset, True)
         if best is None or p.score > best.score:
             best = p
     if best is None or best.score < 2:

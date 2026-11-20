@@ -159,6 +159,16 @@ def _normalise_number(v: str) -> str | None:
     return s if s and NUMBER_RE.match(s) and re.search(r"\d", s) else None
 
 
+def _normalise_numbers(values: pd.Series) -> pd.Series:
+    """`_normalise_number` for a whole column at once (same rules, no per-cell Python), commas removed.
+    Cells that aren't numbers become ""."""
+    s = values.str.replace(r"\s", "", regex=True).str.replace(r"^[$€£₹¥]", "", regex=True).str.replace(r"%$", "", regex=True)
+    paren = s.str.startswith("(") & s.str.endswith(")")
+    s = s.where(~paren, "-" + s.str[1:-1])
+    ok = (s != "") & s.str.match(NUMBER_RE.pattern) & s.str.contains(r"\d", regex=True)
+    return s.where(ok, "").str.replace(",", "", regex=False)
+
+
 def _date_format(values: list[str]) -> str | None:
     if not values or any(not re.search(r"\d", v) or not 6 <= len(v.strip()) <= 30 for v in values):
         return None
@@ -189,7 +199,7 @@ def _infer(sample: list[str], total_non_empty: int) -> tuple[str, str | None]:
 def _convert(values: pd.Series, kind: str, fmt: str | None) -> pd.Series:
     empty = values.str.strip() == ""
     if kind == "number":
-        nums = pd.to_numeric(values.map(lambda v: (_normalise_number(v) or "").replace(",", "")), errors="coerce")
+        nums = pd.to_numeric(_normalise_numbers(values), errors="coerce")
         nums[empty] = None
         whole = nums.dropna()
         if len(whole) and (whole % 1 == 0).all() and whole.abs().max() < 2**53:
@@ -231,7 +241,13 @@ def _ingest(raw: bytes, filename: str, sheet: str | None = None, max_rows: int =
     else:
         raise IngestError("Use a .csv or .xlsx file.")
 
-    text = frame.map(_cell_text) if len(frame) else frame.astype(str)
+    if not len(frame):
+        text = frame.astype(str)
+    elif ext == ".csv":
+        # CSV cells are already text (read with dtype=str); short rows leave NaN. Column-wise, not per cell.
+        text = frame.fillna("").astype(str).apply(lambda col: col.str.strip())
+    else:
+        text = frame.map(_cell_text)  # Excel cells are numbers, dates and booleans: format each one
     if text.empty:
         raise IngestError("This sheet is empty.")
 

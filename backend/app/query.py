@@ -25,6 +25,7 @@ import duckdb
 import sqlglot
 from sqlglot import exp
 
+from app import cache
 from app.config import get_settings
 from app.models import Dataset
 from app.telemetry import count, span, timed
@@ -345,14 +346,23 @@ def _series_sql(inner: str, spec: dict, g: str, s: str, measures: list[str], is_
     )
 
 
+def _parquet(dataset: Dataset) -> str:
+    return os.path.join(workspace_dir(dataset.workspace_id), f"{dataset.id}.parquet")
+
+
 def run_spec(con: duckdb.DuckDBPyConnection, spec: dict, dataset: Dataset, dash: Filters | None = None) -> list[dict]:
     if spec.get("sql"):
-        return _run_sql_chart(con, spec)
+        return _run_sql_chart(con, spec)  # can read any of the workspace's tables, so not cached
     sql, params = compile_spec(spec, dataset, dash)
-    try:
-        return records(*_run(con, sql, params, op="chart"))
-    except duckdb.Error as e:
-        raise QueryError("We couldn't calculate this chart. Check the columns and filters.") from e
+
+    def compute() -> list[dict]:
+        try:
+            return records(*_run(con, sql, params, op="chart"))
+        except duckdb.Error as e:
+            raise QueryError("We couldn't calculate this chart. Check the columns and filters.") from e
+
+    # The compiled SQL carries the spec, filters and approved metric formulas; the version carries the data.
+    return cache.cached(cache.key("chart", sql, params, cache.dataset_version(dataset, _parquet(dataset))), compute, "chart")
 
 
 # ---------- table rows (data grid) ----------
@@ -393,7 +403,8 @@ def distinct_values(con: duckdb.DuckDBPyConnection, dataset: Dataset, column: st
         f"SELECT CAST({c} AS VARCHAR) AS v, COUNT(*) AS n FROM {view_name(dataset.id)} "
         f"WHERE {c} IS NOT NULL GROUP BY 1 ORDER BY n DESC, v LIMIT {int(limit)}"
     )
-    return [r[0] for r in _run(con, sql, [], op="values")[1]]
+    k = cache.key("values", sql, cache.dataset_version(dataset, _parquet(dataset)))
+    return cache.cached(k, lambda: [r[0] for r in _run(con, sql, [], op="values")[1]], "values")
 
 
 # ---------- raw SQL (groundwork for the AI round) ----------

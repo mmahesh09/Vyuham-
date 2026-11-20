@@ -109,6 +109,13 @@ they pick into its own storage and refreshes them hourly or daily (the worker's 
 - Connections to private, loopback and cloud-metadata addresses are refused, so nobody can point a
   connection at this server's own Postgres or Redis. Every session is read-only with a 60-second statement limit.
 
+## 9. Sizing the API
+- **`WEB_CONCURRENCY`** (default `2`): API processes. One per CPU core is a good start. Each process can
+  run `MAX_CONCURRENT_QUERIES` (default `4`) DuckDB queries at once, each capped at 512 MB, so keep
+  processes × queries × 512 MB within the server's memory.
+- **`DB_POOL_SIZE`** / **`DB_MAX_OVERFLOW`** (defaults `5` / `10`): Postgres connections per process. Keep
+  (API processes + Celery worker + beat) × (size + overflow) under your managed database's connection limit.
+
 ## Updating
 ```sh
 cd /opt/vyuham && git pull && docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build

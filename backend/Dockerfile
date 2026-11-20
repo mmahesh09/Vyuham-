@@ -5,7 +5,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 EXPOSE 8000
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+# WEB_CONCURRENCY API processes (default 2): one Python process uses one core, so a heavy upload or
+# dashboard no longer slows every other request. Scheduled jobs are claimed in the database, so
+# several processes never run the same one.
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY:-2}"]
 
 # Worker: the same app plus headless Chromium, which renders PDF reports from the print page.
 FROM api AS worker

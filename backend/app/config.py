@@ -33,8 +33,13 @@ class Settings(BaseSettings):
     # What one workspace may keep on the shared data volume, so one customer can't fill it for everyone.
     max_workspace_datasets: int = 200
     max_workspace_bytes: int = 2 * 1024 * 1024 * 1024
-    # DuckDB queries running at once in one API process (each may use up to 512 MB).
+    # DuckDB queries running at once in one API process (each may use up to 512 MB). With several
+    # processes (WEB_CONCURRENCY), the server-wide limit is processes × this.
     max_concurrent_queries: int = 4
+    # Postgres connections per process (the API, each Celery worker and beat each have their own pool).
+    # Keep processes × (size + overflow) under the managed database's connection limit.
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
     # An .xlsx is a zip: a 10 MB file can unpack to gigabytes and take the API down. Refuse workbooks
     # whose contents add up to more than this, before opening them.
     max_xlsx_uncompressed_bytes: int = 150 * 1024 * 1024

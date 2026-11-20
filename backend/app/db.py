@@ -11,8 +11,17 @@ class Base(DeclarativeBase):
 
 
 def _make_engine(url: str):
-    connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-    return create_engine(url, connect_args=connect_args, pool_pre_ping=True)
+    if url.startswith("sqlite"):
+        return create_engine(url, connect_args={"check_same_thread": False}, pool_pre_ping=True)
+    s = get_settings()
+    return create_engine(
+        url,
+        pool_pre_ping=True,
+        pool_size=s.db_pool_size,
+        max_overflow=s.db_max_overflow,
+        pool_timeout=10,  # fail fast with a clear error rather than queueing requests for 30 s
+        pool_recycle=1800,  # managed Postgres closes idle connections; replace ours before it does
+    )
 
 
 engine = _make_engine(get_settings().database_url)

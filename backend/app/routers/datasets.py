@@ -73,6 +73,9 @@ def upload_dataset(
     filename = Path(file.filename or "").name  # never trust a client path
     raw = _read_capped(file, s.max_upload_bytes)
     check_quota(db, member.workspace_id, new_bytes=len(raw))
+    # Parsing a big file takes seconds: give the database connection back to the pool meanwhile.
+    # The session opens a new one when it's next used; `member` keeps its loaded fields.
+    db.close()
     try:
         result = ingest(raw, filename, sheet=sheet or None, max_rows=s.max_upload_rows)
     except IngestError as e:
@@ -230,10 +233,12 @@ def replace_file(
     filename = Path(file.filename or "").name
     raw = _read_capped(file, s.max_upload_bytes)
     check_quota(db, member.workspace_id, new_bytes=max(0, len(raw) - (dataset.file_size or 0)))
+    db.close()  # don't hold a pooled connection while the file is parsed
     try:
         result = ingest(raw, filename, sheet=sheet or None, max_rows=s.max_upload_rows)
     except IngestError as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
+    dataset = owned_dataset(db, member, dataset_id)  # closing the session detached it
     dataset.file_size = write_parquet(result.frame, parquet_path(member.workspace_id, dataset.id))
     dataset.source_filename = filename[:255]
     dataset.source_kind = Path(filename).suffix.lower().lstrip(".")
