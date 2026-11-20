@@ -550,7 +550,7 @@ class Incident(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
     title: Mapped[str] = mapped_column(String(200))
     impact: Mapped[str] = mapped_column(String(12), default="minor")  # minor | major | maintenance
-    status: Mapped[str] = mapped_column(String(12), default="investigating")  # investigating | identified | monitoring | resolved
+    status: Mapped[str] = mapped_column(String(16), default="investigating")  # investigating | identified | monitoring | resolved
     components: Mapped[list] = mapped_column(JSON, default=list)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -565,7 +565,7 @@ class IncidentUpdate(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
     incident_id: Mapped[str] = mapped_column(ForeignKey("incidents.id", ondelete="CASCADE"), index=True)
-    status: Mapped[str] = mapped_column(String(12))
+    status: Mapped[str] = mapped_column(String(16))  # same values as Incident.status
     message: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 

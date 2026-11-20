@@ -41,8 +41,11 @@ def _search_pg(db: Session, words: list[str], limit: int, include_drafts: bool) 
     # OR the words together so a long, chatty ticket subject still finds the article; rank sorts it out.
     query = " | ".join(words)
     status_clause = "" if include_drafts else "AND status = 'published'"
+    # Raw SQL on purpose: PG_DOC must match the indexed expression exactly (see the 8d5f2b3c4e71 migration),
+    # and an ORM rewrite would bind 'english' as a parameter, so Postgres could stop using the index. Only
+    # constants are formatted in; the search words are the bound :q.
     rows = db.execute(
-        text(
+        text(  # nosemgrep: python.sqlalchemy.security.audit.avoid-sqlalchemy-text.avoid-sqlalchemy-text
             f"SELECT id FROM kb_articles WHERE {PG_DOC} @@ to_tsquery('english', :q) {status_clause} "  # nosec B608 - constants only
             f"ORDER BY ts_rank({PG_DOC}, to_tsquery('english', :q)) DESC, updated_at DESC LIMIT :n"
         ),
