@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.auth_tables import user_table
 from app.db import get_db
@@ -44,9 +44,16 @@ def members(member: WorkspaceMember = Depends(current_membership), db: Session =
         .order_by(WorkspaceMember.created_at)
     ).all()
     names = {r.id: r.name for r in rows}
+    # Every member's presence and current leave in two queries, instead of two per member.
+    presences = {
+        p.user_id: p
+        for p in db.scalars(
+            select(UserPresence).where(UserPresence.user_id.in_(names)).options(selectinload(UserPresence.leave))
+        )
+    }
     out = []
     for r in rows:
-        p = refresh_presence(db, db.get(UserPresence, r.id))
+        p = refresh_presence(db, presences.get(r.id))
         leave = p.leave if p and p.status == "on_leave" else None
         out.append(MemberOut(
             id=r.id, name=r.name, email=r.email, role=r.role, job_role=r.job_role, joined_at=r.created_at,

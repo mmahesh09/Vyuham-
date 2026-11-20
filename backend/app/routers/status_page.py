@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app import status as status_mod
 from app.db import get_db
@@ -42,7 +42,7 @@ def _components(names: list[str]) -> list[str]:
 
 @admin.get("/incidents", response_model=list[IncidentOut])
 def list_incidents(db: Session = Depends(get_db)):
-    return [IncidentOut.model_validate(i) for i in db.scalars(select(Incident).order_by(Incident.created_at.desc()).limit(100))]
+    return [IncidentOut.model_validate(i) for i in db.scalars(select(Incident).order_by(Incident.created_at.desc()).limit(100).options(selectinload(Incident.updates)))]
 
 
 @admin.post("/incidents", response_model=IncidentOut, status_code=status.HTTP_201_CREATED)

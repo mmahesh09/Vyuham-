@@ -7,7 +7,7 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.db import get_db
 from app.insights import chart_insight, previous_period, starter_specs
@@ -195,7 +195,10 @@ def _check_spec_dataset(db: Session, member: WorkspaceMember, spec: dict) -> Dat
 @router.get("/dashboards", response_model=list[DashboardSummary])
 def list_dashboards(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     dashboards = db.scalars(
-        select(Dashboard).where(Dashboard.workspace_id == member.workspace_id).order_by(Dashboard.updated_at.desc())
+        select(Dashboard)
+        .where(Dashboard.workspace_id == member.workspace_id)
+        .order_by(Dashboard.updated_at.desc())
+        .options(selectinload(Dashboard.charts))  # one query for every dashboard's charts, not one each
     ).all()
     names = dict(db.execute(select(Dataset.id, Dataset.name).where(Dataset.workspace_id == member.workspace_id)).all())
     return [

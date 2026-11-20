@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import case, delete, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.config import get_settings
 from app.models import Incident, StatusCheck
@@ -161,7 +161,9 @@ def _build_summary(db: Session, now: datetime) -> dict:
             ok = (not stale) and row is not None and row.ok
         state[c] = "operational" if ok else "major_outage"
 
-    active = db.scalars(select(Incident).where(Incident.status != "resolved").order_by(Incident.created_at.desc())).all()
+    active = db.scalars(
+        select(Incident).where(Incident.status != "resolved").order_by(Incident.created_at.desc()).options(selectinload(Incident.updates))
+    ).all()
     for inc in active:
         for c in inc.components or []:
             if c in state:
@@ -174,6 +176,7 @@ def _build_summary(db: Session, now: datetime) -> dict:
         .where(Incident.status == "resolved", Incident.created_at >= now - timedelta(days=14))
         .order_by(Incident.created_at.desc())
         .limit(10)
+        .options(selectinload(Incident.updates))
     ).all()
 
     uptime = daily_uptime(db, now.date())
