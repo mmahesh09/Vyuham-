@@ -693,3 +693,23 @@ class AuditLog(Base):
     target_id: Mapped[str | None] = mapped_column(String(64))
     detail: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+class RefreshHook(Base):
+    """A secret URL a customer's pipeline (Airflow, Airbyte, Kubeflow, cron) calls to refresh datasets.
+
+    Only a hash of the token is stored; the token itself is shown once, when the hook is created.
+    """
+
+    __tablename__ = "refresh_hooks"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    dataset_ids: Mapped[list] = mapped_column(JSON, default=list)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    token_hint: Mapped[str] = mapped_column(String(8))  # last characters, so people can tell hooks apart
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    last_called_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -267,20 +267,29 @@ def sync_now(
     member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db),
 ):
     """Refresh a database-backed dataset now. Runs in the background; poll the dataset for `last_synced_at`."""
-    from app import jobs
-
     require_editor(member)
     dataset = owned_dataset(db, member, dataset_id)
     if dataset.connection_id is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Only data from a connected database can be refreshed.")
+    queue_sync(db, dataset, background)
+    return dataset
+
+
+def queue_sync(db: Session, dataset: Dataset, background: BackgroundTasks) -> bool:
+    """Start a refresh of a connected dataset unless one is already running. True when one was queued.
+
+    Shared by "Refresh now" and refresh hooks, so both claim the job slot the same way.
+    """
+    from app import jobs
     from app.sync import sync_in_progress
 
     run = None if sync_in_progress(dataset) else jobs.sync_now(db, dataset)
-    if run is not None:
-        if get_settings().redis_url:
-            from app.worker import run_job  # Celery only where it's configured
+    if run is None:
+        return False
+    if get_settings().redis_url:
+        from app.worker import run_job  # Celery only where it's configured
 
-            run_job.delay(run.id)
-        else:
-            background.add_task(_run_job_inline, db.get_bind(), run.id)
-    return dataset
+        run_job.delay(run.id)
+    else:
+        background.add_task(_run_job_inline, db.get_bind(), run.id)
+    return True

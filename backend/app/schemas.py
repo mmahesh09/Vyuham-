@@ -487,3 +487,27 @@ class OrderIn(BaseModel):
 
 class ShareOut(BaseModel):
     share_token: str | None
+
+
+class RefreshHookIn(BaseModel):
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
+    dataset_ids: list[str] = Field(min_length=1, max_length=50)
+
+
+class RefreshHookOut(BaseModel):
+    """A refresh hook. The token is never included after creation."""
+
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    name: str
+    dataset_ids: list[str]
+    token_hint: str
+    created_at: UtcDatetime
+    last_called_at: UtcDatetime | None = None
+    revoked_at: UtcDatetime | None = None
+
+
+class RefreshHookCreatedOut(RefreshHookOut):
+    """Returned once, at creation: the only time the full URL path is shown."""
+
+    path: str

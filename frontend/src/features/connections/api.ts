@@ -175,3 +175,39 @@ export function parseConnectionUrl(raw: string): (Partial<ConnectionFields> & { 
     return null;
   }
 }
+
+/** A secret URL a pipeline (Airflow, Airbyte, Kubeflow, cron) calls to refresh datasets. Mirrors RefreshHookOut. */
+export type RefreshHook = {
+  id: string;
+  name: string;
+  dataset_ids: string[];
+  token_hint: string;
+  created_at: string;
+  last_called_at: string | null;
+  revoked_at: string | null;
+};
+/** Returned once, at creation: the only time the URL path (with its token) is shown. */
+export type CreatedRefreshHook = RefreshHook & { path: string };
+
+const hookKeys = { all: ["refresh-hooks"] as const };
+
+export function useRefreshHooks(enabled = true) {
+  return useQuery({ queryKey: hookKeys.all, queryFn: () => api<RefreshHook[]>("/refresh-hooks"), enabled });
+}
+
+export function useCreateRefreshHook() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; dataset_ids: string[] }) =>
+      api<CreatedRefreshHook>("/refresh-hooks", { method: "POST", body: JSON.stringify(body) }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: hookKeys.all }),
+  });
+}
+
+export function useRevokeRefreshHook() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api<void>(`/refresh-hooks/${id}`, { method: "DELETE" }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: hookKeys.all }),
+  });
+}

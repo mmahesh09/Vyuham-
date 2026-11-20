@@ -11,6 +11,7 @@ import { NativeSelect } from "@/components/ui/native-select";
 import { useMe } from "@/features/auth/hooks";
 import { ConnectDatabaseDialog } from "@/features/connections/connect-database-dialog";
 import { ConnectionList } from "@/features/connections/connection-list";
+import { RefreshHooks } from "@/features/connections/refresh-hooks";
 
 import { ColumnSummary } from "./column-summary";
 import { useUploadDataset, type Dataset } from "./api";
@@ -157,6 +158,7 @@ export function DataScreen() {
       )}
 
       <ConnectionList canEdit={canSave} onAddTables={(id) => openConnect(id)} />
+      <RefreshHooks canEdit={canSave} />
       <SavedDatasets highlightId={saved?.id} />
       {canSave && <ConnectDatabaseDialog open={connectOpen} onOpenChange={setConnectOpen} connectionId={connectionId} />}
     </PageContainer>

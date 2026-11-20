@@ -10,7 +10,7 @@ from app.db import get_db
 from app.errors import capture
 from app.ratelimit import RateLimitMiddleware
 from app.errors import setup_error_tracking
-from app.routers import account, alerts, ask, connections, dashboards, datasets, health, kb, me, metrics, presence, profile, reports, sql_lab, status_page, support, team, templates
+from app.routers import account, alerts, ask, connections, dashboards, datasets, health, hooks, kb, me, metrics, presence, profile, reports, sql_lab, status_page, support, team, templates
 from app.scheduler import Scheduler
 from app.telemetry import configure_logging, count, current_trace_id, record_error, scrub, setup_telemetry
 
@@ -49,6 +49,8 @@ setup_error_tracking("vyuham-api")
 app.include_router(me.router)
 app.include_router(datasets.router)
 app.include_router(connections.router)
+app.include_router(hooks.router)
+app.include_router(hooks.public)
 app.include_router(profile.router)
 app.include_router(presence.router)
 app.include_router(dashboards.router)
