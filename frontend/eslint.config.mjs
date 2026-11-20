@@ -18,8 +18,9 @@ const eslintConfig = [
       "out/**",
       "build/**",
       "next-env.d.ts",
-      // Generated gradient export, kept as delivered.
+      // Generated gradient exports, kept as delivered.
       "src/components/marketing/pixel-matcha-gradient.js",
+      "src/components/marketing/pixel-amber-gradient.js",
     ],
   },
   {

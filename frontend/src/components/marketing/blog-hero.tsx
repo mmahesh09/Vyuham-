@@ -5,16 +5,25 @@ import { useEffect, useRef, type ReactNode } from "react";
 
 /*
  * The blog's header: a slowly shifting quilt of tiles behind the page title. Coral is only the
- * "Pixel coral" look from a Feral UI gradient export, so most pages don't load the gradient engine.
- * Matcha is the full export, loaded after the title has painted over its CSS fallback.
+ * "Pixel coral" look from a Feral UI gradient export, so the blog index doesn't load the gradient engine.
+ * Matcha (posts) and amber (About) are full exports, loaded after the title has painted over a CSS fallback.
  */
 
-const PixelMatchaGradient = dynamic(() => import("./pixel-matcha-gradient"), { ssr: false });
-const MATCHA_FALLBACK = "linear-gradient(100deg, #12A06C, #3DC68C, #80E1B5, #BFF0D7, #EDF6EF)";
+const EXPORTS = {
+  matcha: {
+    Gradient: dynamic(() => import("./pixel-matcha-gradient"), { ssr: false }),
+    fallback: "linear-gradient(100deg, #12A06C, #3DC68C, #80E1B5, #BFF0D7, #EDF6EF)",
+    ink: "text-[#06291c]",
+  },
+  amber: {
+    Gradient: dynamic(() => import("./pixel-amber-gradient"), { ssr: false }),
+    fallback: "linear-gradient(100deg, #F59410, #FFB23C, #FFCB70, #FFE2A6, #F8F1E0)",
+    ink: "text-[#2b1a03]",
+  },
+};
 
 const QUILTS = {
   coral: { stops: ["#F04E36", "#F87A5C", "#FBA184", "#FFCBB4", "#F9EFEA"], startTime: 51.35, seam: "rgba(240,78,54,0.075)", ink: "text-[#2a0d07]" },
-  amber: { stops: ["#F59410", "#FFB23C", "#FFCB70", "#FFE2A6", "#F8F1E0"], startTime: 46.83, seam: "rgba(245,148,16,0.075)", ink: "text-[#2b1a03]" },
 };
 type Quilt = (typeof QUILTS)[keyof typeof QUILTS];
 const STOP_POSITIONS = [0.1, 0.3, 0.5, 0.7, 0.9];
@@ -187,18 +196,21 @@ export function BlogHero({
   column?: string;
   variant?: "coral" | "amber" | "matcha";
 }) {
-  const quilt = variant === "matcha" ? null : QUILTS[variant];
+  const quilt = variant === "coral" ? QUILTS.coral : null;
+  const full = variant === "coral" ? null : EXPORTS[variant];
   return (
     <header
-      className={`relative isolate mx-auto mt-2 w-[calc(100%-16px)] max-w-[1280px] overflow-hidden rounded-[24px] ${quilt ? quilt.ink : "text-[#06291c]"}`}
-      style={{ background: quilt ? `linear-gradient(100deg, ${quilt.stops.join(", ")})` : MATCHA_FALLBACK }}
+      className={`relative isolate mx-auto mt-2 w-[calc(100%-16px)] max-w-[1280px] overflow-hidden rounded-[24px] ${quilt?.ink ?? full?.ink}`}
+      style={{ background: quilt ? `linear-gradient(100deg, ${quilt.stops.join(", ")})` : full?.fallback }}
     >
       {quilt ? (
         <QuiltCanvas quilt={quilt} />
       ) : (
-        <div aria-hidden className="absolute inset-0 -z-10">
-          <PixelMatchaGradient style={{ position: "absolute", inset: 0, height: "100%", aspectRatio: "auto" }} />
-        </div>
+        full && (
+          <div aria-hidden className="absolute inset-0 -z-10">
+            <full.Gradient style={{ position: "absolute", inset: 0, height: "100%", aspectRatio: "auto" }} />
+          </div>
+        )
       )}
       <div className={`mx-auto flex w-full flex-col gap-6 px-5 py-[clamp(64px,10vw,136px)] ${column}`}>{children}</div>
     </header>
