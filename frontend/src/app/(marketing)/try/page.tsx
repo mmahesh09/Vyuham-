@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Announcement } from "@/components/marketing/announcement";
-import { LazyFilterDemo, LazyFinanceShowcase, LazyStoryFeed, LazySyncCard } from "@/components/marketing/lazy-demos";
+import { LazyFilterDemo, LazyStoryFeed, LazySyncCard } from "@/components/marketing/lazy-demos";
 import { ColumnsShot } from "@/components/marketing/product-shots";
 import { Reveal } from "@/components/marketing/reveal";
 import { SiteFooter } from "@/components/marketing/site-footer";
@@ -84,21 +84,6 @@ export default function TryPage() {
         </section>
 
         <section className={sectionY}>
-          <div className="mx-auto w-full max-w-[1360px] px-[clamp(12px,3vw,32px)]">
-            <div data-animate className="mx-auto mb-12 flex max-w-[1200px] flex-col gap-4 px-[clamp(4px,2vw,16px)] md:flex-row md:items-end md:justify-between">
-              <h2 className={`${h2} max-w-[18ch]`}>
-                One export in. <span className={quiet}>A whole dashboard out.</span>
-              </h2>
-              <p className={`${body} max-w-[40ch]`}>Hover the charts and switch the period to see how the dashboard responds.</p>
-            </div>
-            <div data-animate style={delay(100)}>
-              <LazyFinanceShowcase />
-            </div>
-            <p className="mt-4 text-center text-[13px] text-white/40">Sample data.</p>
-          </div>
-        </section>
-
-        <section className={`band ${sectionY}`}>
           <div className={container}>
             <h2 data-animate className={`${h2} mb-12 max-w-[20ch]`}>
               Now try it <span className={quiet}>with your own file.</span>

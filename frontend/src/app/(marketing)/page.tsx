@@ -4,7 +4,7 @@ import Link from "next/link";
 
 import { RSS_ALTERNATE } from "@/lib/site";
 import { Hero } from "@/components/marketing/hero";
-import { LazyFilterDemo, LazyFinanceShowcase, LazyLiveDashboard, LazyStoryFeed, LazySyncCard } from "@/components/marketing/lazy-demos";
+import { LazyFilterDemo, LazyLiveDashboard, LazyStoryFeed, LazySyncCard } from "@/components/marketing/lazy-demos";
 import { DATABASE_LOGOS, IntegrationGrid } from "@/components/marketing/integration-grid";
 import { MessySheet } from "@/components/marketing/messy-sheet";
 import { ParticlesBackground } from "@/components/marketing/particles-background";
@@ -519,30 +519,10 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 7 · Any spreadsheet, one dashboard — full-width showcase */}
-        <section id="showcase" className={`scroll-mt-4 ${sectionY}`}>
-          <div className="mx-auto w-full max-w-[1360px] px-[clamp(12px,3vw,32px)]">
-            <div data-animate className="mx-auto mb-14 flex max-w-[1200px] flex-col gap-4 px-[clamp(4px,2vw,16px)] md:flex-row md:items-end md:justify-between">
-              <h2 className={`${h2} max-w-[18ch]`}>
-                <Eyebrow n="07" className="mb-6 flex">Showcase</Eyebrow>
-                One spreadsheet in. <span className={quiet}>A whole dashboard out.</span>
-              </h2>
-              <p className={`${body} max-w-[40ch]`}>
-                A sample dashboard built around a personal-finance export. <Mark>Hover the charts</Mark> and switch the
-                period to see how it responds.
-              </p>
-            </div>
-            <div data-animate style={delay(100)}>
-              <LazyFinanceShowcase />
-            </div>
-            <p className="mt-4 text-center text-[13px] text-white/40">Sample data.</p>
-          </div>
-        </section>
-
-        {/* 8 · Day-to-day — band, asymmetric 2 + 1 */}
-        <section className={`band ${sectionY}`}>
+        {/* 7 · Day-to-day — black, asymmetric 2 + 1 */}
+        <section className={sectionY}>
           <div className={container}>
-            <Eyebrow n="08" className="mb-6">Day to day</Eyebrow>
+            <Eyebrow n="07" className="mb-6">Day to day</Eyebrow>
             <h2 data-animate className={`${h2} mb-14 max-w-[22ch]`}>
               Keep the spreadsheet. <span className={quiet}>Lose the busywork.</span>
             </h2>
@@ -588,12 +568,12 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 9 · Why not Power BI — black, sharp editorial table */}
-        <section id="compare" className={`scroll-mt-4 ${sectionY}`}>
+        {/* 8 · Why not Power BI — band, sharp editorial table */}
+        <section id="compare" className={`band scroll-mt-4 ${sectionY}`}>
           <div className={container}>
             <div data-animate className="mb-14 grid gap-6 lg:grid-cols-[5fr_6fr] lg:items-end">
               <h2 className={h2}>
-                <Eyebrow n="09" className="mb-6 flex">Compared</Eyebrow>
+                <Eyebrow n="08" className="mb-6 flex">Compared</Eyebrow>
                 “Why not just use <span className={quiet}>Power BI?”</span>
               </h2>
               <div className="flex flex-col gap-4">
@@ -636,14 +616,14 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 10 · Pricing — band, oversized number as the breathing moment */}
-        <section id="pricing" className={`band scroll-mt-4 ${sectionY}`}>
+        {/* 9 · Pricing — black, oversized number as the breathing moment */}
+        <section id="pricing" className={`scroll-mt-4 ${sectionY}`}>
           <div className={`${container} grid items-end gap-12 md:grid-cols-[auto_1fr] md:gap-20`}>
             <p data-animate className="text-lit text-[clamp(112px,22vw,280px)] font-extralight leading-[0.8] tracking-[-0.06em]" aria-label="Zero dollars">
               $0
             </p>
             <div data-animate style={delay(120)} className="flex max-w-[44ch] flex-col items-start gap-6 pb-2">
-              <Eyebrow n="10">Pricing</Eyebrow>
+              <Eyebrow n="09">Pricing</Eyebrow>
               <h2 className="text-[clamp(28px,3.4vw,40px)] font-semibold leading-[1.08] tracking-[-0.03em] text-white">
                 Free while we’re in beta.
               </h2>
@@ -657,11 +637,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 11 · FAQ — black */}
-        <section id="faq" className={`scroll-mt-4 ${sectionY}`}>
+        {/* 10 · FAQ — band */}
+        <section id="faq" className={`band scroll-mt-4 ${sectionY}`}>
           <div className={`${container} grid gap-12 lg:grid-cols-[4fr_7fr]`}>
             <h2 data-animate className={h2}>
-              <Eyebrow n="11" className="mb-6 flex">FAQ</Eyebrow>
+              <Eyebrow n="10" className="mb-6 flex">FAQ</Eyebrow>
               Questions <span className={quiet}>people ask us.</span>
             </h2>
             <div data-animate className="border-t-2 border-white">
@@ -678,7 +658,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 12 · Final CTA — bookends the hero */}
+        {/* 11 · Final CTA — bookends the hero */}
         <section className="px-2 pb-2 sm:px-3 sm:pb-3">
           <div className="theme-dark dark hero-panel relative isolate mx-auto flex min-h-[560px] max-w-[1440px] flex-col items-center overflow-hidden rounded-[28px] border border-white/[0.06] px-5 pt-[clamp(72px,10vw,120px)] text-center sm:rounded-[36px]">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
