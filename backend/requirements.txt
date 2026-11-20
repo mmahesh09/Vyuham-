@@ -34,3 +34,6 @@ opentelemetry-instrumentation-redis==0.66b2
 opentelemetry-instrumentation-logging==0.66b2
 # Error tracking (app/errors.py): only used when SENTRY_DSN is set; events go to a self-hosted GlitchTip.
 sentry-sdk[fastapi,celery]==2.66.1
+# Pulled in by other packages; pinned to versions with known HIGH vulnerabilities fixed (Trivy image scan).
+msgpack==1.2.3  # CVE-2026-114613
+urllib3==2.8.0  # CVE-2026-97687, CVE-2026-97689
