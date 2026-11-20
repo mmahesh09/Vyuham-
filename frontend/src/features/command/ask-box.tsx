@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { ChartBody, InsightHeadline } from "@/features/dashboards/insight-card";
 
+import { AnswerWorkPanel } from "./answer-work";
 import { useAsk, useAskSuggestions } from "./ask-api";
 import { SaveToDashboard } from "./save-to-dashboard";
 
@@ -112,6 +113,9 @@ export function AskBox() {
               Read as {answer.understood.join(", ")}, from {answer.dataset_name}
               {answer.date_from && answer.date_to ? ` (${answer.date_from} to ${answer.date_to})` : ""}. Not what you meant? Try naming the column.
             </p>
+            {answer.work && answer.dataset_id && (
+              <AnswerWorkPanel work={answer.work} datasetId={answer.dataset_id} datasetName={answer.dataset_name ?? "your data"} />
+            )}
           </article>
         )}
       </div>

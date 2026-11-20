@@ -79,3 +79,63 @@ def test_suggestions_are_parseable(ctx):
     ws, ds = ctx
     for q in suggestions([ds]):
         assert parse(ctx, q) is not None, q
+
+
+# ---------- show the work ----------
+
+
+def work(ctx, q):
+    from app.work import answer_work
+    from app.query import run_spec
+
+    ws, ds = ctx
+    con = connect(ws, [ds])
+    p = parse_question(q, [ds], con, today=TODAY)
+    rows = run_spec(con, p.spec, ds, p.filters)
+    return answer_work(con, p.spec, ds, p.filters, rows)
+
+
+def test_work_explains_a_grouped_answer_and_what_was_left_out(ctx):
+    w = work(ctx, "amount by region")
+    assert w["steps"] == ["Read the data in sales", "Added up Amount", "Grouped by Region"]
+    assert (w["rows_used"], w["rows_total"]) == (6, 6)
+    # The sample has one row with no Region and no Amount: both are called out, not silently dropped.
+    assert w["left_out"] == ["1 row has no Region, so it isn’t in the chart.", "1 row has no Amount, so it wasn’t counted."]
+    # The bars add up to the total over the rows used.
+    assert w["check"] == {"metric": "Amount", "shown": 675.0, "total": 675.0, "groups_shown": 3, "limited": False}
+
+
+def test_work_top_n_shows_part_of_the_total(ctx):
+    w = work(ctx, "top 1 region by amount")
+    assert w["steps"][-1] == "Kept the top 1"
+    assert (w["check"]["shown"], w["check"]["total"], w["check"]["limited"]) == (325.0, 675.0, True)
+
+
+def test_work_filters_and_counts(ctx):
+    w = work(ctx, "how many orders in North")
+    assert "Only rows where Region is North" in w["steps"] and "Counted the rows" in w["steps"]
+    assert (w["rows_used"], w["rows_total"]) == (3, 6)
+    assert w["check"] is None  # a single number: nothing to add up
+    assert w["row_filters"] == [{"field": "Region", "op": "eq", "value": "North"}]
+
+
+def test_work_date_range_rows_match_the_rows_endpoint(client, ctx):
+    import json
+
+    ws, ds = ctx
+    w = work(ctx, "amount last month")  # February 2026
+    assert "Only rows where Date is from 2026-02-01 to 2026-02-28" in w["steps"]
+    assert w["row_filters"] == [
+        {"field": "Date", "op": "gte", "value": "2026-02-01"},
+        {"field": "Date", "op": "lt", "value": "2026-03-01"},
+    ]
+    # 'See the rows' uses these filters on the rows endpoint and gets exactly the rows the answer used.
+    r = client.get(f"/datasets/{ds.id}/rows", params={"filters": json.dumps(w["row_filters"])}).json()
+    assert r["total"] == w["rows_used"] == 2
+    assert sorted(x["Amount"] for x in r["rows"]) == [25, 200]
+
+
+def test_ask_endpoint_returns_the_work(client, ctx):
+    r = client.post("/ask", json={"question": "amount by region"}).json()
+    assert r["work"]["rows_used"] == 6 and r["work"]["check"]["total"] == 675
+    assert client.post("/ask", json={"question": "zzz qqq"}).json()["work"] is None
