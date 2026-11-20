@@ -63,6 +63,12 @@ export default function TryPage() {
           </div>
           <div className="mx-auto mt-12 w-full max-w-[1000px] px-[clamp(16px,5vw,48px)]">
             <TryAsk questions={QUESTIONS} />
+            <div className="mt-8 flex flex-col items-center gap-3 text-center">
+              <Link href="/signup" className="btn-primary inline-flex min-h-12 items-center gap-2 rounded-full px-7 text-[16px] font-semibold">
+                Ask about your own data <ArrowRight className="size-4" strokeWidth={2.2} aria-hidden />
+              </Link>
+              <span className="text-[14px] text-white/55">Free account. No card needed.</span>
+            </div>
           </div>
         </section>
 
@@ -101,7 +107,7 @@ export default function TryPage() {
             </ol>
             <div data-animate className="mt-12 flex flex-wrap items-center gap-3">
               <Link href="/signup" className="btn-primary inline-flex min-h-12 items-center gap-2 rounded-full px-7 text-[16px] font-semibold">
-                Upload your first spreadsheet <ArrowRight className="size-4" strokeWidth={2.2} aria-hidden />
+                Start free <ArrowRight className="size-4" strokeWidth={2.2} aria-hidden />
               </Link>
               <span className="text-[14px] text-white/55">Free during the beta, no card needed.</span>
             </div>

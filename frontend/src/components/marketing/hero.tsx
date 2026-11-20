@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, Play } from "lucide-react";
+import { ArrowRight, ArrowUpRight, MousePointerClick } from "lucide-react";
 import Link from "next/link";
 
 import { Announcement } from "@/components/marketing/announcement";
@@ -67,16 +67,17 @@ export function Hero() {
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link href="/signup" className="btn-primary inline-flex min-h-12 items-center gap-2 rounded-full px-7 text-[15px] font-semibold">
-              Upload your first spreadsheet
+              Start free
               <ArrowRight className="size-4" strokeWidth={2.2} aria-hidden />
             </Link>
-            <a href="#product" className="btn-ghost inline-flex min-h-12 items-center gap-2.5 rounded-full py-1 pl-2 pr-6 text-[15px] font-medium">
+            <Link href="/try" className="btn-ghost inline-flex min-h-12 items-center gap-2.5 rounded-full py-1 pl-2 pr-6 text-[15px] font-medium">
               <span className="flex size-8 items-center justify-center rounded-full bg-white/10">
-                <Play className="size-3 fill-current" strokeWidth={0} aria-hidden />
+                <MousePointerClick className="size-3.5" strokeWidth={2} aria-hidden />
               </span>
-              See it answer
-            </a>
+              Try it with sample data
+            </Link>
           </div>
+          <p className="mt-4 text-[13px] text-white/55">No sign-up needed for the sample. Your own data takes a free account.</p>
         </div>
 
         {/* The arch */}

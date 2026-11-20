@@ -24,7 +24,7 @@ export function GettingStarted() {
   if (!datasets || !dashboards || !members) return null;
 
   const steps = [
-    { done: datasets.length > 0, title: "Add your data", hint: "Upload an Excel or CSV file", href: "/data", icon: FileSpreadsheet },
+    { done: datasets.length > 0, title: "Add your data", hint: "Upload a file or connect a database", href: "/data", icon: FileSpreadsheet },
     { done: dashboards.length > 0, title: "Build a dashboard", hint: "We pick the first charts for you", href: "/dashboards", icon: LayoutDashboard },
     { done: members.length > 1, title: "Invite your team", hint: "Share numbers, assign data tasks", href: "/team", icon: Users, ownerOnly: true },
   ].filter((s) => !s.ownerOnly || me?.role === "owner");

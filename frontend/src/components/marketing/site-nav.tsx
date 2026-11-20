@@ -90,7 +90,7 @@ export function SiteNav({ variant = "bar" }: { variant?: "overlay" | "bar" }) {
             Log in
           </Link>
           <Link href="/signup" className="btn-ghost hidden min-h-10 items-center rounded-full px-5 text-[14px] font-semibold sm:flex">
-            Join beta
+            Start free
           </Link>
           <button
             type="button"
@@ -145,7 +145,7 @@ export function SiteNav({ variant = "bar" }: { variant?: "overlay" | "bar" }) {
               onClick={() => setOpen(false)}
               className="btn-primary flex min-h-12 items-center justify-center gap-2 rounded-full text-[15px] font-semibold"
             >
-              Join the beta <ArrowRight className="size-4" aria-hidden />
+              Start free <ArrowRight className="size-4" aria-hidden />
             </Link>
           </div>
         </SheetContent>

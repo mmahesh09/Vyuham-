@@ -96,7 +96,7 @@ export function SignupForm({ providers }: { providers: Providers }) {
   });
   const values = useWatch({ control });
   const { errors } = formState;
-  const ready = Boolean(values.name && values.company && values.email && values.password && values.consent);
+  const ready = Boolean(values.name && values.email && values.password && values.consent);
 
   return (
     <div className="flex flex-col gap-6">
@@ -118,7 +118,7 @@ export function SignupForm({ providers }: { providers: Providers }) {
           <AuthField id="name" label="Your name" placeholder="Asha Rao" autoComplete="name" error={errors.name?.message} {...register("name")} />
           <AuthField
             id="company"
-            label="Company"
+            label="Company (optional)"
             placeholder="Acme Co"
             autoComplete="organization"
             error={errors.company?.message}
@@ -128,7 +128,7 @@ export function SignupForm({ providers }: { providers: Providers }) {
         <AuthField
           id="email"
           type="email"
-          label="Work email"
+          label="Email"
           placeholder="you@company.com"
           autoComplete="email"
           error={errors.email?.message}
@@ -176,6 +176,11 @@ export function SignupForm({ providers }: { providers: Providers }) {
         Already have an account?{" "}
         <Link href="/login" className={textLink}>
           Log in
+        </Link>
+        <br />
+        Not ready yet?{" "}
+        <Link href="/try" className={textLink}>
+          Try it with sample data
         </Link>
       </p>
     </div>

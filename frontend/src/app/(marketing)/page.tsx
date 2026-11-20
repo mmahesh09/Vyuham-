@@ -1,4 +1,4 @@
-import { ArrowRight, Check, Copy, Globe, Plus, X } from "lucide-react";
+import { ArrowRight, Check, Copy, Download, Globe, Link2Off, Lock, MousePointerClick, Plus, ShieldCheck, X } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -56,7 +56,8 @@ const FACTS = [
   { label: "Pricing", value: "Free in beta, then one flat price" },
 ];
 
-function PrimaryCta({ children = "Ask your first question" }: { children?: React.ReactNode }) {
+/** One primary action across the page: a free account. Same words everywhere so the next step never changes. */
+function PrimaryCta({ children = "Start free" }: { children?: React.ReactNode }) {
   return (
     <Link
       href="/signup"
@@ -67,6 +68,47 @@ function PrimaryCta({ children = "Ask your first question" }: { children?: React
     </Link>
   );
 }
+
+/** The low-commitment path: the sample-data demo, no account. */
+function SecondaryCta({ children = "Try it with sample data" }: { children?: React.ReactNode }) {
+  return (
+    <Link
+      href="/try"
+      className="btn-ghost inline-flex min-h-12 items-center gap-2 rounded-full px-6 text-[15px] font-medium"
+    >
+      <MousePointerClick className="size-4 text-highlight" strokeWidth={2} aria-hidden />
+      {children}
+    </Link>
+  );
+}
+
+/** Both actions plus one line of reassurance, used between sections. */
+function CtaRow({ note = "Free during the beta. No card needed.", className = "" }: { note?: string; className?: string }) {
+  return (
+    <div className={`flex flex-col items-start gap-4 ${className}`}>
+      <div className="flex flex-wrap items-center gap-3">
+        <PrimaryCta />
+        <SecondaryCta />
+      </div>
+      <p className="text-[14px] text-white/55">{note}</p>
+    </div>
+  );
+}
+
+/** Data-handling facts, each backed by a real setting or endpoint. Shown next to the final ask. */
+const TRUST = [
+  { icon: Lock, text: "Databases are read in read-only sessions" },
+  { icon: ShieldCheck, text: "Each company’s data is kept separately" },
+  { icon: Link2Off, text: "Nothing is public until you create a share link, and you can switch it off" },
+  { icon: Download, text: "Download your data or delete your workspace from your profile" },
+];
+
+const BETA_INCLUDES = [
+  "Excel and CSV uploads, up to 10 MB and 1 million rows per file",
+  "PostgreSQL and MySQL connections that refresh hourly or daily",
+  "Plain-English questions, dashboards and SQL Lab",
+  "Team invites, read-only share links and PDF export",
+];
 
 const MOMENTS: { when: string; text: React.ReactNode }[] = [
   {
@@ -172,6 +214,34 @@ const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
     ),
   },
   {
+    q: "How much does it cost?",
+    text: "It’s free during the beta. After that, paid plans will be one flat monthly price for your whole company, so adding a teammate never adds to the bill.",
+    a: (
+      <>
+        It’s free during the beta. After that, paid plans will be one flat monthly price for your whole company, so{" "}
+        <Mark>adding a teammate never adds to the bill.</Mark>
+      </>
+    ),
+  },
+  {
+    q: "Do I need a credit card?",
+    text: "No. You sign up with your name, email and a password, and there is no card field during the beta.",
+    a: (
+      <>
+        No. You sign up with your name, email and a password, and <Mark>there is no card field</Mark> during the beta.
+      </>
+    ),
+  },
+  {
+    q: "Can I try it before I sign up?",
+    text: "Yes. The Try Vyuham page has a small online shop’s sales data. Pick a question and see the answer and chart without creating an account.",
+    a: (
+      <>
+        Yes. <Link href="/try" className="text-highlight underline-offset-4 hover:underline">Try Vyuham</Link> has a small online shop’s sales data. Pick a question and see the answer and chart <Mark>without creating an account.</Mark>
+      </>
+    ),
+  },
+  {
     q: "What kinds of questions can I ask?",
     text: "Totals, averages, counts, rankings and breakdowns over time or by category. “Revenue by month”, “Top 5 products by revenue” and “How many orders in North” all work. Naming a column helps. Vyuham can show you what changed, but it can’t explain why.",
     a: (
@@ -179,16 +249,6 @@ const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
         Totals, averages, counts, rankings and breakdowns over time or by category.{" "}
         <Mark>“Revenue by month”, “Top 5 products by revenue” and “How many orders in North”</Mark> all work. Naming a
         column helps. Vyuham can show you what changed, but it can’t explain why.
-      </>
-    ),
-  },
-  {
-    q: "Does Vyuham use AI?",
-    text: "Not yet. Today it matches your words to your columns using rules, then runs a real query, so every number comes from your data. If a question doesn’t match, it tells you instead of guessing.",
-    a: (
-      <>
-        Not yet. Today it matches your words to your columns using rules, then runs a real query, so{" "}
-        <Mark>every number comes from your data.</Mark> If a question doesn’t match, it tells you instead of guessing.
       </>
     ),
   },
@@ -203,22 +263,21 @@ const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
     ),
   },
   {
-    q: "Is this a Power BI or Tableau alternative?",
-    text: "For small teams without an analyst, yes. Power BI and Tableau go much deeper and suit companies with someone to build and maintain reports. Vyuham is for the founder, manager or owner who is the data team.",
+    q: "How big can my files be?",
+    text: "Up to 10 MB and 1 million rows per Excel or CSV file. For larger data, connect PostgreSQL or MySQL and choose the tables you need.",
     a: (
       <>
-        For small teams without an analyst, yes. Power BI and Tableau go much deeper and suit companies with someone to
-        build and maintain reports. Vyuham is for the founder, manager or owner who <Mark>is the data team.</Mark>
+        Up to <Mark>10 MB and 1 million rows</Mark> per Excel or CSV file. For larger data, connect PostgreSQL or MySQL and choose the tables you need.
       </>
     ),
   },
   {
-    q: "Which databases can I connect?",
-    text: "PostgreSQL and MySQL, including MariaDB through the MySQL option. Hosted databases work when they accept connections from the internet. Pick the tables you want and refresh them every hour or every day.",
+    q: "Who can see my data?",
+    text: "Your team. Each company’s data is kept separately, and a dashboard is only public if you create a share link for it. You can turn a link off at any time.",
     a: (
       <>
-        <Mark>PostgreSQL and MySQL</Mark>, including MariaDB through the MySQL option. Hosted databases work when they
-        accept connections from the internet. Pick the tables you want and refresh them every hour or every day.
+        Your team. Each company’s data is kept separately, and a dashboard is only public if{" "}
+        <Mark>you create a share link</Mark> for it. You can turn a link off at any time.
       </>
     ),
   },
@@ -234,22 +293,41 @@ const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
     ),
   },
   {
-    q: "Who can see my data?",
-    text: "Your team. Each company’s data is kept separately, and a dashboard is only public if you create a share link for it. You can turn a link off at any time.",
+    q: "Can I export or delete my data?",
+    text: "Yes. From your profile you can download a copy of your data. Workspace owners can delete the workspace, which permanently removes its datasets and dashboards, and anyone can delete their own account.",
     a: (
       <>
-        Your team. Each company’s data is kept separately, and a dashboard is only public if{" "}
-        <Mark>you create a share link</Mark> for it. You can turn a link off at any time.
+        Yes. From your profile you can <Mark>download a copy of your data.</Mark> Workspace owners can delete the workspace, which permanently removes its datasets and dashboards, and anyone can delete their own account.
       </>
     ),
   },
   {
-    q: "How much does it cost?",
-    text: "It’s free during the beta. After that, paid plans will be one flat monthly price for your whole company, so adding a teammate never adds to the bill.",
+    q: "Which databases can I connect?",
+    text: "PostgreSQL and MySQL, including MariaDB through the MySQL option. Hosted databases work when they accept connections from the internet. Pick the tables you want and refresh them every hour or every day.",
     a: (
       <>
-        It’s free during the beta. After that, paid plans will be one flat monthly price for your whole company, so{" "}
-        <Mark>adding a teammate never adds to the bill.</Mark>
+        <Mark>PostgreSQL and MySQL</Mark>, including MariaDB through the MySQL option. Hosted databases work when they
+        accept connections from the internet. Pick the tables you want and refresh them every hour or every day.
+      </>
+    ),
+  },
+  {
+    q: "Does Vyuham use AI?",
+    text: "Not yet. Today it matches your words to your columns using rules, then runs a real query, so every number comes from your data. If a question doesn’t match, it tells you instead of guessing.",
+    a: (
+      <>
+        Not yet. Today it matches your words to your columns using rules, then runs a real query, so{" "}
+        <Mark>every number comes from your data.</Mark> If a question doesn’t match, it tells you instead of guessing.
+      </>
+    ),
+  },
+  {
+    q: "Is this a Power BI or Tableau alternative?",
+    text: "For small teams without an analyst, yes. Power BI and Tableau go much deeper and suit companies with someone to build and maintain reports. Vyuham is for the founder, manager or owner who is the data team.",
+    a: (
+      <>
+        For small teams without an analyst, yes. Power BI and Tableau go much deeper and suit companies with someone to
+        build and maintain reports. Vyuham is for the founder, manager or owner who <Mark>is the data team.</Mark>
       </>
     ),
   },
@@ -372,6 +450,7 @@ export default function LandingPage() {
                 </li>
               ))}
             </ol>
+            <CtaRow className="mt-12" note="Step one needs a free account. To see steps two and three first, try the sample. No sign-up." />
           </div>
         </section>
 
@@ -429,6 +508,9 @@ export default function LandingPage() {
             <div data-animate className="mt-20" style={delay(100)}>
               <LazyLiveDashboard />
               <p className="mt-4 text-center text-[13px] text-white/40">Sample data, animated to show the layout. Your dashboards update when you replace a file or a database table syncs.</p>
+              <div className="mt-8 flex justify-center">
+                <SecondaryCta>Ask the sample data a question</SecondaryCta>
+              </div>
             </div>
           </div>
         </section>
@@ -613,6 +695,7 @@ export default function LandingPage() {
                 </tbody>
               </table>
             </div>
+            <CtaRow className="mt-12" note="Free during the beta. Bring the spreadsheet you already have." />
           </div>
         </section>
 
@@ -632,7 +715,25 @@ export default function LandingPage() {
                 for your whole company. <Mark>Never per seat</Mark>, so the whole team can ask questions without
                 anyone counting licenses.
               </p>
-              <PrimaryCta>Join the free beta</PrimaryCta>
+              <div className="w-full border-t border-white/10 pt-6">
+                <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-faint">Included in the beta</p>
+                <ul className="mt-4 flex flex-col gap-3">
+                  {BETA_INCLUDES.map((item) => (
+                    <li key={item} className="grid grid-cols-[20px_1fr] gap-3 text-[16px] font-light leading-relaxed text-white/80">
+                      <Check className="mt-1 size-4 text-accent" strokeWidth={2.4} aria-hidden />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="w-full border-t border-white/10 pt-6">
+                <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-faint">When the beta ends</p>
+                <p className="mt-4 text-[16px] font-light leading-relaxed text-white/80">
+                  You keep every dataset, dashboard and share link you built. We don’t ask for a card during the
+                  beta, so nothing is charged unless you choose a paid plan.
+                </p>
+              </div>
+              <PrimaryCta />
             </div>
           </div>
         </section>
@@ -677,12 +778,26 @@ export default function LandingPage() {
               Close the spreadsheet. <span className="font-extralight tracking-[-0.02em] text-highlight">Ask the question.</span>
             </h2>
             <p data-animate style={delay(80)} className="mt-6 max-w-[48ch] text-[17px] font-light leading-relaxed text-white/75">
-              Upload a file, ask what you want to know and <Mark>get your first answer in minutes</Mark>. Free during
-              the beta, no card needed.
+              Create a free account, upload a file and ask what you want to know. You’ll{" "}
+              <Mark>get your first answer in minutes</Mark>. No card needed.
             </p>
-            <div data-animate className="mt-10" style={delay(160)}>
+            <div data-animate className="mt-10 flex flex-wrap justify-center gap-3" style={delay(160)}>
               <PrimaryCta />
+              <SecondaryCta />
             </div>
+            <ul
+              data-animate
+              style={delay(240)}
+              aria-label="How your data is handled"
+              className="mt-12 grid max-w-[880px] gap-x-8 gap-y-3 pb-16 text-left text-[14px] text-white/65 sm:grid-cols-2"
+            >
+              {TRUST.map(({ icon: Icon, text }) => (
+                <li key={text} className="flex items-start gap-2.5">
+                  <Icon className="mt-0.5 size-4 shrink-0 text-highlight" strokeWidth={2} aria-hidden />
+                  {text}
+                </li>
+              ))}
+            </ul>
           </div>
         </section>
       </main>

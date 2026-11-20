@@ -39,7 +39,7 @@ const COLUMNS: { title: string; links: LinkList }[] = [
 ];
 
 const ACCOUNT: LinkList = [
-  ["Join the beta", "/signup"],
+  ["Start free", "/signup"],
   ["Log in", "/login"],
 ];
 

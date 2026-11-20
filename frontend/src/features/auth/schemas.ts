@@ -11,7 +11,8 @@ export const loginSchema = z.object({
 
 export const signupSchema = z.object({
   name: z.string().trim().min(1, "Enter your name").max(120),
-  company: z.string().trim().min(1, "Enter your company name").max(120),
+  // Optional: without it the workspace is named after the person ("Asha's workspace"), as with Google/Apple sign-up.
+  company: z.string().trim().max(120),
   email,
   password: newPassword,
   consent: z.boolean().refine((v) => v, "Please agree to the Privacy Policy to create an account"),
