@@ -1,4 +1,4 @@
-import { ArrowUpRight, ChevronRight } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
 import { LOGO_PIECES, LOGO_VIEW_BOX } from "@/components/layout/logo-shapes";
@@ -46,32 +46,6 @@ const ACCOUNT: LinkList = [
 const ease = "duration-300 ease-[var(--ease-out-quart)]";
 const colTitle = "mb-6 font-mono text-[12px] font-medium uppercase tracking-[0.08em] text-faint";
 
-/**
- * Tiles behind the "Ask it a question" band: quarter circles, half circles and squares cut from the
- * same geometry as the logo, at a whisper of contrast so the headline still leads.
- */
-function TilePattern() {
-  return (
-    <svg
-      className="pointer-events-none absolute inset-0 -z-10 h-full w-full text-text opacity-[0.035] [mask-image:linear-gradient(to_bottom,black_55%,transparent)]"
-      viewBox="0 0 1440 320"
-      preserveAspectRatio="xMidYMid slice"
-      aria-hidden
-    >
-      <g fill="currentColor">
-        <path d="M0 80h120a120 120 0 0 1 0 240H0Z" />
-        <path d="M150 80a120 120 0 0 1 240 0v40H150Z" />
-        <rect x="420" y="80" width="300" height="240" />
-        <path d="M180 320a110 110 0 0 1 220 0Z" />
-        <path d="M770 320a130 130 0 0 1 260 0Z" />
-        <rect x="1030" y="80" width="300" height="180" />
-        <path d="M1090 320a130 130 0 0 1 260 0Z" />
-        <path d="M1440 100a140 140 0 0 0-140 140v80h140Z" />
-      </g>
-    </svg>
-  );
-}
-
 /** The logo mark as one flat shape, for the oversized watermark at the foot of the panel. */
 function MarkWatermark() {
   return (
@@ -87,37 +61,11 @@ function MarkWatermark() {
   );
 }
 
-/**
- * The site footer for every marketing page: an "ask it a question" band, then a raised panel with the
- * links. Pages that already end on a call to action (the homepage) pass `cta={false}`.
- */
-export function SiteFooter({ cta = true }: { cta?: boolean }) {
+/** The site footer for every marketing page: a raised panel with the links. */
+export function SiteFooter() {
   return (
     <footer className="mt-auto">
-      {cta && (
-        <section className="relative isolate overflow-hidden">
-          <TilePattern />
-          <div
-            className={`${container} flex flex-col items-start justify-between gap-10 py-[clamp(72px,10vw,128px)] md:flex-row md:items-center`}
-          >
-            <div>
-              <p className="text-[clamp(18px,1.8vw,22px)] font-light text-muted">Got a spreadsheet?</p>
-              <h2 className="mt-2 text-[clamp(40px,6vw,72px)] font-light leading-[1.05] tracking-[-0.035em] text-text">
-                Ask it a question.
-              </h2>
-            </div>
-            <Link
-              href="/try"
-              className={`group inline-flex min-h-14 items-center gap-2 border border-text/80 px-10 text-[17px] font-medium text-text transition-colors ${ease} hover:border-primary hover:bg-primary hover:text-primary-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-highlight`}
-            >
-              Try it free
-              <ChevronRight className={`size-4 transition-transform ${ease} group-hover:translate-x-0.5`} aria-hidden />
-            </Link>
-          </div>
-        </section>
-      )}
-
-      <div className={`px-2 sm:px-3 ${cta ? "" : "pt-[clamp(48px,8vw,96px)]"}`}>
+      <div className="px-2 pt-[clamp(48px,8vw,96px)] sm:px-3">
         <div className="relative isolate mx-auto max-w-[1440px] overflow-hidden rounded-t-[28px] border border-b-0 border-line-strong bg-bg-alt shadow-[inset_0_1px_0_rgba(255,179,122,0.08)] sm:rounded-t-[36px]">
           <MarkWatermark />
 
