@@ -707,7 +707,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <SiteFooter />
+      <SiteFooter cta={false} />
     </>
   );
 }
