@@ -3,6 +3,7 @@
 import { Inbox } from "lucide-react";
 import Link from "next/link";
 import { parseAsString, parseAsStringLiteral, useQueryState } from "nuqs";
+import { useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/app/empty-state";
 import { PageContainer } from "@/components/app/page-container";
@@ -11,6 +12,7 @@ import { Panel, PanelRow } from "@/components/app/panel";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDebounced } from "@/lib/use-debounced";
 
 import { AdminNav } from "./admin-nav";
 import { useInbox, useMetrics, type Metrics } from "./api";
@@ -51,6 +53,12 @@ function MetricsRow({ m }: { m: Metrics }) {
 export function AdminInbox() {
   const [filter, setFilter] = useQueryState("status", parseAsStringLiteral(FILTERS).withDefault("active"));
   const [q, setQ] = useQueryState("q", parseAsString.withDefault(""));
+  // The box updates as the person types; the URL and the search request wait for a pause.
+  const [draft, setDraft] = useState(q);
+  const settled = useDebounced(draft, 300);
+  useEffect(() => {
+    void setQ(settled || null);
+  }, [settled, setQ]);
   const { data: tickets, isLoading } = useInbox(filter, q);
   const { data: metrics } = useMetrics();
 
@@ -61,7 +69,7 @@ export function AdminInbox() {
       {metrics && <MetricsRow m={metrics} />}
 
       <div className="flex flex-wrap gap-3">
-        <Input value={q} onChange={(e) => setQ(e.target.value || null)} placeholder="Search subjects or paste a ticket id" className="max-w-sm" aria-label="Search tickets" />
+        <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Search subjects or paste a ticket id" className="max-w-sm" aria-label="Search tickets" />
         <NativeSelect value={filter} onChange={(e) => setFilter(e.target.value as (typeof FILTERS)[number])} aria-label="Status">
           {FILTERS.map((f) => (
             <NativeSelectOption key={f} value={f}>

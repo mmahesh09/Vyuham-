@@ -1,21 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 
 import type { Dataset } from "@/features/datasets/api";
+import { useDebounced } from "@/lib/use-debounced";
 
 import { checkFormula, previewFormula, useFormulaFunctions, useMetrics, type FormulaInput } from "./api";
 import type { FormulaNames } from "./formula-editor";
-
-function useDebounced<T>(value: T, ms = 350) {
-  const [current, setCurrent] = useState(value);
-  useEffect(() => {
-    const t = window.setTimeout(() => setCurrent(value), ms);
-    return () => window.clearTimeout(t);
-  }, [value, ms]);
-  return current;
-}
 
 /** Validates as the person types, and previews once the formula is valid. */
 export function useFormula(input: FormulaInput | null, canPreview: boolean) {
