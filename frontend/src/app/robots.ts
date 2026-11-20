@@ -8,7 +8,12 @@ export default function robots(): MetadataRoute.Robots {
       userAgent: "*",
       allow: "/",
       // The signed-in app and the API are private. Password pages use a noindex meta tag instead, so crawlers can read it.
-      disallow: ["/api/", "/home", "/dashboards", "/data", "/templates"],
+      // Rules match by prefix, so the app's support portal is "/support/" (with the slash): "/support" would
+      // also hide the public /support-center.
+      disallow: [
+        "/api/", "/home", "/dashboards", "/data", "/templates", "/alerts", "/lab", "/metrics", "/profile",
+        "/reports", "/sql", "/team", "/support/", "/s/", "/print/", "/invite/", "/internal/",
+      ],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
   };

@@ -41,7 +41,10 @@ export function AccountPanel({ user }: { user: User }) {
     setPwState({ status: "saving" });
     const { error } = await authClient.changePassword({ currentPassword: pw.current, newPassword: pw.next, revokeOtherSessions: true });
     if (error) setPwState({ status: "error", message: error.code === "INVALID_PASSWORD" ? "Your current password isn't right." : (error.message ?? "Couldn't change it.") });
-    else (setPwState({ status: "done" }), setPw({ current: "", next: "" }));
+    else {
+      setPwState({ status: "done" });
+      setPw({ current: "", next: "" });
+    }
   };
 
   const download = async () => {
