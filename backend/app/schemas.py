@@ -31,6 +31,11 @@ class ColumnOut(BaseModel):
     empty_ratio: float
     examples: list[str]
     calculated: bool = False  # a formula column (app/analytics)
+    # What was cleaned when the data was read ("2 cells with “n/a” read as empty."), shown after upload.
+    notes: list[str] = Field(default_factory=list)
+    # After a retype to number or date: values that still can't be read as that type (they count as empty).
+    unreadable: int = 0
+    unreadable_examples: list[str] = Field(default_factory=list)
 
 
 class DatasetOut(BaseModel):

@@ -11,6 +11,7 @@ Charts are described by a JSON chart spec (frontend/src/features/charts/chart-sp
 
 from __future__ import annotations
 
+import functools
 import math
 import os
 import threading
@@ -22,11 +23,13 @@ from typing import Any, Literal
 import re
 
 import duckdb
+import pyarrow.parquet as pq
 import sqlglot
 from sqlglot import exp
 
 from app import cache
 from app.config import get_settings
+from app.ingest import DATE_FORMATS, NUMBER_RE
 from app.models import Dataset
 from app.telemetry import count, span, timed
 
@@ -87,6 +90,106 @@ def workspace_dir(workspace_id: str) -> str:
 # ---------- connection ----------
 
 
+# Reading a column the user retyped. A column inferred as text at upload is stored as text; if the user then marks
+# it as a number or a date, it must be read with the same rules the upload uses ("₹1,200", "(200)", "05/01/2026"),
+# not a bare TRY_CAST, which turns every such value into NULL and silently shrinks totals.
+_NUMBER_MACROS = (
+    # Same steps as ingest._normalise_numbers: drop spaces, one leading currency symbol and a trailing %,
+    # read (200) as -200, accept only well-formed numbers, then remove thousands commas.
+    "CREATE MACRO vy_clean(v) AS regexp_replace(regexp_replace(regexp_replace(CAST(v AS VARCHAR), '[[:space:]]', '', 'g'), "
+    "'^[$€£₹¥]', ''), '%$', '')",
+    "CREATE MACRO vy_unparen(s) AS CASE WHEN s LIKE '(%)' THEN '-' || substr(s, 2, length(s) - 2) ELSE s END",
+    "CREATE MACRO vy_num(v) AS CASE WHEN regexp_full_match(vy_unparen(vy_clean(v)), '" + NUMBER_RE.pattern + "') "
+    "AND regexp_matches(vy_unparen(vy_clean(v)), '[0-9]') THEN TRY_CAST(replace(vy_unparen(vy_clean(v)), ',', '') AS DOUBLE) END",
+)
+
+
+def stored_as_text(path: str) -> set[str]:
+    """Names of the Parquet file's text columns (schema metadata only, cached per file version)."""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return set()
+    return _stored_as_text(path, st.st_mtime_ns, st.st_size)
+
+
+@functools.lru_cache(maxsize=512)
+def _stored_as_text(path: str, _mtime: int, _size: int) -> set[str]:
+    import pyarrow as pa
+
+    schema = pq.read_schema(path)
+    return {f.name for f in schema if pa.types.is_string(f.type) or pa.types.is_large_string(f.type)}
+
+
+def typed_column_sql(column: dict, ref: str, text_stored: bool) -> str:
+    """SQL reading one stored column as its declared type. `ref` is the already-quoted source column."""
+    kind = CAST.get(column["type"], "VARCHAR")
+    if text_stored and column["type"] == "number":
+        return f"vy_num({ref})"
+    if text_stored and column["type"] == "date":
+        fmt = column.get("format")
+        if fmt in DATE_FORMATS and fmt != "ISO8601":
+            return f"TRY_STRPTIME(TRIM({ref}), '{fmt}')"  # fmt is one of the fixed DATE_FORMATS
+        return f"TRY_CAST(TRIM({ref}) AS TIMESTAMP)"
+    return f"TRY_CAST({ref} AS {kind})"
+
+
+def _best_date_format(values: list[str]) -> str | None:
+    """The DATE_FORMATS entry that reads the most values (ties go to the earlier, as at upload)."""
+    import pandas as pd
+
+    from app.ingest import ISO_DATE_RE
+
+    series = pd.Series(values).str.strip()
+    best, best_n = None, 0
+    for fmt in DATE_FORMATS:
+        if fmt == "ISO8601":
+            n = int(series.str.match(ISO_DATE_RE.pattern).sum())
+        else:
+            n = int(pd.to_datetime(series, format=fmt, errors="coerce").notna().sum())
+        if n > best_n:
+            best, best_n = fmt, n
+    return best
+
+
+def column_readability(dataset: Dataset, names: list[str]) -> dict[str, dict]:
+    """For columns now typed number or date but stored as text: the date format to read them with, and how
+    many non-empty values still can't be read (with a few examples), so a retype never shrinks a total silently.
+
+    Returns {name: {"format": str | None, "unreadable": int, "unreadable_examples": [str]}} for those columns only.
+    """
+    path = _parquet(dataset)
+    text_cols = stored_as_text(path)
+    by_name = {c["name"]: c for c in dataset.columns}
+    todo = [n for n in names if n in text_cols and by_name.get(n, {}).get("type") in ("number", "date")]
+    if not todo:
+        return {}
+    out: dict[str, dict] = {}
+    con = connect(dataset.workspace_id, [])  # the macros and the workspace folder, no views needed
+    try:
+        literal = path.replace("'", "''")
+        for name in todo:
+            col = dict(by_name[name])
+            ref = quote(name)
+            raw = f"TRIM(CAST({ref} AS VARCHAR))"
+            fmt = None
+            if col["type"] == "date":
+                sample = [r[0] for r in con.execute(
+                    f"SELECT DISTINCT {raw} FROM read_parquet('{literal}') WHERE {raw} <> '' LIMIT 500"  # nosec B608
+                ).fetchall()]
+                fmt = _best_date_format(sample) if sample else None
+                col["format"] = fmt
+            bad = f"{raw} <> '' AND {typed_column_sql(col, ref, True)} IS NULL"
+            n, examples = con.execute(
+                f"SELECT COUNT(*) FILTER (WHERE {bad}), list_slice(list(DISTINCT {raw}) FILTER (WHERE {bad}), 1, 5) "
+                f"FROM read_parquet('{literal}')"  # server-built names and path  # nosec B608
+            ).fetchone()
+            out[name] = {"format": fmt, "unreadable": int(n), "unreadable_examples": sorted(examples or [])}
+    finally:
+        con.close()
+    return out
+
+
 def connect(workspace_id: str, datasets: list[Dataset]) -> duckdb.DuckDBPyConnection:
     """A sandboxed connection with one view per dataset, columns cast to their declared types."""
     folder = workspace_dir(workspace_id)
@@ -97,6 +200,8 @@ def connect(workspace_id: str, datasets: list[Dataset]) -> duckdb.DuckDBPyConnec
             "temp_directory": "",  # no spilling to disk: a big sort can't fill the volume every customer shares
         },
     )
+    for macro in _NUMBER_MACROS:
+        con.execute(macro)
     con.execute("SET allowed_directories=[?]", [folder + os.sep])
     con.execute("SET enable_external_access=false")
     con.execute("SET lock_configuration=true")
@@ -104,8 +209,9 @@ def connect(workspace_id: str, datasets: list[Dataset]) -> duckdb.DuckDBPyConnec
         path = os.path.join(folder, f"{d.id}.parquet")
         if not os.path.exists(path):
             continue
+        text_cols = stored_as_text(path)
         cols = ", ".join(
-            f"TRY_CAST({quote(c['name'])} AS {CAST.get(c['type'], 'VARCHAR')}) AS {quote(c['name'])}" for c in d.columns if not c.get("sql")
+            f"{typed_column_sql(c, quote(c['name']), c['name'] in text_cols)} AS {quote(c['name'])}" for c in d.columns if not c.get("sql")
         )
         literal = path.replace("'", "''")  # server-built path (hex ids); escaped anyway
         typed = f"SELECT {cols} FROM read_parquet('{literal}')"  # server-built names and path  # nosec B608

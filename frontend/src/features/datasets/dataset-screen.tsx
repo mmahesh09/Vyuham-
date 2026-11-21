@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Check, Database, FileSpreadsheet, LayoutDashboard, ListTodo, Pencil, RefreshCw, Trash2, X } from "lucide-react";
+import { Check, Database, FileSpreadsheet, LayoutDashboard, ListTodo, Pencil, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
@@ -284,11 +284,19 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
 /** Detected column types, with an override when we guessed wrong. */
 function ColumnsPanel({ dataset, canEdit }: { dataset: Dataset; canEdit: boolean }) {
   const update = useUpdateDataset(dataset.id);
+  const cleaned = dataset.columns.reduce((n, c) => n + (c.notes?.length ?? 0), 0);
   return (
     <div className="flex flex-col gap-3">
       <p className="text-sm text-muted">
         We guessed each column&apos;s type from its values. If one is wrong, change it here; charts use the new type straight away.
       </p>
+      {cleaned > 0 && (
+        <p className="flex items-start gap-2 rounded-lg border border-line bg-surface-2/60 px-3.5 py-2.5 text-[13px] text-muted">
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-highlight" aria-hidden />
+          We tidied {cleaned === 1 ? "one thing" : `${cleaned} things`} while reading this data, so totals come out right. Each note is on its
+          column below. Your original file isn&apos;t changed.
+        </p>
+      )}
       {update.isError && <p className="text-[13px] text-accent">{update.error.message}</p>}
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {dataset.columns.map((c) => (
@@ -301,6 +309,24 @@ function ColumnsPanel({ dataset, canEdit }: { dataset: Dataset; canEdit: boolean
             </div>
             <p className="truncate text-[13px] text-muted">{c.examples.length ? c.examples.join(" · ") : "No values"}</p>
             {c.empty_ratio > 0.2 && <p className="text-xs text-accent">{Math.round(c.empty_ratio * 100)}% of cells are empty</p>}
+            {!!c.notes?.length && (
+              <ul className="flex flex-col gap-1" aria-label={`What we tidied in ${c.name}`}>
+                {c.notes.map((n) => (
+                  <li key={n} className="flex items-start gap-1.5 text-xs leading-relaxed text-muted">
+                    <Sparkles className="mt-0.5 size-3 shrink-0 text-highlight" aria-hidden />
+                    {n}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {!!c.unreadable && (
+              <p className="text-xs leading-relaxed text-accent">
+                {c.unreadable === 1 ? "1 value isn’t" : `${c.unreadable.toLocaleString()} values aren’t`} a {c.type === "date" ? "date" : "number"}
+                {c.unreadable_examples?.length ? ` (${c.unreadable_examples.map((v) => `“${v}”`).join(", ")})` : ""}, so{" "}
+                {c.unreadable === 1 ? "it’s" : "they’re"} left out of totals and charts. Fix {c.unreadable === 1 ? "it" : "them"} in your file and
+                replace it, or treat the column as text.
+              </p>
+            )}
             {canEdit && (
               <label className="flex items-center gap-2 text-xs text-faint">
                 Treat as

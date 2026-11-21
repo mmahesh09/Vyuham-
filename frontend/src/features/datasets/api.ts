@@ -31,7 +31,17 @@ export type Dataset = {
 
 export const isSynced = (d: Pick<Dataset, "source_kind">) => d.source_kind === "postgres" || d.source_kind === "mysql";
 
-export type DatasetColumn = { name: string; type: ColumnType; empty_ratio: number; examples: string[] };
+export type DatasetColumn = {
+  name: string;
+  type: ColumnType;
+  empty_ratio: number;
+  examples: string[];
+  /** What was cleaned when the data was read, in plain words ("1 cell with “n/a” read as empty."). */
+  notes?: string[];
+  /** After a retype to number or date: values that still can't be read as that type (they count as empty). */
+  unreadable?: number;
+  unreadable_examples?: string[];
+};
 
 /** One row from the backend, values already JSON (numbers, ISO dates, strings, null). */
 export type DatasetRow = Record<string, string | number | boolean | null>;

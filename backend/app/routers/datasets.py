@@ -11,7 +11,7 @@ from app.config import get_settings
 from app.db import get_db
 from app.ingest import IngestError, ingest, write_parquet
 from app.models import Alert, Dataset, WorkspaceMember
-from app.query import QueryError, connect, distinct_values, page_rows
+from app.query import QueryError, column_readability, connect, distinct_values, page_rows
 from app.schemas import DatasetOut, DatasetPatch, RowsOut
 from app.security import current_membership
 
@@ -190,8 +190,17 @@ def update_dataset(
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"Unknown column: {sorted(unknown)[0]}")
         if any(c.get("calculated") and c["name"] in body.column_types for c in dataset.columns):
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "A calculated column's type comes from its formula.")
-        # New list so SQLAlchemy sees the JSON change.
-        dataset.columns = [{**c, "type": body.column_types.get(c["name"], c["type"])} for c in dataset.columns]
+        # New list so SQLAlchemy sees the JSON change. A retype resets what we knew about reading the old type.
+        reset = ("format", "unreadable", "unreadable_examples")
+        dataset.columns = [
+            {k: v for k, v in c.items() if k not in reset} | {"type": body.column_types[c["name"]]}
+            if c["name"] in body.column_types
+            else c
+            for c in dataset.columns
+        ]
+        # Text values marked as numbers or dates are read with the upload's rules; record what still can't be read.
+        found = column_readability(dataset, list(body.column_types))
+        dataset.columns = [{**c, **{k: v for k, v in found[c["name"]].items() if v}} if c["name"] in found else c for c in dataset.columns]
         refresh_calculated(db, dataset)
     if body.refresh is not None:
         if dataset.connection_id is None:

@@ -14,7 +14,7 @@ import os
 import re
 import uuid
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from decimal import Decimal
 from pathlib import Path
@@ -23,7 +23,16 @@ import pandas as pd
 
 SAMPLE = 500
 CANDIDATE_DELIMITERS = ",;\t|"
-NUMBER_RE = re.compile(r"^[-+]?(\d{1,3}(,\d{3})+|\d+)?(\.\d+)?$")
+# Thousands grouping (1,200,000) or Indian lakh/crore grouping (12,00,000 and 1,20,00,000).
+NUMBER_RE = re.compile(r"^[-+]?(\d{1,3}(,\d{3})+|\d{1,2}(,\d{2})+,\d{3}|\d+)?(\.\d+)?$")
+# What spreadsheets put in a cell that has no value. In number and date columns they count as empty;
+# text columns keep them as written (there "N/A" can be a real answer).
+PLACEHOLDERS = frozenset(
+    {"n/a", "na", "n.a.", "-", "--", "—", "–", "null", "none", "nil", "nan", "#n/a", "#value!", "#ref!", "#div/0!", "#num!"}
+)
+# A whole cell that labels a summary row: "Total", "TOTAL:", "Grand total", "Subtotal", "Totals".
+TOTAL_LABEL_RE = re.compile(r"^(grand\s+|sub-?\s*)?totals?\s*:?$", re.I)
+MAX_TOTAL_ROWS = 3  # only a few summary rows at the very end are dropped, never rows in the middle
 ISO_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}([T ].*)?$")
 # Tried in order; the first one that parses every value in the column wins.
 DATE_FORMATS = ["ISO8601", "%d/%m/%Y", "%m/%d/%Y", "%d-%m-%Y", "%d %b %Y", "%b %d, %Y", "%d.%m.%Y", "%Y/%m/%d"]
@@ -39,9 +48,13 @@ class ColumnProfile:
     type: str  # number | date | category | text
     empty_ratio: float
     examples: list[str]
+    notes: list[str] = field(default_factory=list)  # what was cleaned, in plain words, shown after upload
 
     def as_dict(self) -> dict:
-        return {"name": self.name, "type": self.type, "empty_ratio": self.empty_ratio, "examples": self.examples}
+        d = {"name": self.name, "type": self.type, "empty_ratio": self.empty_ratio, "examples": self.examples}
+        if self.notes:
+            d["notes"] = self.notes
+        return d
 
 
 @dataclass
@@ -265,23 +278,106 @@ def _ingest(raw: bytes, filename: str, sheet: str | None = None, max_rows: int =
     if len(body) > max_rows:
         raise IngestError(f"This file has {len(body):,} rows. The beta limit is {max_rows:,}.")
 
-    frame, profiles = _profile_text_columns(body[keep])
+    body, total_notes = _drop_total_rows(body[keep])
+    frame, profiles = _profile_text_columns(body)
+    for p in profiles:
+        if p.name in total_notes:
+            p.notes.insert(0, total_notes[p.name])
     return IngestResult(frame=frame, columns=profiles, sheets=sheets, sheet=chosen)
 
 
+def _quoted(values: list[str], limit: int = 3) -> str:
+    return ", ".join(f"“{v}”" for v in values[:limit])
+
+
+def _merge_case_variants(col: pd.Series) -> tuple[pd.Series, str | None]:
+    """In a category column, "Paid", "PAID" and "paid" become the most common spelling ("Paid")."""
+    present = col[col.str.strip() != ""]
+    counts = present.value_counts(sort=False)
+    by_lower: dict[str, list[str]] = {}
+    for spelling in counts.index:  # first-seen order, so ties go to the spelling that appears first
+        by_lower.setdefault(spelling.lower(), []).append(spelling)
+    mapping: dict[str, str] = {}
+    for spellings in by_lower.values():
+        if len(spellings) > 1:
+            keep = max(spellings, key=lambda s: counts[s])  # max() keeps the first of equal counts
+            mapping.update({s: keep for s in spellings if s != keep})
+    if not mapping:
+        return col, None
+    example_from, example_to = next(iter(mapping.items()))
+    groups = len(set(mapping.values()))
+    note = (
+        f"Merged values that differ only in capitals: {_quoted([example_from])} is counted as {_quoted([example_to])}"
+        + (f", and {groups - 1} more like it." if groups > 1 else ".")
+    )
+    return col.replace(mapping), note
+
+
 def _profile_text_column(name: str, col: pd.Series, rows: int) -> tuple[pd.Series, ColumnProfile]:
-    """Type one column of text (as a user would see it) and describe it."""
+    """Type one column of text (as a user would see it) and describe it, saying what was cleaned."""
     col = col.astype(str)
-    non_empty = col[col.str.strip() != ""]
+    stripped = col.str.strip()
+    non_empty = col[stripped != ""]
     sample = non_empty.iloc[:SAMPLE].tolist()
     kind, fmt = _infer(sample, len(non_empty))
+    notes: list[str] = []
+
+    # One "n/a" or "-" shouldn't stop a column of numbers or dates being one. Only when the real values
+    # decide the type, and there are at least as many of them as placeholders.
+    placeholder = stripped.str.lower().isin(PLACEHOLDERS)
+    if kind not in ("number", "date") and placeholder.any():
+        real = col[(stripped != "") & ~placeholder]
+        relaxed, relaxed_fmt = _infer(real.iloc[:SAMPLE].tolist(), len(real))
+        if relaxed in ("number", "date") and len(real) >= int(placeholder.sum()):
+            kind, fmt, non_empty = relaxed, relaxed_fmt, real
+            sample = real.iloc[:SAMPLE].tolist()
+            found = list(dict.fromkeys(col[placeholder].str.strip()))
+            n = int(placeholder.sum())
+            notes.append(f"{n} {'cell' if n == 1 else 'cells'} with {_quoted(found)} read as empty.")
+            col = col.where(~placeholder, "")
+
+    if kind == "category":
+        col, merged = _merge_case_variants(col)
+        if merged:
+            notes.append(merged)
+            sample = col[col.str.strip() != ""].iloc[:SAMPLE].tolist()
+
     profile = ColumnProfile(
         name=name,
         type=kind,
         empty_ratio=round(1 - len(non_empty) / rows, 4) if rows else 1.0,
         examples=list(dict.fromkeys(sample))[:3],
+        notes=notes,
     )
     return _convert(col, kind, fmt), profile
+
+
+def _drop_total_rows(body: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, str]]:
+    """Summary rows at the very end ("Total", "Grand total") aren't data: summing them doubles every total.
+
+    A row counts only if its first non-empty cell is exactly such a label. Returns the rows kept and a note
+    for the column the label was in.
+    """
+    dropped: list[tuple[str, str]] = []
+    end = len(body)
+    while end > 1 and len(dropped) < MAX_TOTAL_ROWS:
+        row = body.iloc[end - 1]
+        first = next(((c, v) for c, v in row.items() if str(v).strip()), None)
+        if not first or not TOTAL_LABEL_RE.match(str(first[1]).strip()):
+            break
+        dropped.append((first[0], str(first[1]).strip()))
+        end -= 1
+    if not dropped:
+        return body, {}
+    notes: dict[str, str] = {}
+    for column in dict.fromkeys(c for c, _ in dropped):
+        labels = [label for c, label in dropped if c == column]
+        n = len(labels)
+        notes[column] = (
+            f"Left out {'the summary row' if n == 1 else f'{n} summary rows'} at the end of the file "
+            f"({_quoted(list(dict.fromkeys(labels)))}), so totals aren't counted twice."
+        )
+    return body.iloc[:end].reset_index(drop=True), notes
 
 
 def _profile_text_columns(body: pd.DataFrame) -> tuple[pd.DataFrame, list[ColumnProfile]]:
