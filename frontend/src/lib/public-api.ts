@@ -23,6 +23,8 @@ export type HelpArticle = {
   summary: string;
   tags: string[];
   updated_at: string;
+  /** Estimated from the body's word count (older backends omit it). */
+  read_minutes?: number;
   body: string;
   helpful_yes: number;
   helpful_no: number;

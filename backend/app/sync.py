@@ -41,6 +41,15 @@ def is_synced(ds: Dataset) -> bool:
     return ds.source_kind in ("postgres", "mysql")
 
 
+def rebuilt(ds: Dataset) -> bool:
+    """Built from a query or a link: refreshed by re-running it (app/materialize.py), not by a connector."""
+    return (ds.origin or {}).get("kind") in ("sql", "url")
+
+
+def refreshable(ds: Dataset) -> bool:
+    return ds.connection_id is not None or rebuilt(ds)
+
+
 def _aware(dt: datetime | None) -> datetime | None:
     return dt.replace(tzinfo=timezone.utc) if dt is not None and dt.tzinfo is None else dt
 
@@ -56,7 +65,7 @@ def sync_in_progress(ds: Dataset, now: datetime | None = None) -> bool:
 def next_sync_at(ds: Dataset) -> datetime | None:
     """When a scheduled sync is next due, or None for manual refresh / no connection."""
     every = REFRESH_EVERY.get(ds.refresh or "")
-    if every is None or ds.connection_id is None:
+    if every is None or not refreshable(ds):
         return None
     last = _aware(ds.last_synced_at) or _aware(ds.created_at) or datetime.now(timezone.utc)
     started = _aware(ds.sync_started_at)

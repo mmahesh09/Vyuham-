@@ -65,7 +65,7 @@ def test_empty_files(raw, msg):
 
 
 def test_wrong_extension():
-    with pytest.raises(IngestError, match=r"\.csv or \.xlsx"):
+    with pytest.raises(IngestError, match=r"\.csv, \.xlsx, \.json or \.parquet"):
         ingest(b"x", "notes.txt")
 
 

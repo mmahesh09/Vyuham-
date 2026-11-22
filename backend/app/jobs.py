@@ -29,7 +29,7 @@ from app.telemetry import count, record, span
 
 log = logging.getLogger("app.jobs")
 
-ALERT, AUTOMATION, SYNC = "alert", "automation", "sync"
+ALERT, AUTOMATION, SYNC, QUALITY = "alert", "automation", "sync", "quality"
 FINISHED = ("done", "failed")
 # Longer than a job can legitimately take with all its retries (4 x 6 minutes plus backoff).
 STALE_AFTER = timedelta(minutes=45)
@@ -63,12 +63,30 @@ def find_due(db: Session, now: datetime) -> list[Due]:
     for a in db.scalars(select(Automation).where(Automation.enabled.is_(True))).all():
         if automation_due(a, now):
             due.append(Due(AUTOMATION, a.id, _second(last_occurrence(a, now))))
-    synced = select(Dataset).where(Dataset.connection_id.is_not(None), Dataset.refresh.in_(("hourly", "daily")))
+    synced = select(Dataset).where(Dataset.refresh.in_(("hourly", "daily")))
     for ds in db.scalars(synced).all():
         at = next_sync_at(ds)
         if at is not None and at <= now:
             due.append(Due(SYNC, ds.id, _second(sync_slot(at, now))))
+    due.extend(_quality_due(db, now))
     return due
+
+
+def _quality_due(db: Session, now: datetime) -> list[Due]:
+    """Datasets with checks get them run once a day even when nothing refreshes them (freshness rules)."""
+    from sqlalchemy import func
+
+    from app.models import QualityRule, QualityRun
+
+    checked = select(QualityRule.dataset_id, func.min(QualityRule.created_at)).where(QualityRule.enabled.is_(True)).group_by(QualityRule.dataset_id)
+    last = dict(db.execute(select(QualityRun.dataset_id, func.max(QualityRun.created_at)).group_by(QualityRun.dataset_id)).all())
+    out = []
+    for ds_id, first in db.execute(checked).all():
+        since = _aware(last.get(ds_id)) or _aware(first) or now
+        at = since + timedelta(days=1)
+        if at <= now:
+            out.append(Due(QUALITY, ds_id, _second(at)))
+    return out
 
 
 def sync_now(db: Session, ds: Dataset, now: datetime | None = None) -> JobRun | None:
@@ -148,13 +166,33 @@ def _run_job(db: Session, job_id: str, now: datetime | None = None) -> JobRun | 
     run.status, run.attempts, run.started_at = "running", run.attempts + 1, datetime.now(timezone.utc)
     db.commit()
     try:
+        if run.kind == QUALITY:
+            from app.quality import run_checks
+
+            ds = db.get(Dataset, run.target_id)
+            result = run_checks(db, ds, "schedule", now) if ds is not None else None
+            run.status, run.error = "done", None if result is None or result.status != "error" else "Checks could not run."
+            run.finished_at = datetime.now(timezone.utc)
+            db.commit()
+            return run
         if run.kind == SYNC:
+            from app.materialize import MaterializeError, rebuild
+            from app.quality import run_checks
+            from app.sync import rebuilt
+
             ds = db.get(Dataset, run.target_id)
             if ds is None:
                 run.status, run.error = "done", "Skipped: dataset deleted."
+            elif rebuilt(ds):
+                try:
+                    rebuild(db, ds, "schedule")
+                    run.status, run.error = "done", None
+                except (MaterializeError, QueryError) as e:  # recorded on the dataset, not retried
+                    run.status, run.error = "failed", str(e)[:500]
             else:
                 try:
                     sync_dataset(db, ds, now)
+                    run_checks(db, ds, "refresh", now)
                     run.status, run.error = "done", None
                 except SyncError as e:  # the customer's to fix: recorded on the dataset, not retried
                     run.status, run.error = "failed", str(e)[:500]
@@ -210,6 +248,9 @@ def prune(db: Session, now: datetime | None = None, keep_days: int = 30) -> int:
     db.execute(delete(QueryExecution).where(QueryExecution.created_at < cutoff))
     db.execute(delete(AuditLog).where(AuditLog.created_at < (now or datetime.now(timezone.utc)) - timedelta(days=365)))
     db.commit()
+    from app.routers.support import prune_attachments  # support uploads never sent with a message
+
+    prune_attachments(db, now)
     return len(old)
 
 

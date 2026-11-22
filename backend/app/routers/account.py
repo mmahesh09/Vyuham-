@@ -44,6 +44,7 @@ from app.models import (
     SemanticMetric,
     SupportTicket,
     Task,
+    TicketAttachment,
     TicketMessage,
     UserPresence,
     UserProfile,
@@ -51,7 +52,7 @@ from app.models import (
     WorkspaceMember,
 )
 from app.query import workspace_dir
-from app.reports.storage import get_storage
+from app.reports.storage import get_attachment_storage, get_storage
 from app.routers.datasets import parquet_path
 from app.security import AuthUser, current_membership, current_user
 
@@ -132,6 +133,12 @@ def _erase_workspace(db: Session, workspace_id: str) -> None:
         except Exception:  # keep erasing; this is logged for staff to finish by hand
             log.exception("[erasure] couldn't delete a report file")
     shutil.rmtree(os.path.join(get_settings().data_dir, "reports", workspace_id), ignore_errors=True)
+    files = get_attachment_storage()
+    for key in db.scalars(select(TicketAttachment.storage_key).where(TicketAttachment.workspace_id == workspace_id)):
+        try:
+            files.delete(key)
+        except Exception:
+            log.exception("[erasure] couldn't delete a support attachment")
     db.execute(delete(Chart).where(Chart.dashboard_id.in_(select(Dashboard.id).where(Dashboard.workspace_id == workspace_id))))
     db.execute(delete(TicketMessage).where(TicketMessage.ticket_id.in_(select(SupportTicket.id).where(SupportTicket.workspace_id == workspace_id))))
     for table in reversed(Base.metadata.sorted_tables):

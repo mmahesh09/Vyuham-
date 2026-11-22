@@ -4,7 +4,18 @@ import { api } from "@/lib/api/client";
 
 /** Mirrors backend/app/schemas.py. */
 export type ChartKind = "card" | "kpi";
-export type ChartRecord = { id: string; dataset_id: string | null; spec: ChartSpec; kind: ChartKind; note: string | null; position: number };
+export type ChartRecord = {
+  id: string;
+  dataset_id: string | null;
+  spec: ChartSpec;
+  kind: ChartKind;
+  note: string | null;
+  position: number;
+  /** The report page it sits on (the server always fills this in). */
+  page_id?: string | null;
+};
+/** A report page, shown as a tab under the canvas. */
+export type ReportPage = { id: string; name: string };
 export type KpiLayoutItem = { i: string; x: number; y: number; w: number; h: number };
 
 export type Dashboard = {
@@ -16,6 +27,8 @@ export type Dashboard = {
   kpi_layout: KpiLayoutItem[];
   /** Dashboard Lab: free-form positions of every chart. */
   canvas_layout: KpiLayoutItem[];
+  /** Report pages, always at least one. */
+  pages: ReportPage[];
   share_token: string | null;
   created_at: string;
   updated_at: string;
@@ -53,7 +66,16 @@ export type DashboardView = {
 };
 
 /** Filters as sent to the server: dates as "yyyy-MM-dd" (or null = all time) and column equals-filters. */
-export type ViewQuery = { from: string | null; to: string | null; f: Record<string, string> };
+export type ViewQuery = {
+  from: string | null;
+  to: string | null;
+  f: Record<string, string>;
+  /** Only this report page's charts. */
+  page?: string | null;
+  /** Cross-filter picked on one chart ({column: value}) and the chart it came from. */
+  x?: Record<string, string> | null;
+  xs?: string | null;
+};
 
 function viewParams(q: ViewQuery) {
   const p = new URLSearchParams();
@@ -61,6 +83,11 @@ function viewParams(q: ViewQuery) {
   if (q.to) p.set("to", q.to);
   const f = Object.fromEntries(Object.entries(q.f).filter(([, v]) => v));
   if (Object.keys(f).length) p.set("f", JSON.stringify(f));
+  if (q.page) p.set("page", q.page);
+  if (q.x && Object.keys(q.x).length) {
+    p.set("x", JSON.stringify(q.x));
+    if (q.xs) p.set("xs", q.xs);
+  }
   const s = p.toString();
   return s ? `?${s}` : "";
 }
@@ -102,14 +129,14 @@ export const dashboardsApi = {
   list: () => api<DashboardSummary[]>("/dashboards"),
   create: (body: { name: string; description?: string | null }) =>
     api<Dashboard>("/dashboards", { method: "POST", body: JSON.stringify(body) }),
-  update: (id: string, body: Partial<Pick<Dashboard, "name" | "description" | "date_fields" | "filter_columns" | "kpi_layout" | "canvas_layout">>) =>
+  update: (id: string, body: Partial<Pick<Dashboard, "name" | "description" | "date_fields" | "filter_columns" | "kpi_layout" | "canvas_layout" | "pages">>) =>
     api<Dashboard>(`/dashboards/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
   remove: (id: string) => api<void>(`/dashboards/${id}`, { method: "DELETE" }),
   duplicate: (id: string) => api<Dashboard>(`/dashboards/${id}/duplicate`, { method: "POST" }),
   starter: (datasetId: string) => api<Dashboard>(`/datasets/${datasetId}/starter-dashboard`, { method: "POST" }),
-  addChart: (id: string, body: { spec: ChartSpec; kind: ChartKind; note?: string | null }) =>
+  addChart: (id: string, body: { spec: ChartSpec; kind: ChartKind; note?: string | null; page_id?: string | null }) =>
     api<ChartRecord>(`/dashboards/${id}/charts`, { method: "POST", body: JSON.stringify(body) }),
-  updateChart: (chartId: string, body: { spec?: ChartSpec; kind?: ChartKind; note?: string | null }) =>
+  updateChart: (chartId: string, body: { spec?: ChartSpec; kind?: ChartKind; note?: string | null; page_id?: string }) =>
     api<ChartRecord>(`/charts/${chartId}`, { method: "PATCH", body: JSON.stringify(body) }),
   deleteChart: (chartId: string) => api<void>(`/charts/${chartId}`, { method: "DELETE" }),
   reorder: (id: string, chartIds: string[]) =>

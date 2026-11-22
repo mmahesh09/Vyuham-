@@ -9,6 +9,7 @@ from app.schemas import UtcDatetime
 Category = Literal["bug", "question", "billing", "feature"]
 Priority = Literal["low", "normal", "high", "urgent"]
 TicketStatus = Literal["open", "pending", "resolved", "closed"]
+MAX_ATTACHMENTS = 5  # per message
 
 
 def _strip(v: str) -> str:
@@ -24,18 +25,28 @@ class TicketIn(BaseModel):
     category: Category = "question"
     page_url: str | None = Field(default=None, max_length=500)
     error_event_id: str | None = Field(default=None, max_length=64, pattern=r"^[A-Za-z0-9-]+$")
+    attachment_ids: list[str] = Field(default_factory=list, max_length=MAX_ATTACHMENTS)
 
     _s = field_validator("subject", "body")(_strip)
 
 
 class MessageIn(BaseModel):
     body: str = Field(min_length=1, max_length=10_000)
+    attachment_ids: list[str] = Field(default_factory=list, max_length=MAX_ATTACHMENTS)
 
     _s = field_validator("body")(_strip)
 
 
 class StaffMessageIn(MessageIn):
     internal: bool = False
+
+
+class AttachmentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    filename: str
+    content_type: str
+    size: int
 
 
 class MessageOut(BaseModel):
@@ -45,6 +56,21 @@ class MessageOut(BaseModel):
     is_staff: bool
     internal: bool
     body: str
+    created_at: UtcDatetime
+    attachments: list[AttachmentOut] = []
+
+
+class ArticleRef(BaseModel):
+    slug: str
+    title: str
+
+
+class LatestReplyOut(BaseModel):
+    """The newest message the customer can see on a ticket, trimmed for list views."""
+
+    author_name: str
+    is_staff: bool
+    excerpt: str
     created_at: UtcDatetime
 
 
@@ -60,10 +86,14 @@ class TicketOut(BaseModel):
     created_at: UtcDatetime
     updated_at: UtcDatetime
     resolved_at: UtcDatetime | None
+    # Customer-visible conversation facts (internal notes excluded). Filled on the customer endpoints.
+    staff_replied: bool = False
+    latest_reply: LatestReplyOut | None = None
 
 
 class TicketDetailOut(TicketOut):
     messages: list[MessageOut]
+    kb_article: ArticleRef | None = None  # the published help article support linked, if any
 
 
 class StaffTicketOut(TicketOut):
@@ -107,6 +137,7 @@ class ArticleSummary(BaseModel):
     summary: str
     tags: list[str]
     updated_at: UtcDatetime
+    read_minutes: int = 1
 
 
 class ArticleOut(ArticleSummary):

@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Hash, LayoutDashboard, LayoutGrid, ListTodo, LoaderCircle, Move, MoreHorizontal, Newspaper, Plus, SlidersHorizontal, Sparkle, Trash2 } from "lucide-react";
+import { Copy, Hash, LayoutDashboard, LayoutGrid, ListTodo, LoaderCircle, Move, MoreHorizontal, Newspaper, PanelRight, Plus, SlidersHorizontal, Sparkle, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
@@ -23,21 +23,28 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ChartEditor } from "@/features/charts/studio/chart-editor";
 import { TaskDialog } from "@/features/team/task-dialog";
 import { ExportMenu } from "@/features/reports/export-menu";
 import { cn } from "@/lib/utils";
 
-import { privateSource, publicSource, type ChartKind, type ChartRecord, type Dashboard, type DashboardSource } from "./api";
+import { privateSource, publicSource, type ChartKind, type ChartRecord, type Dashboard, type DashboardSource, type ReportPage } from "./api";
 import { CanvasView } from "./canvas-view";
 import { FilterBar } from "./filter-bar";
-import { toViewQuery, useDashboardFilters } from "./filters";
+import { toViewQuery, useDashboardFilters, useReportState } from "./filters";
 import { useDashboardMeta, useDashboardMutations, useDashboardView, useDeleteDashboard, useDuplicateDashboard } from "./hooks";
 import { KpiGrid } from "./kpi-grid";
 import { SettingsDialog } from "./settings-dialog";
 import { ShareDialog } from "./share-dialog";
-import { useDashboardLayout } from "./store";
+import { PageTabs } from "./report/page-tabs";
+import { ReportPanes, type PaneId } from "./report/panes";
+import { VisualTile } from "./report/visual-tile";
+import { useDashboardLayout, useSelectedVisual } from "./store";
 import { StoryFeed } from "./story-feed";
+
+const FIRST_PAGE: ReportPage = { id: "page-1", name: "Page 1" };
+const PANE_KEY = "vyuham:report-pane";
 
 /** Signed-in dashboard: everything, editable by editors. */
 export function DashboardScreen({ id }: { id: string }) {
@@ -84,30 +91,128 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
   const router = useRouter();
   const canEdit = mode === "private" && dashboard.can_edit;
   const [filters] = useDashboardFilters();
-  const chartIds = dashboard.charts.map((c) => c.id).join(",");
-  const viewQuery = toViewQuery(filters);
+  const [report, setReport] = useReportState();
+  const pages = dashboard.pages?.length ? dashboard.pages : [FIRST_PAGE];
+  const pageId = pages.some((p) => p.id === report.page) ? report.page! : pages[0].id;
+  const pageOf = (c: ChartRecord) => (c.page_id && pages.some((p) => p.id === c.page_id) ? c.page_id : pages[0].id);
+  const pageCharts = dashboard.charts.filter((c) => pageOf(c) === pageId);
+  const chartIds = pageCharts.map((c) => c.id).join(",");
+  const viewQuery = {
+    ...toViewQuery(filters),
+    page: pages.length > 1 ? pageId : null,
+    x: report.x,
+    xs: report.xs,
+  };
   const view = useDashboardView(source, viewQuery, chartIds);
   const views = useMemo(() => new Map((view.data?.charts ?? []).map((c) => [c.id, c])), [view.data]);
   const m = useDashboardMutations(dashboard.id);
   const duplicate = useDuplicateDashboard();
   const remove = useDeleteDashboard();
   const { editing, setEditing } = useDashboardLayout();
-  const [layoutMode, setLayoutMode] = useQueryState("layout", parseAsStringLiteral(["story", "canvas"] as const).withDefault("story"));
+  const [layoutMode, setLayoutMode] = useQueryState("layout", parseAsStringLiteral(["story", "canvas"] as const).withDefault("canvas"));
   const canvas = layoutMode === "canvas";
   useEffect(() => () => setEditing(false), [setEditing]);
+
+  // The selected visual drives the side panes; Esc or a page change clears it.
+  const { id: selectedId, select } = useSelectedVisual();
+  const selected = pageCharts.find((c) => c.id === selectedId) ?? null;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && select(null);
+    window.addEventListener("keydown", onKey);
+    return () => (window.removeEventListener("keydown", onKey), select(null));
+  }, [select]);
+
+  // Which pane is open is a per-viewer preference.
+  const [pane, setPane] = useState<PaneId | null>("filters");
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(PANE_KEY);
+      if (saved) setPane(saved === "none" ? null : (saved as PaneId));
+    } catch {
+      /* storage blocked: keep the default */
+    }
+  }, []);
+  const openPane = (p: PaneId | null) => {
+    setPane(p);
+    try {
+      window.localStorage.setItem(PANE_KEY, p ?? "none");
+    } catch {
+      /* not remembered, that's fine */
+    }
+  };
+  const [panesSheet, setPanesSheet] = useState(false);
+
+  const goToPage = (id: string) => {
+    select(null);
+    void setReport({ page: id === pages[0].id ? null : id, x: null, xs: null, focus: null });
+  };
+  const crossValue = report.xs ? (Object.values(report.x ?? {})[0] ?? null) : null;
+  const togglePick = (chart: ChartRecord, value: string) => {
+    const col = chart.spec.groupBy;
+    if (!col) return;
+    if (report.xs === chart.id && report.x?.[col] === value) void setReport({ x: null, xs: null });
+    else void setReport({ x: { [col]: value }, xs: chart.id });
+  };
+  const focusChart = report.focus ? pageCharts.find((c) => c.id === report.focus) : undefined;
 
   const [builder, setBuilder] = useState<{ open: boolean; chart: ChartRecord | null; kind: ChartKind }>({ open: false, chart: null, kind: "card" });
   const [confirmDelete, setConfirmDelete] = useState<ChartRecord | "dashboard" | null>(null);
   const [taskOpen, setTaskOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const kpis = dashboard.charts.filter((c) => c.kind === "kpi");
-  const cards = dashboard.charts.filter((c) => c.kind === "card");
+  const kpis = pageCharts.filter((c) => c.kind === "kpi");
+  const cards = pageCharts.filter((c) => c.kind === "card");
   const hasDates = Object.keys(dashboard.date_fields).length > 0;
   const actionsFor = (chart: ChartRecord) => ({
     onEdit: () => setBuilder({ open: true, chart, kind: chart.kind }),
     onDelete: () => setConfirmDelete(chart),
   });
+  const pageCounts = Object.fromEntries(pages.map((p) => [p.id, dashboard.charts.filter((c) => pageOf(c) === p.id).length]));
+  const panes = (stacked: boolean) => (
+    <ReportPanes
+      dashboard={dashboard}
+      source={source}
+      canEdit={canEdit}
+      selected={selected}
+      open={pane}
+      onOpen={openPane}
+      stacked={stacked}
+      saving={m.updateChart.isPending}
+      onUpdate={(chart, body) => m.updateChart.mutate({ chartId: chart.id, ...body })}
+      onAddVisual={(kind) => setBuilder({ open: true, chart: null, kind })}
+      onEditInStudio={(chart) => setBuilder({ open: true, chart, kind: chart.kind })}
+    />
+  );
+  const tabs = (
+    <PageTabs
+      pages={pages}
+      current={pageId}
+      counts={pageCounts}
+      onSelect={goToPage}
+      onChange={canEdit ? (next) => m.update.mutate({ pages: next }) : undefined}
+      saving={m.update.isPending}
+    />
+  );
+  const renderTile = (c: ChartRecord, bodyHeight: number) => (
+    <VisualTile
+      chart={c}
+      view={views.get(c.id)}
+      bodyHeight={bodyHeight}
+      editing={editing}
+      canEdit={canEdit}
+      selected={selectedId === c.id}
+      onSelect={() => select(c.id)}
+      actions={{
+        ...(canEdit ? actionsFor(c) : {}),
+        onMove: canEdit && pages.length > 1 ? (page_id) => m.updateChart.mutate({ chartId: c.id, page_id }) : undefined,
+        onFocus: () => void setReport({ focus: c.id }),
+      }}
+      pages={pages.filter((p) => p.id !== pageId)}
+      picked={report.xs === c.id ? crossValue : null}
+      onPick={(v) => togglePick(c, v)}
+      onClearPick={() => void setReport({ x: null, xs: null })}
+    />
+  );
   const saveError = (builder.chart ? m.updateChart.error : m.addChart.error)?.message ?? null;
 
   // Summary: the three most telling sentences from the cards.
@@ -118,7 +223,7 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
     .slice(0, 3);
 
   return (
-    <PageContainer width={canvas ? "wide" : "default"} className="gap-7">
+    <PageContainer width={canvas ? "wide" : "default"} className={canvas ? "gap-5" : "gap-7"}>
       <PageHeader
         back={mode === "private" ? { href: "/dashboards", label: "All dashboards" } : undefined}
         crumb={dashboard.name}
@@ -146,7 +251,7 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
                   <Button onClick={() => setEditing(false)}>Done arranging</Button>
                 ) : (
                   <Button onClick={() => setBuilder({ open: true, chart: null, kind: "card" })}>
-                    <Plus /> Add chart
+                    <Plus /> {canvas ? "Add visual" : "Add chart"}
                   </Button>
                 )}
                 <DropdownMenu>
@@ -157,7 +262,7 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
                     <DropdownMenuItem onClick={() => setBuilder({ open: true, chart: null, kind: "kpi" })}>
                       <Hash /> Add a key number
                     </DropdownMenuItem>
-                    {(canvas ? dashboard.charts.length > 0 : kpis.length > 0) && (
+                    {(canvas ? pageCharts.length > 0 : kpis.length > 0) && (
                       <DropdownMenuItem onClick={() => setEditing(!editing)}>
                         <Move /> {editing ? "Stop arranging" : canvas ? "Arrange tiles" : "Arrange numbers"}
                       </DropdownMenuItem>
@@ -189,15 +294,19 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
               <SegmentedControl
                 label="Layout"
                 value={layoutMode}
-                onChange={(v) => (setEditing(false), void setLayoutMode(v === "story" ? null : v))}
+                onChange={(v) => (setEditing(false), select(null), void setLayoutMode(v === "canvas" ? null : v))}
                 options={[
+                  { value: "canvas", label: "Report", icon: <LayoutGrid className="size-3.5" aria-hidden /> },
                   { value: "story", label: "Story", icon: <Newspaper className="size-3.5" aria-hidden /> },
-                  { value: "canvas", label: "Canvas", icon: <LayoutGrid className="size-3.5" aria-hidden /> },
                 ]}
               />
             </div>
-            {(hasDates || dashboard.filter_columns.length > 0) && (
-              <FilterBar source={source} columns={dashboard.filter_columns} hasDates={hasDates} />
+            {canvas ? (
+              <Button variant="outline" size="sm" className="lg:hidden" onClick={() => setPanesSheet(true)}>
+                <PanelRight /> {canEdit ? "Filters & format" : "Filters"}
+              </Button>
+            ) : (
+              (hasDates || dashboard.filter_columns.length > 0) && <FilterBar source={source} columns={dashboard.filter_columns} hasDates={hasDates} />
             )}
           </div>
         )}
@@ -224,18 +333,63 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
           }
         />
       ) : canvas ? (
-        <>
-          {editing && <p className="-mt-3 text-[13px] text-muted">Drag tiles by the handle and resize from the edges. The canvas layout is saved for everyone and doesn&apos;t change the story order.</p>}
-          <CanvasView
-            charts={dashboard.charts}
-            views={views}
-            layout={dashboard.canvas_layout ?? []}
-            editing={editing}
-            canEdit={canEdit}
-            onLayoutChange={canEdit ? (canvas_layout) => m.update.mutate({ canvas_layout }) : undefined}
-            actionsFor={actionsFor}
-          />
-        </>
+        <div className="-mx-[clamp(0px,1vw,8px)] flex min-h-[calc(100dvh-220px)] overflow-hidden rounded-[10px] border border-line bg-bg-alt">
+          <div className="flex min-w-0 flex-1 flex-col gap-3 p-3 sm:p-4">
+            {editing && (
+              <p className="text-[13px] text-muted">Drag visuals by the handle and resize from the edges. The layout is saved for everyone and doesn&apos;t change the story order.</p>
+            )}
+            <div className={cn("min-h-0 flex-1", view.isPlaceholderData && "opacity-80 transition-opacity")} onClick={(e) => e.target === e.currentTarget && select(null)}>
+              {focusChart ? (
+                <div className="h-[min(72dvh,720px)]">
+                  <VisualTile
+                    chart={focusChart}
+                    view={views.get(focusChart.id)}
+                    bodyHeight={520}
+                    canEdit={canEdit}
+                    focused
+                    onExitFocus={() => void setReport({ focus: null })}
+                    actions={canEdit ? actionsFor(focusChart) : {}}
+                    picked={report.xs === focusChart.id ? crossValue : null}
+                    onPick={(v) => togglePick(focusChart, v)}
+                    onClearPick={() => void setReport({ x: null, xs: null })}
+                  />
+                </div>
+              ) : pageCharts.length === 0 ? (
+                <EmptyState
+                  compact
+                  icon={<LayoutGrid />}
+                  title="This page is empty"
+                  description={canEdit ? "Add a visual, or move one here from another page with its … menu." : "Nothing has been added to this page yet."}
+                  action={
+                    canEdit ? (
+                      <Button onClick={() => setBuilder({ open: true, chart: null, kind: "card" })}>
+                        <Plus /> Add visual
+                      </Button>
+                    ) : undefined
+                  }
+                />
+              ) : (
+                <CanvasView
+                  charts={pageCharts}
+                  layout={dashboard.canvas_layout ?? []}
+                  editing={editing}
+                  onLayoutChange={
+                    canEdit
+                      ? (items) => {
+                          // Only this page's tiles were laid out: keep every other page's positions.
+                          const here = new Set(pageCharts.map((c) => c.id));
+                          m.update.mutate({ canvas_layout: [...(dashboard.canvas_layout ?? []).filter((l) => !here.has(l.i)), ...items] });
+                        }
+                      : undefined
+                  }
+                  renderTile={renderTile}
+                />
+              )}
+            </div>
+            {tabs}
+          </div>
+          <div className="hidden lg:flex">{panes(false)}</div>
+        </div>
       ) : (
         <>
           <KpiGrid
@@ -268,9 +422,36 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
           )}
 
           <div className={cn(view.isPlaceholderData && "opacity-80 transition-opacity")}>
-            <StoryFeed charts={cards} views={views} canEdit={canEdit} onReorder={canEdit ? (ids) => m.reorder.mutate([...kpis.map((k) => k.id), ...ids]) : undefined} actionsFor={actionsFor} />
+            <StoryFeed
+              charts={cards}
+              views={views}
+              canEdit={canEdit}
+              onReorder={
+                canEdit
+                  ? (ids) => {
+                      // Reorder within this page; charts on other pages keep their places after it.
+                      const here = new Set(pageCharts.map((c) => c.id));
+                      m.reorder.mutate([...kpis.map((k) => k.id), ...ids, ...dashboard.charts.filter((c) => !here.has(c.id)).map((c) => c.id)]);
+                    }
+                  : undefined
+              }
+              actionsFor={actionsFor}
+            />
           </div>
+          {tabs}
         </>
+      )}
+
+      {canvas && (
+        <Sheet open={panesSheet} onOpenChange={setPanesSheet}>
+          <SheetContent side="right" className="w-[min(92vw,360px)] gap-0 overflow-y-auto p-0">
+            <SheetHeader className="border-b border-line">
+              <SheetTitle>{canEdit ? "Filters & format" : "Filters"}</SheetTitle>
+              <SheetDescription>{selected ? `Selected: ${selected.spec.title}` : "Tap a visual to select it."}</SheetDescription>
+            </SheetHeader>
+            {panes(true)}
+          </SheetContent>
+        </Sheet>
       )}
 
       {mode === "public" && (
@@ -302,7 +483,7 @@ function Loaded({ dashboard, source, mode }: { dashboard: Dashboard; source: Das
             onSave={(body) => {
               const done = { onSuccess: () => setBuilder((b) => ({ ...b, open: false })) };
               if (builder.chart) m.updateChart.mutate({ chartId: builder.chart.id, ...body }, done);
-              else m.addChart.mutate(body, done);
+              else m.addChart.mutate({ ...body, page_id: pageId }, done);
             }}
           />
           <SettingsDialog dashboard={dashboard} open={settingsOpen} onOpenChange={setSettingsOpen} />

@@ -1,7 +1,7 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { CircleAlert, Database, FileSpreadsheet } from "lucide-react";
+import { CircleAlert, Code2, Database, FileSpreadsheet, Link2 } from "lucide-react";
 import Link from "next/link";
 
 import { EmptyState } from "@/components/app/empty-state";
@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { cn } from "@/lib/utils";
 
 import { isSynced, useDatasets } from "./api";
+import { LayerBadge } from "./layer-badge";
 import { TypeBadge } from "./column-summary";
 
 const nf = new Intl.NumberFormat("en-US");
@@ -69,7 +70,11 @@ export function SavedDatasets({ highlightId }: { highlightId?: string }) {
                         href={`/data/${d.id}`}
                         className="flex min-w-0 items-center gap-3 after:absolute after:inset-0 focus-visible:outline-none focus-visible:after:rounded-sm focus-visible:after:ring-2 focus-visible:after:ring-highlight"
                       >
-                        {isSynced(d) ? (
+                        {d.origin?.kind === "sql" ? (
+                          <Code2 className="size-4 shrink-0 text-highlight" strokeWidth={1.8} aria-hidden />
+                        ) : d.origin?.kind === "url" ? (
+                          <Link2 className="size-4 shrink-0 text-highlight" strokeWidth={1.8} aria-hidden />
+                        ) : isSynced(d) ? (
                           <Database className="size-4 shrink-0 text-highlight" strokeWidth={1.8} aria-hidden />
                         ) : (
                           <FileSpreadsheet className="size-4 shrink-0 text-faint" strokeWidth={1.8} aria-hidden />
@@ -77,10 +82,15 @@ export function SavedDatasets({ highlightId }: { highlightId?: string }) {
                         <span className="flex min-w-0 flex-col">
                           <span className="flex min-w-0 items-center gap-1.5">
                             <span className="truncate text-[14.5px] font-medium text-text">{d.name}</span>
+                            {d.layer && <LayerBadge layer={d.layer} />}
                             {d.sync_error && <CircleAlert className="size-3.5 shrink-0 text-accent" aria-label="Last refresh failed" />}
                           </span>
                           <span className="truncate text-[12.5px] text-faint">
-                            {isSynced(d) ? `${d.source_kind === "postgres" ? "PostgreSQL" : "MySQL"} · ${d.source_table ?? "query"}` : d.source_filename}
+                            {d.origin?.kind === "sql"
+                              ? "Built from a SQL query"
+                              : isSynced(d)
+                                ? `${d.source_kind === "postgres" ? "PostgreSQL" : "MySQL"} · ${d.source_table ?? "query"}`
+                                : d.source_filename}
                             {d.sheet ? ` (${d.sheet})` : ""}
                           </span>
                         </span>

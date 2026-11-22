@@ -3,14 +3,14 @@ from pathlib import Path
 from typing import Literal
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Query, Response, UploadFile, status
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.analytics.semantic import refresh_calculated
 from app.config import get_settings
 from app.db import get_db
 from app.ingest import IngestError, ingest, write_parquet
-from app.models import Alert, Dataset, WorkspaceMember
+from app.models import Alert, Dataset, LineageEdge, WorkspaceMember
 from app.query import QueryError, column_readability, connect, distinct_values, page_rows
 from app.schemas import DatasetOut, DatasetPatch, RowsOut
 from app.security import current_membership
@@ -203,9 +203,15 @@ def update_dataset(
         dataset.columns = [{**c, **{k: v for k, v in found[c["name"]].items() if v}} if c["name"] in found else c for c in dataset.columns]
         refresh_calculated(db, dataset)
     if body.refresh is not None:
-        if dataset.connection_id is None:
-            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Only data from a connected database refreshes on a schedule.")
+        from app.sync import refreshable
+
+        if not refreshable(dataset):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Only data from a database, a query or a link refreshes on a schedule.")
         dataset.refresh = body.refresh
+    if body.layer is not None:
+        dataset.layer = body.layer or None
+    if body.description is not None:
+        dataset.description = body.description.strip() or None
     db.commit()
     db.refresh(dataset)
     return dataset
@@ -219,6 +225,8 @@ def delete_dataset(dataset_id: str, member: WorkspaceMember = Depends(current_me
     # Keep alerts on this data (they'll report the dataset as deleted) instead of relying on the
     # database cascade, which SQLite and Postgres treat differently.
     db.execute(update(Alert).where(Alert.dataset_id == dataset.id).values(dataset_id=None, state="error"))
+    # Lineage points at ids, not foreign keys: drop the edges into and out of this dataset.
+    db.execute(delete(LineageEdge).where(or_(LineageEdge.from_id == dataset.id, LineageEdge.to_id == dataset.id)))
     db.delete(dataset)
     db.commit()
     path.unlink(missing_ok=True)
@@ -257,6 +265,10 @@ def replace_file(
     refresh_calculated(db, dataset)
     db.commit()
     db.refresh(dataset)
+    from app.quality import run_checks
+
+    run_checks(db, dataset, "refresh")
+    db.refresh(dataset)
     return dataset
 
 
@@ -283,8 +295,10 @@ def sync_now(
     """Refresh a database-backed dataset now. Runs in the background; poll the dataset for `last_synced_at`."""
     require_editor(member)
     dataset = owned_dataset(db, member, dataset_id)
-    if dataset.connection_id is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Only data from a connected database can be refreshed.")
+    from app.sync import refreshable
+
+    if not refreshable(dataset):
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Only data from a database, a query or a link can be refreshed.")
     queue_sync(db, dataset, background)
     return dataset
 

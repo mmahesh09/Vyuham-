@@ -2,19 +2,17 @@
 
 import "react-grid-layout/css/styles.css";
 
-import { AlertCircle, GripVertical } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { ResponsiveGridLayout, useContainerWidth, type Layout, type LayoutItem } from "react-grid-layout";
 
-import { formatNumber, metricKey } from "@/features/charts/build-option";
 import { cn } from "@/lib/utils";
 
-import type { ChartRecord, ChartView, KpiLayoutItem } from "./api";
-import { ChartMenu, type ChartActions } from "./chart-menu";
-import { ChartBody, InsightHeadline } from "./insight-card";
+import type { ChartRecord, KpiLayoutItem } from "./api";
 
 const ROW = 56;
-const BREAKPOINTS = { lg: 1000, md: 640, sm: 0 };
+const MARGIN = 12;
+// lg starts low: the report canvas shares the row with the side panes, and should keep its layout there.
+const BREAKPOINTS = { lg: 680, md: 480, sm: 0 };
 const COLS = { lg: 12, md: 6, sm: 1 };
 
 /** Sensible first layout: key numbers in a row of four, charts two per row. */
@@ -39,67 +37,20 @@ function defaultLayout(charts: ChartRecord[]): KpiLayoutItem[] {
   return out;
 }
 
-function Tile({ chart, view, h, editing, canEdit, actions }: { chart: ChartRecord; view?: ChartView; h: number; editing: boolean; canEdit: boolean; actions: ChartActions }) {
-  const bodyHeight = Math.max(80, h * ROW + (h - 1) * 12 - 74);
-  const isKpi = chart.kind === "kpi" || chart.spec.chartType === "kpi";
-  const value = view?.insight?.value ?? view?.rows[0]?.[metricKey(chart.spec.metrics[0])] ?? null;
-  return (
-    <div className={cn("flex h-full flex-col overflow-hidden rounded-[16px] border bg-surface p-4", editing ? "border-primary/60" : "border-line")}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          {view?.error ? (
-            <p className="flex items-center gap-1.5 truncate text-sm font-semibold">
-              <AlertCircle className="size-4 text-accent" aria-hidden /> {chart.spec.title}
-            </p>
-          ) : isKpi ? (
-            <p className="truncate text-sm text-muted">{chart.spec.title}</p>
-          ) : (
-            <div className="[&_h3]:text-[15px] [&_h3]:leading-tight">
-              <InsightHeadline insight={view?.insight} fallback={chart.spec.title} />
-            </div>
-          )}
-        </div>
-        <span className="flex shrink-0 items-center">
-          {editing ? <GripVertical className="canvas-handle size-4 cursor-grab text-faint" aria-label="Drag to move" /> : canEdit && <ChartMenu title={chart.spec.title} {...actions} />}
-        </span>
-      </div>
-      <div className="min-h-0 flex-1">
-        {!view ? (
-          <div className="mt-3 h-full animate-pulse rounded-lg bg-line/40" />
-        ) : view.error ? (
-          <p className="mt-2 text-[13px] text-accent">{view.error}</p>
-        ) : isKpi ? (
-          <div className="flex h-full flex-col justify-center">
-            <span className="truncate text-[clamp(24px,3vw,36px)] font-light tabular-nums">{formatNumber(value)}</span>
-            {view.insight?.change != null && (
-              <span className={cn("text-[13px] font-semibold", view.insight.change > 0 ? "text-highlight" : view.insight.change < 0 ? "text-accent" : "text-faint")}>
-                {view.insight.change > 0 ? "+" : ""}
-                {view.insight.change.toFixed(1)}% vs previous period
-              </span>
-            )}
-          </div>
-        ) : (
-          <div className="-mt-2">
-            <ChartBody spec={chart.spec} rows={view.rows} height={bodyHeight} />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+/** Pixel height left for the chart drawing in a tile `h` rows tall (minus its header). */
+export const tileBodyHeight = (h: number) => Math.max(80, h * ROW + (h - 1) * MARGIN - 64);
 
 type Props = {
   charts: ChartRecord[];
-  views: Map<string, ChartView>;
   layout: KpiLayoutItem[];
   editing: boolean;
-  canEdit: boolean;
   onLayoutChange?: (layout: KpiLayoutItem[]) => void;
-  actionsFor: (chart: ChartRecord) => ChartActions;
+  /** Draws one visual; `bodyHeight` is the space left for its chart. */
+  renderTile: (chart: ChartRecord, bodyHeight: number) => ReactNode;
 };
 
-/** Dashboard Lab: every chart on a free-form grid. Drag by the handle, resize from the corner. */
-export function CanvasView({ charts, views, layout, editing, canEdit, onLayoutChange, actionsFor }: Props) {
+/** The report canvas: every visual on a free-form grid. Drag by the handle, resize from the edges. */
+export function CanvasView({ charts, layout, editing, onLayoutChange, renderTile }: Props) {
   const { width, containerRef, mounted } = useContainerWidth();
   const saved = new Map(layout.map((l) => [l.i, l]));
   const fallback = new Map(defaultLayout(charts).map((l) => [l.i, l]));
@@ -119,7 +70,17 @@ export function CanvasView({ charts, views, layout, editing, canEdit, onLayoutCh
   };
 
   return (
-    <div ref={containerRef} aria-label="Dashboard canvas" role="region" data-tour="canvas">
+    <div
+      ref={containerRef}
+      aria-label="Report canvas"
+      role="region"
+      data-tour="canvas"
+      className={cn(
+        "rounded-[8px] transition-colors",
+        // While arranging, a faint 8px dot grid shows where tiles snap.
+        editing && "bg-[radial-gradient(var(--color-line)_1px,transparent_1px)] bg-[length:16px_16px] outline-1 outline-dashed outline-offset-4 outline-line-strong",
+      )}
+    >
       {mounted && (
         <ResponsiveGridLayout
           width={width}
@@ -127,7 +88,7 @@ export function CanvasView({ charts, views, layout, editing, canEdit, onLayoutCh
           cols={COLS}
           layouts={layouts}
           rowHeight={ROW}
-          margin={[12, 12]}
+          margin={[MARGIN, MARGIN]}
           containerPadding={[0, 0]}
           dragConfig={{ enabled: editing, handle: ".canvas-handle", bounded: false, threshold: 3 }}
           resizeConfig={{ enabled: editing, handles: ["se", "e", "s"] }}
@@ -136,9 +97,7 @@ export function CanvasView({ charts, views, layout, editing, canEdit, onLayoutCh
           }}
         >
           {charts.map((c) => (
-            <div key={c.id}>
-              <Tile chart={c} view={views.get(c.id)} h={h.get(c.id) ?? 4} editing={editing} canEdit={canEdit} actions={actionsFor(c)} />
-            </div>
+            <div key={c.id}>{renderTile(c, tileBodyHeight(h.get(c.id) ?? 4))}</div>
           ))}
         </ResponsiveGridLayout>
       )}

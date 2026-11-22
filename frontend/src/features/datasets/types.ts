@@ -1,6 +1,8 @@
 export const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB
 export const PREVIEW_ROWS = 5000;
 export const ACCEPTED = [".csv", ".xlsx"] as const;
+/** Uploaded straight to the server (no preview in the browser). */
+export const ACCEPTED_DIRECT = [".json", ".jsonl", ".ndjson", ".parquet"] as const;
 
 export type ColumnType = "number" | "date" | "category" | "text";
 

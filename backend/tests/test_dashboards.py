@@ -197,3 +197,62 @@ def test_trend_skips_the_unfinished_month():
     assert "Nov 2026 so far: 20" in i.note
     # In December, November is complete
     assert describe(spec, rows, None, ds, has_period=False, today=date(2026, 12, 2)).headline == "Total Amount down 87% in Nov 2026"
+
+
+def test_report_pages(client, engine):
+    sign_in(client, engine)
+    ds = upload(client)
+    d = new_dashboard(client)
+    c1 = add(client, d, spec=spec(ds["id"], groupBy="Region"))
+    got = client.get(f"/dashboards/{d['id']}").json()
+    assert got["pages"] == [{"id": "page-1", "name": "Page 1"}]  # every dashboard has a first page
+    assert got["charts"][0]["page_id"] == "page-1"
+
+    pages = [{"id": "page-1", "name": "Overview"}, {"id": "p2", "name": "Detail"}]
+    assert client.patch(f"/dashboards/{d['id']}", json={"pages": pages}).status_code == 200
+    c2 = add(client, d, spec=spec(ds["id"], groupBy="Product"), page_id="p2")
+    assert c2["page_id"] == "p2"
+    assert client.post(f"/dashboards/{d['id']}/charts", json={"spec": spec(ds["id"]), "page_id": "ghost"}).status_code == 422
+    assert client.patch(f"/charts/{c1['id']}", json={"page_id": "nope"}).status_code == 422
+
+    # Only the requested page is computed.
+    assert [c["id"] for c in client.get(f"/dashboards/{d['id']}/view", params={"page": "p2"}).json()["charts"]] == [c2["id"]]
+    assert len(client.get(f"/dashboards/{d['id']}/view").json()["charts"]) == 2  # no page: everything (print, exports)
+
+    # Reordering pages keeps charts where they are; deleting a page moves its charts to the first page.
+    client.patch(f"/dashboards/{d['id']}", json={"pages": list(reversed(pages))})
+    charts = {c["id"]: c["page_id"] for c in client.get(f"/dashboards/{d['id']}").json()["charts"]}
+    assert charts == {c1["id"]: "page-1", c2["id"]: "p2"}
+    client.patch(f"/dashboards/{d['id']}", json={"pages": [{"id": "p2", "name": "Detail"}]})
+    charts = {c["id"]: c["page_id"] for c in client.get(f"/dashboards/{d['id']}").json()["charts"]}
+    assert charts == {c1["id"]: "p2", c2["id"]: "p2"}
+
+    dup = client.post(f"/dashboards/{d['id']}/duplicate").json()
+    assert dup["pages"] == [{"id": "p2", "name": "Detail"}] and {c["page_id"] for c in dup["charts"]} == {"p2"}
+    bad = [{"id": "a", "name": "A"}, {"id": "a", "name": "B"}]
+    assert client.patch(f"/dashboards/{d['id']}", json={"pages": bad}).status_code == 422
+    assert client.patch(f"/dashboards/{d['id']}", json={"pages": []}).status_code == 422
+
+
+def test_cross_filter(client, engine):
+    sign_in(client, engine)
+    ds = upload(client)
+    d = new_dashboard(client)
+    by_region = add(client, d, spec=spec(ds["id"], groupBy="Region"))
+    total = add(client, d, spec=spec(ds["id"], chartType="kpi"), kind="kpi")
+    url = f"/dashboards/{d['id']}/view"
+
+    view = by_id(client.get(url, params={"x": '{"Region": "North"}', "xs": by_region["id"]}).json())
+    assert view[total["id"]]["rows"] == [{"sum_Amount": 325}]  # 100 + 200 + 25
+    assert len(view[by_region["id"]]["rows"]) > 1  # the clicked chart still shows every region
+
+    # Only columns a chart groups by can cross-filter.
+    view = by_id(client.get(url, params={"x": '{"Product": "Pro"}', "xs": by_region["id"]}).json())
+    assert view[total["id"]]["rows"] == [{"sum_Amount": 675}]
+    assert client.get(url, params={"x": "[1]"}).status_code == 422
+
+    client.put("/me/profile", json=PROFILE)
+    token = client.post(f"/dashboards/{d['id']}/share").json()["share_token"]
+    client.cookies.clear()
+    pub = by_id(client.get(f"/public/dashboards/{token}/view", params={"x": '{"Region": "West"}', "xs": by_region["id"]}).json())
+    assert pub[total["id"]]["rows"] == [{"sum_Amount": 300}]

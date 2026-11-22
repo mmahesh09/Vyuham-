@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import { PageContainer } from "@/components/app/page-container";
 import { AskBox } from "@/features/command/ask-box";
-import { GettingStarted, HomeOverview } from "@/features/home/home-panels";
+import { AtAGlance, AttentionStrip, GettingStarted, HomeOverview, TodayLabel } from "@/features/home/home-panels";
 import { getCurrentUser } from "@/lib/api/server";
 
 export const metadata: Metadata = { title: "Home" };
@@ -13,21 +13,30 @@ export default async function HomePage() {
   const firstName = user?.name.split(" ")[0] ?? "";
 
   return (
-    <PageContainer width="narrow" className="gap-10">
-      {/* The question box is Home's one loud moment; everything below stays quiet. */}
-      <section className="flex flex-col gap-5 pt-2" aria-labelledby="home-title">
+    <PageContainer className="gap-10">
+      {/* The question box is Home's one loud moment; everything below is quieter and only shows when it has something to say. */}
+      <section className="relative isolate flex flex-col gap-5 pt-2" aria-labelledby="home-title">
+        <div className="pointer-events-none absolute inset-x-0 -top-20 -z-10 mx-auto h-[220px] max-w-[640px] rounded-full bg-primary/10 blur-[100px]" aria-hidden />
         <div className="flex flex-col gap-2">
-          <p className="text-[15px] text-faint">Hi {firstName}</p>
+          <p className="text-[15px] text-faint">
+            Hi {firstName}
+            <TodayLabel />
+          </p>
           <h1 id="home-title" className="text-[clamp(30px,3.6vw,44px)] font-semibold leading-[1.08] tracking-[-0.025em] text-text">
             What do you want to know?
           </h1>
+          <p className="max-w-[60ch] text-[15px] leading-relaxed text-muted">
+            Ask in plain words. You&apos;ll get a chart and the numbers behind it, ready to save to a dashboard.
+          </p>
         </div>
         {/* useSearchParams (?q= from the command menu) needs a Suspense boundary. */}
         <Suspense fallback={<div className="h-[68px] rounded-2xl border border-line-strong bg-surface" />}>
           <AskBox />
         </Suspense>
       </section>
+      <AttentionStrip />
       <GettingStarted />
+      <AtAGlance />
       <HomeOverview />
     </PageContainer>
   );

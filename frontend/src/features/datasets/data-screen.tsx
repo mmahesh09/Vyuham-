@@ -13,6 +13,7 @@ import { ConnectDatabaseDialog } from "@/features/connections/connect-database-d
 import { ConnectionList } from "@/features/connections/connection-list";
 import { RefreshHooks } from "@/features/connections/refresh-hooks";
 
+import { AddDataOptions } from "./add-data-options";
 import { ColumnSummary } from "./column-summary";
 import { useUploadDataset, type Dataset } from "./api";
 import { DataPreviewTable } from "./data-preview-table";
@@ -29,6 +30,7 @@ export function DataScreen() {
   const [saved, setSaved] = useState<Dataset | null>(null);
   const [connectOpen, setConnectOpen] = useState(false);
   const [connectionId, setConnectionId] = useState<string | null>(null);
+  const [otherError, setOtherError] = useState<string | null>(null);
   const canSave = me?.role !== "viewer";
 
   function openConnect(id: string | null = null) {
@@ -59,7 +61,7 @@ export function DataScreen() {
     <PageContainer>
       <PageHeader
         title="Data"
-        description="Add a CSV or Excel file (up to 10 MB), or connect a PostgreSQL or MySQL database."
+        description="Bring data in from files, links and databases, or build new datasets from the ones you have."
         actions={
           <>
             {canSave && state.status !== "done" && (
@@ -83,6 +85,9 @@ export function DataScreen() {
       />
 
       <UploadDropzone onFile={pick} compact={state.status === "done"} />
+      {canSave && state.status !== "done" && (
+        <AddDataOptions onSaved={(d) => (setOtherError(null), setSaved(d))} onError={setOtherError} />
+      )}
 
       <div aria-live="polite" className="empty:hidden">
         {state.status === "parsing" && (
@@ -91,6 +96,7 @@ export function DataScreen() {
             Reading {state.fileName}…
           </p>
         )}
+        {otherError && <InlineAlert>{otherError}</InlineAlert>}
         {upload.isError && (
           <InlineAlert>{upload.error.message}</InlineAlert>
         )}

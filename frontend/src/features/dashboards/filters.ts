@@ -1,5 +1,5 @@
 import { format, isValid, parse } from "date-fns";
-import { createParser, parseAsJson, useQueryStates } from "nuqs";
+import { createParser, parseAsJson, parseAsString, useQueryStates } from "nuqs";
 import { z } from "zod";
 
 import type { ViewQuery } from "./api";
@@ -41,4 +41,19 @@ export function toViewQuery(f: DashboardFilters): ViewQuery {
     to: f.to ? format(f.to, "yyyy-MM-dd") : null,
     f: f.f,
   };
+}
+
+/**
+ * Report state that also lives in the URL: the open page, a cross-filter picked on one chart
+ * (`x` = {column: value}, `xs` = that chart) and a chart in focus mode.
+ */
+export const reportParsers = {
+  page: parseAsString,
+  x: parseAsJson(columnFilters),
+  xs: parseAsString,
+  focus: parseAsString,
+};
+
+export function useReportState() {
+  return useQueryStates(reportParsers, { history: "replace", scroll: false });
 }

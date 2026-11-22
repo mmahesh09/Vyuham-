@@ -153,6 +153,41 @@ def test_deflection_counts(client, engine):
     assert m["deflections_this_week"] == 1 and m["deflection_rate"] == 1.0
 
 
+def test_ticket_list_shows_latest_visible_reply(client, engine):
+    t = make_ticket(client, engine)
+    row = client.get("/support/tickets").json()[0]
+    assert row["staff_replied"] is False
+    assert row["latest_reply"]["is_staff"] is False and row["latest_reply"]["excerpt"].startswith("My revenue chart")
+
+    login(client, engine, "staff")
+    client.post(f"/support/admin/tickets/{t['id']}/messages", json={"body": "Checking the upload now."})
+    client.post(f"/support/admin/tickets/{t['id']}/messages", json={"body": "Secret internal note", "internal": True})
+
+    login(client, engine, "u1")
+    row = client.get("/support/tickets").json()[0]
+    # The internal note is newer but never shown: the latest reply is the public staff message.
+    assert row["staff_replied"] is True and row["status"] == "pending"
+    assert row["latest_reply"] == {**row["latest_reply"], "is_staff": True, "excerpt": "Checking the upload now."}
+
+
+def test_popular_only_lists_articles_people_used(client, engine):
+    login(client, engine, "staff")
+    body = " ".join(["word"] * 650)
+    a = client.post("/kb/admin/articles", json={"title": "Fix dates", "body": body, "status": "published"}).json()
+    b = client.post("/kb/admin/articles", json={"title": "Share a link", "status": "published"}).json()
+    client.cookies.clear()
+    assert client.get("/kb/popular").json() == []  # no usage yet: nothing is called popular
+
+    client.post(f"/kb/articles/{b['slug']}/feedback", json={"helpful": True})
+    login(client, engine, "u1")
+    client.post("/kb/deflections", json={"article_id": a["id"]})
+    client.post("/kb/deflections", json={"article_id": a["id"]})
+    client.cookies.clear()
+    popular = client.get("/kb/popular").json()
+    assert [p["slug"] for p in popular] == [a["slug"], b["slug"]]
+    assert popular[0]["read_minutes"] == 3 and popular[1]["read_minutes"] == 1
+
+
 # --- GlitchTip webhook and error help ----------------------------------------------------------
 
 
@@ -224,3 +259,106 @@ def test_unhandled_error_returns_reference_and_help(client, engine):
         a = c.post("/kb/admin/articles", json={"title": "Column missing after re-upload", "status": "published"}).json()
         c.patch(f"/support/admin/errors/{g['id']}", json={"kb_article_id": a["id"]})
         assert c.get("/__test_boom").json()["help"]["slug"] == a["slug"]
+
+
+# --- Attachments -------------------------------------------------------------------------------
+
+PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+
+
+def upload(client, name="screen.png", data=PNG, ctype="image/png"):
+    return client.post("/support/attachments", files={"file": (name, data, ctype)})
+
+
+def test_attachment_on_new_ticket_and_download(client, engine):
+    login(client, engine, "u1")
+    r = upload(client)
+    assert r.status_code == 201, r.text
+    att = r.json()
+    assert att["content_type"] == "image/png" and att["size"] == len(PNG)
+
+    r = client.post("/support/tickets", json={**TICKET, "attachment_ids": [att["id"]]})
+    assert r.status_code == 201, r.text
+    assert [a["id"] for a in r.json()["messages"][0]["attachments"]] == [att["id"]]
+
+    r = client.get(f"/support/attachments/{att['id']}")
+    assert r.status_code == 200 and r.content == PNG
+    assert r.headers["x-content-type-options"] == "nosniff"
+    assert r.headers["content-disposition"].startswith("inline")
+
+    # Already used: can't be attached to a second message.
+    t = client.get("/support/tickets").json()[0]
+    r = client.post(f"/support/tickets/{t['id']}/messages", json={"body": "again", "attachment_ids": [att["id"]]})
+    assert r.status_code == 400
+
+
+def test_attachment_type_and_size_checks(client, engine):
+    login(client, engine, "u1")
+    assert upload(client, "run.exe", b"MZ...", "application/octet-stream").status_code == 400
+    assert upload(client, "fake.png", b"not really a png").status_code == 400  # contents don't match
+    assert upload(client, "notes.txt", b"bin\x00ary", "text/plain").status_code == 400
+    assert upload(client, "empty.csv", b"", "text/csv").status_code == 400
+    big = b"a" * (10 * 1024 * 1024 + 1)
+    assert upload(client, "big.txt", big, "text/plain").status_code == 413
+    r = upload(client, "../../etc/notes.txt", b"hello", "text/plain")
+    assert r.status_code == 201 and r.json()["filename"] == "notes.txt"
+    r = client.get(f"/support/attachments/{r.json()['id']}")
+    assert r.headers["content-disposition"].startswith("attachment")
+
+
+def test_attachment_other_workspace_and_internal_notes(client, engine):
+    login(client, engine, "u1")
+    att = upload(client).json()
+    t = client.post("/support/tickets", json={**TICKET, "attachment_ids": [att["id"]]}).json()
+
+    login(client, engine, "u2", company="Other Co")
+    assert client.get(f"/support/attachments/{att['id']}").status_code == 404
+    mine = upload(client).json()
+    # Someone else's upload can't be attached to your message either.
+    login(client, engine, "u1")
+    r = client.post(f"/support/tickets/{t['id']}/messages", json={"body": "with theirs", "attachment_ids": [mine["id"]]})
+    assert r.status_code == 400
+
+    login(client, engine, "staff")
+    assert client.get(f"/support/attachments/{att['id']}").status_code == 200
+    note = upload(client, "trace.txt", b"stack trace", "text/plain").json()
+    r = client.post(
+        f"/support/admin/tickets/{t['id']}/messages", json={"body": "internal trace", "internal": True, "attachment_ids": [note["id"]]}
+    )
+    assert r.status_code == 200 and r.json()["messages"][-1]["attachments"][0]["id"] == note["id"]
+
+    login(client, engine, "u1")
+    assert client.get(f"/support/attachments/{note['id']}").status_code == 404
+    assert all(m["attachments"] == [] or m["attachments"][0]["id"] == att["id"] for m in client.get(f"/support/tickets/{t['id']}").json()["messages"])
+
+
+def test_unsent_uploads_are_pruned(client, engine):
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy.orm import Session
+
+    from app.models import TicketAttachment
+    from app.routers.support import prune_attachments
+
+    login(client, engine, "u1")
+    sent = upload(client).json()
+    client.post("/support/tickets", json={**TICKET, "attachment_ids": [sent["id"]]})
+    stale = upload(client).json()
+    with Session(engine) as db:
+        assert prune_attachments(db, datetime.now(timezone.utc) + timedelta(hours=25)) == 1
+        assert db.get(TicketAttachment, stale["id"]) is None
+        assert db.get(TicketAttachment, sent["id"]) is not None
+    assert client.get(f"/support/attachments/{sent['id']}").status_code == 200
+
+
+def test_ticket_detail_links_published_article(client, engine):
+    t = make_ticket(client, engine)
+    assert client.get(f"/support/tickets/{t['id']}").json()["kb_article"] is None
+    login(client, engine, "staff")
+    a = client.post(f"/support/admin/tickets/{t['id']}/to-article").json()
+    login(client, engine, "u1")
+    assert client.get(f"/support/tickets/{t['id']}").json()["kb_article"] is None  # still a draft
+    login(client, engine, "staff")
+    client.put(f"/kb/admin/articles/{a['id']}", json={"title": a["title"], "summary": a["summary"], "body": a["body"], "tags": a["tags"], "status": "published"})
+    login(client, engine, "u1")
+    assert client.get(f"/support/tickets/{t['id']}").json()["kb_article"]["slug"] == a["slug"]

@@ -83,7 +83,7 @@ def activity(member: WorkspaceMember = Depends(current_membership), db: Session 
     for d in db.scalars(select(Dataset).where(Dataset.workspace_id == ws).order_by(Dataset.created_at.desc()).limit(20)):
         items.append(ActivityOut(
             id=f"dataset-{d.id}", kind="dataset", title=f"Uploaded {d.name}",
-            detail=f"{d.row_count:,} rows Â· {len(d.columns)} columns", actor=names.get(d.created_by, "Someone"), at=d.created_at,
+            detail=f"{d.row_count:,} rows · {len(d.columns)} columns", actor=names.get(d.created_by, "Someone"), at=d.created_at,
         ))
     for m in db.scalars(select(WorkspaceMember).where(WorkspaceMember.workspace_id == ws)):
         items.append(ActivityOut(

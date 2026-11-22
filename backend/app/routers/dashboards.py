@@ -74,6 +74,25 @@ def _datasets(db: Session, d: Dashboard) -> dict[str, Dataset]:
     return {ds.id: ds for ds in rows}
 
 
+DEFAULT_PAGE = {"id": "page-1", "name": "Page 1"}
+
+
+def _pages(d: Dashboard) -> list[dict]:
+    """The report's pages, always at least one (dashboards made before pages had none)."""
+    return [p for p in (d.pages or []) if p.get("id")] or [dict(DEFAULT_PAGE)]
+
+
+def _page_of(page_ids: list[str], c: Chart) -> str:
+    """A chart's page; charts with no page (or a page that was deleted) sit on the first one."""
+    return c.page_id if c.page_id in page_ids else page_ids[0]
+
+
+def _chart_out(c: Chart, page_ids: list[str]) -> ChartOut:
+    out = ChartOut.model_validate(c)
+    out.page_id = _page_of(page_ids, c)
+    return out
+
+
 def _public_chart(c: Chart) -> ChartOut:
     """A chart for a share link or print page: no saved SQL (it names tables, columns and values)."""
     out = ChartOut.model_validate(c)
@@ -85,6 +104,8 @@ def _out(db: Session, d: Dashboard, member: WorkspaceMember | None) -> Dashboard
     """member=None means a share link or print page: the reader isn't in the workspace, so they get
     column names and types only (no sample values) and no chart SQL."""
     datasets = _datasets(db, d)
+    pages = _pages(d)
+    page_ids = [p["id"] for p in pages]
     if member is None:
         refs = [
             DatasetRef(id=ds.id, name=ds.name, columns=[{**col, "examples": []} for col in ds.columns]) for ds in datasets.values()
@@ -93,10 +114,12 @@ def _out(db: Session, d: Dashboard, member: WorkspaceMember | None) -> Dashboard
     else:
         refs = [DatasetRef(id=ds.id, name=ds.name, columns=ds.columns) for ds in datasets.values()]
         charts = [ChartOut.model_validate(c) for c in d.charts]
+    for out, c in zip(charts, d.charts, strict=True):
+        out.page_id = _page_of(page_ids, c)
     return DashboardOut(
         id=d.id, name=d.name, description=d.description, date_fields=d.date_fields or {},
         filter_columns=d.filter_columns or [], kpi_layout=d.kpi_layout or [], canvas_layout=d.canvas_layout or [],
-        share_token=d.share_token if member else None, created_at=d.created_at, updated_at=d.updated_at,
+        pages=pages, share_token=d.share_token if member else None, created_at=d.created_at, updated_at=d.updated_at,
         charts=charts, datasets=refs, can_edit=bool(member and member.role in CAN_UPLOAD),
     )
 
@@ -113,16 +136,35 @@ def _parse_filters(f: str | None) -> dict[str, str]:
     return {str(k): str(v) for k, v in data.items() if v not in (None, "")}
 
 
+def _cross_filter(d: Dashboard, x: str | None, xs: str | None) -> tuple[dict[str, str], str | None]:
+    """A click on one visual filtering the others (Power BI's cross-filter). Only columns some chart on
+    this dashboard already groups by are allowed, so it can't be used to probe any other column."""
+    picked = _parse_filters(x)
+    if not picked:
+        return {}, None
+    allowed = {c.spec.get("groupBy") for c in d.charts if not c.spec.get("sql") and c.spec.get("groupBy")}
+    return {k: v for k, v in picked.items() if k in allowed}, xs
+
+
 def _all_datasets(db: Session, workspace_id: str) -> dict[str, Dataset]:
     return {ds.id: ds for ds in db.scalars(select(Dataset).where(Dataset.workspace_id == workspace_id))}
 
 
-def _view(db: Session, d: Dashboard, date_from: date | None, date_to: date | None, equals: dict[str, str]) -> DashboardViewOut:
-    """Every chart's rows and insight. Traced as `vyuham.dashboard.view` (counts only, no data)."""
+def _view(
+    db: Session,
+    d: Dashboard,
+    date_from: date | None,
+    date_to: date | None,
+    equals: dict[str, str],
+    page: str | None = None,
+    cross: dict[str, str] | None = None,
+    cross_source: str | None = None,
+) -> DashboardViewOut:
+    """Every chart's rows and insight (or one page's). Traced as `vyuham.dashboard.view` (counts only, no data)."""
     with span("vyuham.dashboard.view", **{"vyuham.workspace_id": d.workspace_id, "vyuham.dashboard.charts": len(d.charts)}) as s:
         started = time.perf_counter()
         workspace_id = d.workspace_id
-        view = _view_impl(db, d, date_from, date_to, equals)
+        view = _view_impl(db, d, date_from, date_to, equals, page, cross or {}, cross_source)
         failed = sum(1 for c in view.charts if c.error)
         log_query(db, workspace_id, None, "dashboard", started, "partial" if failed else "ok", len(view.charts))
         s.set_attribute("vyuham.dashboard.failed_charts", failed)
@@ -130,15 +172,29 @@ def _view(db: Session, d: Dashboard, date_from: date | None, date_to: date | Non
         return view
 
 
-def _view_impl(db: Session, d: Dashboard, date_from: date | None, date_to: date | None, equals: dict[str, str]) -> DashboardViewOut:
+def _view_impl(
+    db: Session,
+    d: Dashboard,
+    date_from: date | None,
+    date_to: date | None,
+    equals: dict[str, str],
+    page: str | None = None,
+    cross: dict[str, str] | None = None,
+    cross_source: str | None = None,
+) -> DashboardViewOut:
     if date_from and date_to and date_from > date_to:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "The start date is after the end date")
-    datasets = _all_datasets(db, d.workspace_id) if any(c.spec.get("sql") for c in d.charts) else _datasets(db, d)
+    charts = list(d.charts)
+    if page:
+        page_ids = [p["id"] for p in _pages(d)]
+        charts = [c for c in charts if _page_of(page_ids, c) == page]
+    datasets = _all_datasets(db, d.workspace_id) if any(c.spec.get("sql") for c in charts) else _datasets(db, d)
     con = connect(d.workspace_id, list(datasets.values()))
     allowed = set(d.filter_columns or [])
+    cross = cross or {}
     out: list[ChartViewOut] = []
     try:
-        for c in d.charts:
+        for c in charts:
             ds = datasets.get(c.dataset_id or "")
             if ds is None:
                 out.append(ChartViewOut(id=c.id, error="The dataset behind this chart was deleted."))
@@ -148,7 +204,11 @@ def _view_impl(db: Session, d: Dashboard, date_from: date | None, date_to: date 
                 date_field=(d.date_fields or {}).get(ds.id),
                 date_from=date_from,
                 date_to=date_to,
-                equals={k: v for k, v in equals.items() if k in allowed and k in cols},
+                equals={
+                    **{k: v for k, v in equals.items() if k in allowed and k in cols},
+                    # The clicked visual keeps showing everything; the others narrow to the pick.
+                    **({k: v for k, v in cross.items() if k in cols} if c.id != cross_source else {}),
+                },
             )
             try:
                 rows, insight = chart_insight(con, c.spec, ds, filters)
@@ -249,6 +309,17 @@ def update_dashboard(
         d.kpi_layout = data["kpi_layout"]
     if "canvas_layout" in data:
         d.canvas_layout = data["canvas_layout"]
+    if "pages" in data:
+        ids = [p["id"] for p in data["pages"]]
+        if len(set(ids)) != len(ids):
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Two pages share the same id")
+        old_ids = [p["id"] for p in _pages(d)]
+        for c in d.charts:
+            # Pin every chart to its page now, so reordering pages doesn't move charts; charts on a
+            # deleted page move to the new first page.
+            current = _page_of(old_ids, c)
+            c.page_id = current if current in ids else ids[0]
+        d.pages = [{"id": p["id"], "name": p["name"].strip()} for p in data["pages"]]
     db.commit()
     db.refresh(d)
     return _out(db, d, member)
@@ -269,12 +340,15 @@ def duplicate_dashboard(dashboard_id: str, member: WorkspaceMember = Depends(cur
     copy = Dashboard(
         workspace_id=src.workspace_id, name=f"{src.name} (copy)"[:200], description=src.description,
         date_fields=dict(src.date_fields or {}), filter_columns=list(src.filter_columns or []), created_by=member.user_id,
+        pages=[dict(p) for p in (src.pages or [])],
     )
     db.add(copy)
     db.flush()
     id_map = {}
     for c in src.charts:
-        new = Chart(dashboard_id=copy.id, dataset_id=c.dataset_id, spec=dict(c.spec), kind=c.kind, note=c.note, position=c.position)
+        new = Chart(
+            dashboard_id=copy.id, dataset_id=c.dataset_id, spec=dict(c.spec), kind=c.kind, note=c.note, position=c.position, page_id=c.page_id
+        )
         db.add(new)
         db.flush()
         id_map[c.id] = new.id
@@ -291,10 +365,15 @@ def dashboard_view(
     date_from: date | None = Query(None, alias="from"),
     date_to: date | None = Query(None, alias="to"),
     f: str | None = Query(None, description="JSON object {column: value}"),
+    page: str | None = Query(None, max_length=32, description="Only this report page's charts"),
+    x: str | None = Query(None, description="Cross-filter: JSON object {column: value} picked on one chart"),
+    xs: str | None = Query(None, max_length=32, description="The chart the cross-filter was picked on"),
     member: WorkspaceMember = Depends(current_membership),
     db: Session = Depends(get_db),
 ):
-    return _view(db, _dashboard(db, member, dashboard_id), date_from, date_to, _parse_filters(f))
+    d = _dashboard(db, member, dashboard_id)
+    cross, source = _cross_filter(d, x, xs)
+    return _view(db, d, date_from, date_to, _parse_filters(f), page, cross, source)
 
 
 @router.get("/dashboards/{dashboard_id}/filter-values/{column}", response_model=list[str])
@@ -333,7 +412,13 @@ def add_chart(dashboard_id: str, body: ChartIn, member: WorkspaceMember = Depend
     spec = body.spec.model_dump(exclude_none=True)
     ds = _check_spec_dataset(db, member, spec)
     position = max((c.position for c in d.charts), default=-1) + 1
-    chart = Chart(dashboard_id=d.id, dataset_id=ds.id, spec=spec, kind=body.kind, note=body.note, position=position)
+    page_ids = [p["id"] for p in _pages(d)]
+    if body.page_id and body.page_id not in page_ids:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "That page isn't on this dashboard")
+    chart = Chart(
+        dashboard_id=d.id, dataset_id=ds.id, spec=spec, kind=body.kind, note=body.note, position=position,
+        page_id=body.page_id or page_ids[0],
+    )
     db.add(chart)
     # First chart from a dataset with a date column: use it for the date filter.
     if ds.id not in (d.date_fields or {}):
@@ -343,7 +428,7 @@ def add_chart(dashboard_id: str, body: ChartIn, member: WorkspaceMember = Depend
     d.updated_at = func.now()
     db.commit()
     db.refresh(chart)
-    return chart
+    return _chart_out(chart, page_ids)
 
 
 @router.patch("/charts/{chart_id}", response_model=ChartOut)
@@ -359,10 +444,15 @@ def update_chart(chart_id: str, body: ChartPatch, member: WorkspaceMember = Depe
         chart.kind = data["kind"]
     if "note" in data:
         chart.note = data["note"]
+    page_ids = [p["id"] for p in _pages(chart.dashboard)]
+    if data.get("page_id"):
+        if data["page_id"] not in page_ids:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "That page isn't on this dashboard")
+        chart.page_id = data["page_id"]
     chart.dashboard.updated_at = func.now()
     db.commit()
     db.refresh(chart)
-    return chart
+    return _chart_out(chart, page_ids)
 
 
 @router.delete("/charts/{chart_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -388,7 +478,8 @@ def reorder(dashboard_id: str, body: OrderIn, member: WorkspaceMember = Depends(
     for n, c in enumerate(ordered):
         c.position = n
     db.commit()
-    return [ChartOut.model_validate(c) for c in ordered]
+    page_ids = [p["id"] for p in _pages(d)]
+    return [_chart_out(c, page_ids) for c in ordered]
 
 
 @router.post("/charts/preview", response_model=PreviewOut)
@@ -490,9 +581,14 @@ def public_view(
     date_from: date | None = Query(None, alias="from"),
     date_to: date | None = Query(None, alias="to"),
     f: str | None = None,
+    page: str | None = Query(None, max_length=32),
+    x: str | None = None,
+    xs: str | None = Query(None, max_length=32),
     db: Session = Depends(get_db),
 ):
-    return _view(db, _shared(db, token), date_from, date_to, _parse_filters(f))
+    d = _shared(db, token)
+    cross, source = _cross_filter(d, x, xs)
+    return _view(db, d, date_from, date_to, _parse_filters(f), page, cross, source)
 
 
 @public.get("/dashboards/{token}/filter-values/{column}", response_model=list[str])

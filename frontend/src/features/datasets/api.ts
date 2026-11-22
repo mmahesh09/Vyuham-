@@ -11,7 +11,7 @@ export type Dataset = {
   id: string;
   name: string;
   source_filename: string;
-  source_kind: "csv" | "xlsx" | "postgres" | "mysql";
+  source_kind: "csv" | "xlsx" | "json" | "jsonl" | "ndjson" | "parquet" | "url" | "postgres" | "mysql" | "derived";
   sheet: string | null;
   row_count: number;
   columns: DatasetColumn[];
@@ -27,7 +27,16 @@ export type Dataset = {
   sync_started_at?: string | null;
   sync_finished_at?: string | null;
   sync_error?: string | null;
+  /** Medallion layer, set by people or pipelines. */
+  layer?: Layer | null;
+  description?: string | null;
+  /** How a query-built or linked dataset is rebuilt. */
+  origin?: { kind: "sql"; sql: string; params?: unknown[] } | { kind: "url"; url: string } | null;
 };
+
+export type Layer = "bronze" | "silver" | "gold";
+/** Rebuilt by re-running a query or re-downloading a link (Refresh now works the same way as for databases). */
+export const isRebuilt = (d: Pick<Dataset, "origin">) => d.origin?.kind === "sql" || d.origin?.kind === "url";
 
 export const isSynced = (d: Pick<Dataset, "source_kind">) => d.source_kind === "postgres" || d.source_kind === "mysql";
 
@@ -119,7 +128,13 @@ function useDatasetMutationSuccess() {
 export function useUpdateDataset(id: string) {
   const onSuccess = useDatasetMutationSuccess();
   return useMutation({
-    mutationFn: (body: { name?: string; column_types?: Record<string, ColumnType>; refresh?: "manual" | "hourly" | "daily" }) =>
+    mutationFn: (body: {
+      name?: string;
+      column_types?: Record<string, ColumnType>;
+      refresh?: "manual" | "hourly" | "daily";
+      layer?: Layer | "";
+      description?: string;
+    }) =>
       api<Dataset>(`/datasets/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
     onSuccess,
   });

@@ -41,7 +41,7 @@ export type Member = {
 
 export type Activity = {
   id: string;
-  kind: "dataset" | "member" | "profile" | "leave";
+  kind: "dataset" | "member" | "profile" | "leave" | "task";
   title: string;
   detail: string;
   actor: string;

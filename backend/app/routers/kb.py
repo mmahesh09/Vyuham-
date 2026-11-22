@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.db import get_db
@@ -31,6 +31,24 @@ def list_articles(tag: str | None = Query(default=None, max_length=40), db: Sess
     if tag:
         rows = [a for a in rows if tag.lower() in (a.tags or [])]
     return [ArticleSummary.model_validate(a) for a in rows]
+
+
+@router.get("/popular", response_model=list[ArticleSummary])
+def popular_articles(limit: int = Query(default=6, ge=1, le=20), db: Session = Depends(get_db)):
+    """Published articles people actually found useful: "yes, this helped" votes plus opens from the
+    new-request form. Articles nobody has used yet are left out, so an empty list means "no usage data"."""
+    deflections = (
+        select(KbDeflection.article_id, func.count().label("n")).group_by(KbDeflection.article_id).subquery()
+    )
+    score = (KbArticle.helpful_yes + func.coalesce(deflections.c.n, 0)).label("score")
+    rows = db.execute(
+        select(KbArticle, score)
+        .outerjoin(deflections, deflections.c.article_id == KbArticle.id)
+        .where(KbArticle.status == "published")
+        .order_by(score.desc(), KbArticle.updated_at.desc())
+        .limit(limit)
+    ).all()
+    return [ArticleSummary.model_validate(a) for a, n in rows if n > 0]
 
 
 @router.get("/search", response_model=list[ArticleSummary])

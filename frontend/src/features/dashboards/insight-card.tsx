@@ -20,12 +20,17 @@ const TREND = {
   flat: { icon: Circle, tone: "text-faint", label: "Flat" },
 };
 
-/** A small table for "table" charts: the group, the Colour split if any, and each measure. */
-function ResultTable({ spec, rows }: { spec: ChartSpec; rows: ResultRow[] }) {
+/** Charts a click can cross-filter from: one category per point (dates and split series aren't, yet). */
+export function canPick(spec: ChartSpec) {
+  return !!spec.groupBy && !spec.dateBucket && !spec.sql && ["bar", "hbar", "pie", "funnel", "treemap", "combo", "line", "area"].includes(spec.chartType);
+}
+
+/** A small table for "table" charts (and "Show as table"): the group, the Colour split if any, and each measure. */
+export function ResultTable({ spec, rows, maxHeight = "max-h-72", className = "mt-5" }: { spec: ChartSpec; rows: ResultRow[]; maxHeight?: string; className?: string }) {
   const group = spec.groupBy;
   const split = group ? spec.seriesBy : undefined;
   return (
-    <div className="mt-5 max-h-72 overflow-auto rounded-lg border border-line">
+    <div className={cn(className, maxHeight, "overflow-auto rounded-lg border border-line")}>
       <table className="w-full text-left text-[14px]">
         <thead className="sticky top-0 bg-surface-2 text-muted">
           <tr>
@@ -56,8 +61,18 @@ function ResultTable({ spec, rows }: { spec: ChartSpec; rows: ResultRow[] }) {
   );
 }
 
-/** The chart body only: used by the feed card, the chart builder preview and Ask answers. */
-export function ChartBody({ spec, rows, height }: { spec: ChartSpec; rows: ResultRow[]; height?: number }) {
+type BodyProps = {
+  spec: ChartSpec;
+  rows: ResultRow[];
+  height?: number;
+  /** Click a bar or slice: reports its category (cross-filtering on the dashboard). */
+  onPick?: (value: string) => void;
+  /** The picked category, drawn highlighted. */
+  selected?: string | null;
+};
+
+/** The chart body only: used by the feed card, report tiles, the chart builder preview and Ask answers. */
+export function ChartBody({ spec, rows, height, onPick, selected }: BodyProps) {
   if (!rows.length)
     return <EmptyState compact className="mt-5" title="No data for these filters" description="Widen the date range or clear a filter to see this chart." />;
   if (spec.chartType === "table") return <ResultTable spec={spec} rows={rows} />;
@@ -69,6 +84,8 @@ export function ChartBody({ spec, rows, height }: { spec: ChartSpec; rows: Resul
       height={height ?? (spec.chartType === "line" || spec.chartType === "area" ? 240 : 220)}
       label={spec.title}
       option={buildOption(spec, rows, { highlightLast: spec.chartType === "bar" && spec.sort === "label" })}
+      onPick={onPick && canPick(spec) ? onPick : undefined}
+      selected={selected}
     />
   );
 }

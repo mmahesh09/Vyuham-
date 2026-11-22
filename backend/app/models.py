@@ -77,8 +77,9 @@ class Connection(Base):
 class Dataset(Base):
     """A table in a workspace. Data lives in Parquet at <data_dir>/<workspace_id>/<id>.parquet.
 
-    Uploaded datasets (csv | xlsx) get their file from the upload. Database-backed datasets
-    (postgres | mysql) get it from a sync of `source_table` or `source_query` (app/sync.py).
+    Uploaded datasets (csv | xlsx | json | parquet | url) get their file from the upload or link.
+    Database-backed datasets (postgres | mysql) get it from a sync of `source_table` or `source_query`
+    (app/sync.py). Derived datasets are built from a query over other datasets (app/materialize.py).
     """
 
     __tablename__ = "datasets"
@@ -88,7 +89,7 @@ class Dataset(Base):
     created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
     name: Mapped[str] = mapped_column(String(200))
     source_filename: Mapped[str] = mapped_column(String(255))
-    source_kind: Mapped[str] = mapped_column(String(8))  # csv | xlsx | postgres | mysql
+    source_kind: Mapped[str] = mapped_column(String(16))  # csv | xlsx | json | parquet | url | postgres | mysql | derived
     sheet: Mapped[str | None] = mapped_column(String(255))
     row_count: Mapped[int] = mapped_column(Integer)
     # [{name, type, empty_ratio, examples}] in file order
@@ -105,6 +106,63 @@ class Dataset(Base):
     sync_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))  # last attempt, successful or not
     sync_finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     sync_error: Mapped[str | None] = mapped_column(String(500))
+    # Medallion layer (bronze | silver | gold), set by the person or a pipeline; None = not tagged.
+    layer: Mapped[str | None] = mapped_column(String(8))
+    description: Mapped[str | None] = mapped_column(String(500))
+    # How a derived dataset is rebuilt: {"kind": "sql", "sql": ..., "params": [...]} or {"kind": "url", "url": ...}.
+    origin: Mapped[dict | None] = mapped_column(JSON)
+
+
+class LineageEdge(Base):
+    """Something was made from something else: dataset -> dataset (a query or pipeline), dataset -> chart.
+
+    Written whenever a derived dataset is (re)built; read by the catalog and the lineage view.
+    """
+
+    __tablename__ = "lineage_edges"
+    __table_args__ = (UniqueConstraint("from_kind", "from_id", "to_kind", "to_id", name="uq_lineage_edge"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    from_kind: Mapped[str] = mapped_column(String(16))  # dataset
+    from_id: Mapped[str] = mapped_column(String(32), index=True)
+    to_kind: Mapped[str] = mapped_column(String(16))  # dataset | chart | metric
+    to_id: Mapped[str] = mapped_column(String(32), index=True)
+    via: Mapped[str | None] = mapped_column(String(16))  # sql | pipeline
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class QualityRule(Base):
+    """A data quality check on one dataset (see app/quality.py for the kinds and what they test)."""
+
+    __tablename__ = "quality_rules"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))  # not_null | unique | accepted_values | range | regex | freshness | row_count | sql
+    column: Mapped[str | None] = mapped_column(String(255))
+    params: Mapped[dict] = mapped_column(JSON, default=dict)
+    severity: Mapped[str] = mapped_column(String(8), default="error")  # error | warn
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class QualityRun(Base):
+    """One run of every enabled rule on a dataset; `results` holds each rule's outcome."""
+
+    __tablename__ = "quality_runs"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"), index=True)
+    trigger: Mapped[str] = mapped_column(String(10))  # manual | refresh | schedule
+    status: Mapped[str] = mapped_column(String(8))  # pass | warn | fail | error
+    # [{rule_id, kind, column, severity, status: pass|fail|error, failed: int, message, sample: [rows]}]
+    results: Mapped[list] = mapped_column(JSON, default=list)
+    row_count: Mapped[int | None] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
 
 
 class UserProfile(Base):
@@ -187,6 +245,8 @@ class Dashboard(Base):
     kpi_layout: Mapped[list] = mapped_column(JSON, default=list)
     # Dashboard Lab: free-form grid positions of every chart [{i, x, y, w, h}]
     canvas_layout: Mapped[list | None] = mapped_column(JSON, default=list)
+    # Report pages shown as tabs: [{id, name}]. Empty/None means one page (see routers/dashboards._pages).
+    pages: Mapped[list | None] = mapped_column(JSON, default=list)
     share_token: Mapped[str | None] = mapped_column(String(64), unique=True)
     created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
@@ -209,6 +269,8 @@ class Chart(Base):
     kind: Mapped[str] = mapped_column(String(8), default="card")  # card | kpi
     note: Mapped[str | None] = mapped_column(String(500))
     position: Mapped[int] = mapped_column(Integer, default=0)
+    # Which report page it sits on; None or an unknown id means the first page.
+    page_id: Mapped[str | None] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     dashboard: Mapped[Dashboard] = relationship(back_populates="charts")
@@ -456,6 +518,11 @@ class KbArticle(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    @property
+    def read_minutes(self) -> int:
+        """Estimated reading time at ~200 words a minute, never less than one."""
+        return max(1, round(len((self.body or "").split()) / 200))
+
 
 class ErrorGroup(Base):
     """One distinct error, as grouped by GlitchTip (one GlitchTip issue). Staff link it to a KB article."""
@@ -519,6 +586,27 @@ class TicketMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
     ticket: Mapped[SupportTicket] = relationship(back_populates="messages")
+    attachments: Mapped[list["TicketAttachment"]] = relationship(back_populates="message", order_by="TicketAttachment.created_at")
+
+
+class TicketAttachment(Base):
+    """A file someone added to a support message. Uploaded first (unlinked), then linked when the
+    message is sent; unlinked uploads are pruned after a day. The file lives in attachment storage."""
+
+    __tablename__ = "ticket_attachments"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    uploader_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    ticket_id: Mapped[str | None] = mapped_column(ForeignKey("support_tickets.id", ondelete="CASCADE"), index=True)
+    message_id: Mapped[str | None] = mapped_column(ForeignKey("ticket_messages.id", ondelete="CASCADE"), index=True)
+    filename: Mapped[str] = mapped_column(String(200))
+    content_type: Mapped[str] = mapped_column(String(100))
+    size: Mapped[int] = mapped_column(Integer)
+    storage_key: Mapped[str] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+    message: Mapped[TicketMessage | None] = relationship(back_populates="attachments")
 
 
 class KbDeflection(Base):

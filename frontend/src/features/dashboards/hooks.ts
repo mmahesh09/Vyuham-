@@ -2,9 +2,7 @@
 
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import type { ChartSpec } from "@/features/charts/chart-spec";
-
-import { dashboardsApi, type ChartKind, type ChartRecord, type Dashboard, type DashboardSource, type ViewQuery } from "./api";
+import { dashboardsApi, type ChartRecord, type Dashboard, type DashboardSource, type ViewQuery } from "./api";
 
 export const dashboardKeys = {
   all: ["dashboards"] as const,
@@ -48,12 +46,12 @@ export function useDashboardMutations(id: string) {
       onSuccess: (d) => (setDashboard(d), refreshList(), refreshView()),
     }),
     addChart: useMutation({
-      mutationFn: (body: { spec: ChartSpec; kind: ChartKind; note?: string | null }) => dashboardsApi.addChart(id, body),
+      mutationFn: (body: Parameters<typeof dashboardsApi.addChart>[1]) => dashboardsApi.addChart(id, body),
       onSuccess: () => (qc.invalidateQueries({ queryKey: key }), refreshList()),
       // (the dashboard refetch changes the chart ids, which refetches the view)
     }),
     updateChart: useMutation({
-      mutationFn: ({ chartId, ...body }: { chartId: string; spec?: ChartSpec; kind?: ChartKind; note?: string | null }) =>
+      mutationFn: ({ chartId, ...body }: { chartId: string } & Parameters<typeof dashboardsApi.updateChart>[1]) =>
         dashboardsApi.updateChart(chartId, body),
       onSuccess: (c) => (patchCharts((charts) => charts.map((x) => (x.id === c.id ? c : x))), refreshView()),
     }),

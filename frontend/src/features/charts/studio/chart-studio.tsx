@@ -82,12 +82,13 @@ import {
   type StudioState,
 } from "./model";
 
-const SWATCHES = ["#ffb37a", "#f07a2b", "#f2545b", "#8b7fe0", "#5b8def", "#3fbf9b", "#f2b544", "#f0597a"];
+export const SWATCHES = ["#ffb37a", "#f07a2b", "#f2545b", "#8b7fe0", "#5b8def", "#3fbf9b", "#f2b544", "#f0597a"];
 const BUCKETS: DateBucket[] = ["year", "quarter", "month", "week", "day"];
 const BUCKET_NAME: Record<DateBucket, string> = { year: "Year", quarter: "Quarter", month: "Month", week: "Week", day: "Day" };
 const SHELF_NAME: Record<Shelf, string> = { columns: "Columns", rows: "Rows", color: "Colour", filters: "Filters" };
 
-const TYPES: { type: ChartSpec["chartType"]; label: string; icon: LucideIcon }[] = [
+/** Every chart type with its label and icon (also the dashboard's Visualizations pane). */
+export const TYPES: { type: ChartSpec["chartType"]; label: string; icon: LucideIcon }[] = [
   { type: "line", label: "Line", icon: LineChart },
   { type: "area", label: "Area", icon: TrendingUp },
   { type: "bar", label: "Bar", icon: BarChart3 },

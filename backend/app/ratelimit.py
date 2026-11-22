@@ -36,6 +36,7 @@ log = logging.getLogger("app.ratelimit")
 # (method or "*", path prefix, limit). The first match wins; DEFAULT applies to everything else.
 RULES: list[tuple[str, str, str]] = [
     ("*", "/health", ""),  # never limited: Docker and uptime checks
+    ("POST", "/datasets/url", "5/minute"),  # the server downloads the link
     ("POST", "/datasets", "10/minute"),  # uploads
     ("PUT", "/datasets/", "10/minute"),  # replace a dataset's file
     ("POST", "/exports", "10/minute"),
@@ -58,6 +59,7 @@ RULES: list[tuple[str, str, str]] = [
     ("GET", "/connections/", "60/minute"),  # table lists and previews
     ("POST", "/support/webhooks/", "120/minute"),  # GlitchTip; checked by shared secret
     ("POST", "/hooks/", "30/minute"),  # refresh hooks from customers' pipelines, no sign-in
+    ("POST", "/support/attachments", "30/minute"),  # files on requests and replies (10 MB each)
     ("POST", "/support/", "20/minute"),  # new tickets and replies
     ("GET", "/support/errors/", "60/minute"),  # error-screen help lookup, no sign-in
     ("POST", "/kb/", "30/minute"),  # helpful votes, deflections

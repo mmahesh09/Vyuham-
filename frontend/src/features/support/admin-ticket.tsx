@@ -39,7 +39,7 @@ export function AdminTicket({ id }: { id: string }) {
         <div className="flex min-w-0 flex-col gap-6">
           <Thread messages={t.messages} />
           <ReplyBox
-            onSend={(body) => reply.mutateAsync({ body, internal })}
+            onSend={(body, attachment_ids) => reply.mutateAsync({ body, internal, attachment_ids })}
             pending={reply.isPending}
             error={reply.error?.message}
             placeholder={internal ? "Internal note (the customer won't see this)…" : "Reply to the customer (they get an email)…"}

@@ -30,7 +30,7 @@ const COLUMNS: { title: string; links: LinkList }[] = [
     links: [
       ["Support center", "/support-center"],
       ["Help center", "/help"],
-      ["Contact support", "/support/new"],
+      ["Contact support", "/support-center#contact"],
       ["System status", "/status"],
       ["Privacy", "/privacy"],
       ["Terms", "/terms"],

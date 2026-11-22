@@ -59,6 +59,10 @@ class DatasetOut(BaseModel):
     sync_started_at: UtcDatetime | None = None
     sync_finished_at: UtcDatetime | None = None
     sync_error: str | None = None
+    # Data platform: medallion layer, a description, and how a derived/linked dataset is rebuilt.
+    layer: str | None = None
+    description: str | None = None
+    origin: dict | None = None
 
 
 ConnectionKind = Literal["postgres", "mysql"]
@@ -302,8 +306,11 @@ class DatasetPatch(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     # column name -> new type; only the columns being changed
     column_types: dict[str, ColumnType] | None = None
-    # Database-backed datasets only.
+    # Database-backed and query-built datasets only.
     refresh: Literal["manual", "hourly", "daily"] | None = None
+    # "" clears the layer.
+    layer: Literal["bronze", "silver", "gold", ""] | None = None
+    description: str | None = Field(default=None, max_length=500)
 
 
 class RowFilter(BaseModel):
@@ -382,16 +389,26 @@ class ChartSpecIn(BaseModel):
         return self
 
 
+PageId = Annotated[str, StringConstraints(min_length=1, max_length=32, pattern=r"^[A-Za-z0-9_-]+$")]
+
+
 class ChartIn(BaseModel):
     spec: ChartSpecIn
     kind: Literal["card", "kpi"] = "card"
     note: str | None = Field(default=None, max_length=500)
+    page_id: PageId | None = None
 
 
 class ChartPatch(BaseModel):
     spec: ChartSpecIn | None = None
     kind: Literal["card", "kpi"] | None = None
     note: str | None = Field(default=None, max_length=500)
+    page_id: PageId | None = None
+
+
+class PageItem(BaseModel):
+    id: PageId
+    name: str = Field(min_length=1, max_length=60)
 
 
 class ChartOut(BaseModel):
@@ -402,6 +419,7 @@ class ChartOut(BaseModel):
     kind: str
     note: str | None
     position: int
+    page_id: str | None = None
 
 
 class KpiLayoutItem(BaseModel):
@@ -424,6 +442,7 @@ class DashboardPatch(BaseModel):
     filter_columns: list[str] | None = Field(default=None, max_length=6)
     kpi_layout: list[KpiLayoutItem] | None = Field(default=None, max_length=24)
     canvas_layout: list[KpiLayoutItem] | None = Field(default=None, max_length=60)
+    pages: list[PageItem] | None = Field(default=None, min_length=1, max_length=20)
 
 
 class DatasetRef(BaseModel):
@@ -440,6 +459,7 @@ class DashboardOut(BaseModel):
     filter_columns: list
     kpi_layout: list
     canvas_layout: list = Field(default_factory=list)
+    pages: list[PageItem] = Field(default_factory=list)
     share_token: str | None
     created_at: UtcDatetime
     updated_at: UtcDatetime

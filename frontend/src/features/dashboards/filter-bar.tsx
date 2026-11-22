@@ -9,7 +9,7 @@ import { DateRangePicker } from "./date-range-picker";
 import { useDashboardFilters } from "./filters";
 import { useFilterValues } from "./hooks";
 
-function ColumnFilter({ source, column, value, onChange }: { source: DashboardSource; column: string; value: string; onChange: (v: string) => void }) {
+export function ColumnFilter({ source, column, value, onChange }: { source: DashboardSource; column: string; value: string; onChange: (v: string) => void }) {
   const { data } = useFilterValues(source, column);
   const id = `f-${column.replace(/\W+/g, "-")}`;
   return (

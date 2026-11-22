@@ -245,14 +245,53 @@ def ingest(raw: bytes, filename: str, sheet: str | None = None, max_rows: int = 
         return result
 
 
+MAX_JSON_DEPTH = 2
+
+
+def _read_json(raw: bytes) -> pd.DataFrame:
+    """A JSON array of objects, {"data"|"rows"|"items"|"records": [...]}, or JSON Lines.
+    Nested objects are flattened one level ("address.city"); lists become JSON text."""
+    import json
+
+    text = _decode(raw).strip()
+    try:
+        data = json.loads(text)
+    except ValueError:
+        try:
+            data = [json.loads(line) for line in text.splitlines() if line.strip()]
+        except ValueError as e:
+            raise IngestError("This isn't valid JSON. Use an array of objects or one object per line.") from e
+    if isinstance(data, dict):
+        inner = next((data[k] for k in ("data", "rows", "items", "records", "results") if isinstance(data.get(k), list)), None)
+        data = inner if inner is not None else [data]
+    if not isinstance(data, list) or not data or not all(isinstance(r, dict) for r in data):
+        raise IngestError("Use a JSON array of objects (one object per row).")
+    frame = pd.json_normalize(data, max_level=MAX_JSON_DEPTH - 1)
+    for col in frame.columns:
+        if frame[col].map(lambda v: isinstance(v, (list, dict))).any():
+            frame[col] = frame[col].map(lambda v: json.dumps(v, ensure_ascii=False) if isinstance(v, (list, dict)) else v)
+    return frame
+
+
+def _read_parquet(raw: bytes) -> pd.DataFrame:
+    try:
+        return pd.read_parquet(io.BytesIO(raw))
+    except Exception as e:  # pyarrow raises many kinds for a bad file
+        raise IngestError("This Parquet file can't be read.") from e
+
+
 def _ingest(raw: bytes, filename: str, sheet: str | None = None, max_rows: int = 1_000_000) -> IngestResult:
     ext = Path(filename).suffix.lower()
+    if ext in (".json", ".jsonl", ".ndjson"):
+        return profile_frame(_read_json(raw), max_rows)
+    if ext == ".parquet":
+        return profile_frame(_read_parquet(raw), max_rows)
     if ext == ".csv":
         frame, sheets, chosen = _read_csv(raw), [], None
     elif ext == ".xlsx":
         frame, sheets, chosen = _read_xlsx(raw, sheet)
     else:
-        raise IngestError("Use a .csv or .xlsx file.")
+        raise IngestError("Use a .csv, .xlsx, .json or .parquet file.")
 
     if not len(frame):
         text = frame.astype(str)

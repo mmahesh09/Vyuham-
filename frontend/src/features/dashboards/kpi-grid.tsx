@@ -25,6 +25,13 @@ function defaultLayouts(ids: string[], saved: KpiLayoutItem[]) {
   };
 }
 
+/** A key number's value and its change vs the previous period (changes under ±0.5% count as flat). */
+export function kpiValue(chart: ChartRecord, view: ChartView | undefined) {
+  const raw = view?.insight?.value ?? view?.rows[0]?.[metricKey(chart.spec.metrics[0])] ?? null;
+  const change = view?.insight?.change ?? null;
+  return { raw, change, up: change !== null && change > 0.5, down: change !== null && change < -0.5 };
+}
+
 function KpiTile({
   chart,
   view,
@@ -41,10 +48,7 @@ function KpiTile({
   actions: ChartActions;
 }) {
   const insight = view?.insight;
-  const raw = insight?.value ?? view?.rows[0]?.[metricKey(chart.spec.metrics[0])] ?? null;
-  const change = insight?.change ?? null;
-  const up = change !== null && change > 0.5;
-  const down = change !== null && change < -0.5;
+  const { raw, change, up, down } = kpiValue(chart, view);
   const Icon = up ? ArrowUpRight : down ? ArrowDownRight : Minus;
 
   return (

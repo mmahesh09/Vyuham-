@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Sparkle } from "lucide-react";
+import { History, Loader2, Sparkle } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -8,6 +8,7 @@ import { ChartBody, InsightHeadline } from "@/features/dashboards/insight-card";
 
 import { AnswerWorkPanel } from "./answer-work";
 import { useAsk, useAskSuggestions } from "./ask-api";
+import { clearQuestions, rememberQuestion, useRecentQuestions } from "./recent-questions";
 import { SaveToDashboard } from "./save-to-dashboard";
 
 /** Home's question box: rule-based answers for now (AI next round), each one a chart you can save. */
@@ -16,6 +17,7 @@ export function AskBox() {
   const [q, setQ] = useState(params.get("q") ?? "");
   const ask = useAsk();
   const suggestions = useAskSuggestions();
+  const recent = useRecentQuestions();
   const asked = useRef<string | null>(null);
 
   // A question passed in from the command menu (?q=…) is asked straight away.
@@ -24,14 +26,15 @@ export function AskBox() {
     if (fromUrl && asked.current !== fromUrl) {
       asked.current = fromUrl;
       setQ(fromUrl);
-      ask.mutate(fromUrl);
+      ask.mutate(fromUrl, { onSuccess: (a) => a.answered && rememberQuestion(fromUrl) });
     }
   }, [params, ask]);
 
   const submit = (question: string) => {
     if (question.trim().length < 2) return;
     setQ(question);
-    ask.mutate(question.trim());
+    const asking = question.trim();
+    ask.mutate(asking, { onSuccess: (a) => a.answered && rememberQuestion(asking) });
   };
   const answer = ask.data;
 
@@ -81,6 +84,31 @@ export function AskBox() {
             </li>
           ))}
         </ul>
+      )}
+
+      {recent.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5 text-[12.5px] text-faint">
+            <History className="size-3.5" aria-hidden /> Recent
+          </span>
+          <ul className="contents" aria-label="Your recent questions">
+            {recent.map((r) => (
+              <li key={r}>
+                <button
+                  type="button"
+                  onClick={() => submit(r)}
+                  className="flex min-h-8 max-w-[280px] items-center rounded-full bg-surface-2/70 px-3 text-[13px] text-muted transition-colors hover:bg-surface-2 hover:text-text"
+                  title={r}
+                >
+                  <span className="truncate">{r}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" onClick={clearQuestions} className="min-h-8 px-1 text-[12.5px] text-faint hover:text-text hover:underline">
+            Clear
+          </button>
+        </div>
       )}
 
       <div aria-live="polite">

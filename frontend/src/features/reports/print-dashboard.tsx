@@ -61,6 +61,15 @@ export function PrintDashboard({ token }: { token: string }) {
   const dashboard = meta.data;
   const kpis = dashboard.charts.filter((c) => c.kind === "kpi");
   const cards = dashboard.charts.filter((c) => c.kind === "card");
+  // A multi-page report prints page by page, each under its own heading.
+  const pages = dashboard.pages?.length ? dashboard.pages : [];
+  const groups =
+    pages.length > 1
+      ? pages.map((p) => ({
+          page: p,
+          charts: dashboard.charts.filter((c) => (c.page_id && pages.some((x) => x.id === c.page_id) ? c.page_id : pages[0].id) === p.id),
+        }))
+      : [{ page: null, charts: dashboard.charts }];
   const summary = cards
     .map((c) => views.get(c.id)?.insight)
     .filter((i): i is NonNullable<typeof i> => !!i)
@@ -90,7 +99,7 @@ export function PrintDashboard({ token }: { token: string }) {
           </div>
         </header>
 
-        {kpis.length > 0 && (
+        {groups.length === 1 && kpis.length > 0 && (
           <div data-print-keep>
             <KpiGrid
               charts={kpis}
@@ -121,10 +130,40 @@ export function PrintDashboard({ token }: { token: string }) {
           </section>
         )}
 
-        {cards.length > 0 ? (
-          <StoryFeed charts={cards} views={views} canEdit={false} actionsFor={NO_ACTIONS} />
+        {groups.length === 1 ? (
+          cards.length > 0 ? (
+            <StoryFeed charts={cards} views={views} canEdit={false} actionsFor={NO_ACTIONS} />
+          ) : (
+            kpis.length === 0 && <p className="text-muted">This dashboard has no charts yet.</p>
+          )
         ) : (
-          kpis.length === 0 && <p className="text-muted">This dashboard has no charts yet.</p>
+          groups
+            .filter((g) => g.charts.length > 0)
+            .map((g) => {
+              const pageKpis = g.charts.filter((c) => c.kind === "kpi");
+              const pageCards = g.charts.filter((c) => c.kind === "card");
+              return (
+                <section key={g.page!.id} className="flex flex-col gap-5 border-t border-line pt-6" style={{ breakInside: "auto" }}>
+                  <h2 data-print-keep className="text-[22px] font-semibold tracking-[-0.02em]">
+                    {g.page!.name}
+                  </h2>
+                  {pageKpis.length > 0 && (
+                    <div data-print-keep>
+                      <KpiGrid
+                        charts={pageKpis}
+                        views={views}
+                        layout={dashboard.kpi_layout}
+                        editing={false}
+                        canEdit={false}
+                        allTime={!view.data.period}
+                        actionsFor={NO_ACTIONS}
+                      />
+                    </div>
+                  )}
+                  {pageCards.length > 0 && <StoryFeed charts={pageCards} views={views} canEdit={false} actionsFor={NO_ACTIONS} />}
+                </section>
+              );
+            })
         )}
       </div>
     </StaticChartsContext.Provider>

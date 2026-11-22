@@ -20,6 +20,7 @@ const DOT: Record<Activity["kind"], string> = {
   member: "bg-primary",
   profile: "bg-accent",
   leave: "bg-[#ffaa44]",
+  task: "bg-success",
 };
 
 /** Recent workspace changes, newest first (ReUI c-timeline-7). */

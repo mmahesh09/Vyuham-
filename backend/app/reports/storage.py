@@ -94,3 +94,9 @@ def _storage(kind: str, root: str) -> LocalStorage | S3Storage:
 def get_storage() -> LocalStorage | S3Storage:
     s = get_settings()
     return _storage(s.report_storage, os.path.join(s.data_dir, "reports"))
+
+
+def get_attachment_storage() -> LocalStorage | S3Storage:
+    """Support attachments: keys start with "support/", under DATA_DIR locally or in the same bucket on S3."""
+    s = get_settings()
+    return _storage(s.report_storage, s.data_dir)

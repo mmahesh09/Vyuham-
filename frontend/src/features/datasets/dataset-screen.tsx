@@ -1,9 +1,9 @@
 "use client";
 
 import { formatDistanceToNow } from "date-fns";
-import { Check, Database, FileSpreadsheet, LayoutDashboard, ListTodo, Pencil, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
+import { ArrowRight, Check, Code2, Database, FileSpreadsheet, LayoutDashboard, Link2, ListTodo, Pencil, RefreshCw, Sparkles, Trash2, X } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useRef, useState } from "react";
 
 import {
@@ -30,9 +30,13 @@ import { useMe } from "@/features/auth/hooks";
 import { useSyncDataset } from "@/features/connections/api";
 import { TaskDialog } from "@/features/team/task-dialog";
 
-import { isSynced, useDataset, useDeleteDataset, useReplaceDatasetFile, useUpdateDataset, type Dataset } from "./api";
+import { isRebuilt, isSynced, useDataset, useDeleteDataset, useReplaceDatasetFile, useUpdateDataset, type Dataset, type Layer } from "./api";
 import { TypeBadge } from "./column-summary";
 import { DatasetGrid } from "./dataset-grid";
+import { LayerBadge } from "./layer-badge";
+import { LAYERS, useLineage } from "./platform-api";
+import { ProfilePanel } from "./profile-panel";
+import { QualityPanel } from "./quality-panel";
 import { ACCEPTED, MAX_FILE_BYTES, type ColumnType } from "./types";
 
 const nf = new Intl.NumberFormat("en-US");
@@ -78,6 +82,10 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
   const replace = useReplaceDatasetFile(dataset.id);
   const sync = useSyncDataset(dataset.id);
   const synced = isSynced(dataset);
+  const rebuilt = isRebuilt(dataset);
+  const refreshable = (synced && !!dataset.connection_id) || rebuilt;
+  const tabParam = useSearchParams().get("tab");
+  const [tab, setTab] = useState(["rows", "columns", "profile", "quality"].includes(tabParam ?? "") ? tabParam! : "rows");
   const remove = useDeleteDataset();
   const fileRef = useRef<HTMLInputElement>(null);
   const [renaming, setRenaming] = useState(false);
@@ -132,6 +140,7 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
       ) : (
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="type-page-title truncate text-text">{dataset.name}</h1>
+          {dataset.layer && <LayerBadge layer={dataset.layer} />}
           {canEdit && (
             <Button variant="ghost" size="icon-sm" aria-label="Rename dataset" onClick={() => setRenaming(true)}>
               <Pencil />
@@ -145,7 +154,25 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
         description={
           <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[14px]">
             <span className="flex items-center gap-1.5">
-              {synced ? (
+              {dataset.origin?.kind === "sql" ? (
+                <>
+                  <Code2 className="size-4 text-highlight" aria-hidden />
+                  Built from a SQL query
+                </>
+              ) : dataset.origin?.kind === "url" ? (
+                <>
+                  <Link2 className="size-4 text-highlight" aria-hidden />
+                  <span className="max-w-[280px] truncate" title={dataset.origin.url}>
+                    {(() => {
+                      try {
+                        return new URL(dataset.origin.url).hostname;
+                      } catch {
+                        return "a link";
+                      }
+                    })()}
+                  </span>
+                </>
+              ) : synced ? (
                 <>
                   <Database className="size-4 text-highlight" aria-hidden />
                   {dataset.source_kind === "postgres" ? "PostgreSQL" : "MySQL"} · {dataset.source_table ?? "custom query"}
@@ -163,8 +190,8 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
             <span>{dataset.columns.length} columns</span>
             <span>{formatBytes(dataset.file_size)}</span>
             <span className="text-faint">
-              {synced && dataset.last_synced_at ? "synced" : "updated"}{" "}
-              {formatDistanceToNow(new Date((synced && dataset.last_synced_at) || dataset.updated_at || dataset.created_at), { addSuffix: true })}
+              {refreshable && dataset.last_synced_at ? (rebuilt ? "rebuilt" : "synced") : "updated"}{" "}
+              {formatDistanceToNow(new Date((refreshable && dataset.last_synced_at) || dataset.updated_at || dataset.created_at), { addSuffix: true })}
             </span>
           </p>
         }
@@ -196,8 +223,22 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
                   e.target.value = "";
                 }}
               />
-              {synced ? (
-                dataset.connection_id && (
+              <NativeSelect
+                aria-label="Data layer"
+                value={dataset.layer ?? ""}
+                onChange={(e) => update.mutate({ layer: e.target.value as Layer | "" })}
+                className="w-auto"
+                title="Bronze: raw. Silver: cleaned and checked. Gold: ready for dashboards."
+              >
+                <option value="">No layer</option>
+                {LAYERS.map((l) => (
+                  <option key={l.value} value={l.value}>
+                    {l.label} layer
+                  </option>
+                ))}
+              </NativeSelect>
+              {refreshable ? (
+                (
                   <>
                     <NativeSelect
                       aria-label="Refresh schedule"
@@ -214,7 +255,7 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
                     </Button>
                   </>
                 )
-              ) : (
+              ) : synced ? null : (
                 <Button variant="outline" onClick={() => fileRef.current?.click()} disabled={replace.isPending}>
                   <RefreshCw className={replace.isPending ? "animate-spin" : ""} /> {replace.isPending ? "Replacing…" : "Replace file"}
                 </Button>
@@ -255,7 +296,7 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
           {replaceError ?? `Replaced with ${dataset.source_filename}. Dashboards using this dataset now show the new data.`}
         </InlineAlert>
       )}
-      {synced && dataset.sync_error && !sync.isPending && (
+      {refreshable && dataset.sync_error && !sync.isPending && (
         <InlineAlert tone="error">
           The last refresh failed: {dataset.sync_error} You&apos;re seeing the data from the last successful refresh.
         </InlineAlert>
@@ -265,10 +306,14 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
         <InlineAlert tone="info">Refreshed: {nf.format(dataset.row_count)} rows. Dashboards using this dataset now show the new data.</InlineAlert>
       )}
 
-      <Tabs defaultValue="rows">
+      <LineageStrip dataset={dataset} />
+
+      <Tabs value={tab} onValueChange={(v) => setTab(String(v))}>
         <TabsList>
           <TabsTrigger value="rows">Rows</TabsTrigger>
           <TabsTrigger value="columns">Columns</TabsTrigger>
+          <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="quality">Quality</TabsTrigger>
         </TabsList>
         <TabsContent value="rows" className="pt-4">
           <DatasetGrid dataset={dataset} />
@@ -276,8 +321,44 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
         <TabsContent value="columns" className="pt-4">
           <ColumnsPanel dataset={dataset} canEdit={canEdit} />
         </TabsContent>
+        <TabsContent value="profile" className="pt-4">
+          {tab === "profile" && <ProfilePanel dataset={dataset} />}
+        </TabsContent>
+        <TabsContent value="quality" className="pt-4">
+          {tab === "quality" && <QualityPanel dataset={dataset} canEdit={canEdit} />}
+        </TabsContent>
       </Tabs>
     </PageContainer>
+  );
+}
+
+/** Where this dataset comes from and what is built on it (one step each way). */
+function LineageStrip({ dataset }: { dataset: Dataset }) {
+  const { data } = useLineage(dataset.id);
+  if (!data || (!data.upstream.length && !data.downstream.length)) return null;
+  const chip = (d: { id: string; name: string; layer: Layer | null }) => (
+    <Link key={d.id} href={`/data/${d.id}`} className="flex items-center gap-1.5 rounded-[6px] border border-line bg-surface px-2.5 py-1 text-[13px] text-text hover:border-line-strong">
+      {d.layer && <LayerBadge layer={d.layer} compact />}
+      <span className="max-w-[200px] truncate">{d.name}</span>
+    </Link>
+  );
+  return (
+    <nav aria-label="Lineage" className="-mt-2 flex flex-wrap items-center gap-2 text-[12.5px] text-faint">
+      {data.upstream.length > 0 && (
+        <>
+          <span>Built from</span>
+          {data.upstream.map(chip)}
+          <ArrowRight className="size-3.5" aria-hidden />
+          <span className="rounded-[6px] border border-highlight/50 bg-highlight/10 px-2.5 py-1 text-[13px] text-text">{dataset.name}</span>
+        </>
+      )}
+      {data.downstream.length > 0 && (
+        <>
+          <span className={data.upstream.length ? "ml-2" : ""}>Used by</span>
+          {data.downstream.map(chip)}
+        </>
+      )}
+    </nav>
   );
 }
 
