@@ -22,3 +22,5 @@ coverage/
 .vercel/
 # Built decks (my-deck: npm run build:app)
 frontend/public/decks/
+# Local database backups (contain sessions and user data)
+backend/*.db.bak*
