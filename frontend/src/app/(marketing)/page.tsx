@@ -191,9 +191,11 @@ const STEPS: { title: string; text: React.ReactNode }[] = [
 type Feature = { icon: LucideIcon; name: string; text: string; href: string };
 
 /** Every major feature, split by who uses it. Each links to the section that explains it. */
-const PLATFORM: { title: string; intro: string; items: Feature[] }[] = [
+const PLATFORM: { title: string; kind: string; audience: string; intro: string; items: Feature[] }[] = [
   {
-    title: "For people who need answers",
+    title: "Vyuham",
+    kind: "Analytics",
+    audience: "For people who need answers",
     intro: "Owners, managers and anyone who asks “how are we doing?”",
     items: [
       { icon: MessageSquareText, name: "Ask in plain English", text: "Totals, rankings and trends, with a one-line answer and the chart.", href: "#analytics" },
@@ -204,7 +206,9 @@ const PLATFORM: { title: string; intro: string; items: Feature[] }[] = [
     ],
   },
   {
-    title: "For people who build data",
+    title: "Kaveri",
+    kind: "Engineering platform",
+    audience: "For people who build data",
     intro: "Analysts and engineers, or the one person who is both.",
     items: [
       { icon: Workflow, name: "Pipelines", text: "Read, clean, check and write Bronze, Silver and Gold tables on a canvas.", href: "#pipelines" },
@@ -531,56 +535,26 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 2 · How it works — band, four steps */}
-        <section id="how-it-works" className={`band relative isolate scroll-mt-4 ${sectionY}`}>
-          <div className="glow glow--lilac left-[-5%] top-[20%] h-[380px] w-[520px]" />
-          <div className={container}>
-            <div data-animate className="mb-14 grid gap-6 lg:grid-cols-[5fr_6fr] lg:items-end">
-              <h2 className={h2}>
-                <Eyebrow n="02" className="mb-6 flex">How it works</Eyebrow>
-                From raw tables to answers <span className={quiet}>in one workspace.</span>
-              </h2>
-              <p className={`${body} max-w-[46ch]`}>
-                Everything happens in your browser, on one copy of your data. Builders shape it, everyone else{" "}
-                <Mark>asks it questions</Mark>, and the same access rules cover both.
-              </p>
-            </div>
-            <ol className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {STEPS.map((s, i) => (
-                <li
-                  key={s.title}
-                  data-animate
-                  style={delay(i * 100)}
-                  className="flex flex-col gap-4 rounded-[16px] border border-white/10 bg-black/40 p-6 sm:p-8"
-                >
-                  <span className="font-mono text-[13px] text-accent">Step {i + 1}</span>
-                  <h3 className="text-[22px] font-semibold tracking-[-0.02em] text-white">{s.title}</h3>
-                  <p className="text-base font-light leading-relaxed text-white/70">{s.text}</p>
-                </li>
-              ))}
-            </ol>
-            <CtaRow className="mt-12" note="The sample shows the asking side, with no sign-up. Building starts with a free account." />
-          </div>
-        </section>
-
-        {/* 3 · The platform — every feature, by who uses it */}
-        <section id="platform" className={`relative isolate scroll-mt-4 ${sectionY}`}>
+        {/* 2 · The platform: Vyuham and Kaveri — band */}
+        <section id="platform" className={`band relative isolate scroll-mt-4 ${sectionY}`}>
           <div className="glow glow--violet right-[0%] top-[30%] h-[460px] w-[620px]" />
           <div className={container}>
             <div data-animate className="mb-14 grid gap-6 lg:grid-cols-[5fr_6fr] lg:items-end">
               <h2 className={h2}>
-                <Eyebrow n="03" className="mb-6 flex">The platform</Eyebrow>
-                Two kinds of work. <span className={quiet}>The same data.</span>
+                <Eyebrow n="02" className="mb-6 flex">The platform</Eyebrow>
+                Two products. <span className={quiet}>One copy of the data.</span>
               </h2>
               <p className={`${body} max-w-[46ch]`}>
-                What a pipeline writes, a dashboard reads. What a policy masks stays masked in a chart, an export and an
-                AI request. <Mark>Here’s everything in the workspace.</Mark>
+                Vyuham is where you ask and read. Kaveri is where you build. What a Kaveri pipeline writes, a Vyuham
+                dashboard reads, and what a policy masks stays masked in both. <Mark>Here’s everything in each.</Mark>
               </p>
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               {PLATFORM.map((col, ci) => (
                 <div key={col.title} data-animate style={delay(ci * 120)} className="flex flex-col rounded-[16px] border border-white/10 bg-black/40 p-6 sm:p-8">
-                  <h3 className="text-[22px] font-semibold tracking-[-0.02em] text-white">{col.title}</h3>
+                  <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-highlight">{col.kind}</p>
+                  <h3 className="mt-2 text-[28px] font-semibold tracking-[-0.025em] text-white">{col.title}</h3>
+                  <p className="mt-1 text-[16px] text-white/80">{col.audience}</p>
                   <p className="mt-1 text-[15px] text-white/55">{col.intro}</p>
                   <ul className="mt-6 flex flex-col">
                     {col.items.map(({ icon: Icon, name, text, href }) => (
@@ -603,11 +577,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 4 · Analytics: the same question, two ways — band */}
-        <section id="analytics" className={`band relative isolate scroll-mt-4 ${sectionY}`}>
+        {/* 3 · Vyuham · Analytics: the same question, two ways — black */}
+        <section id="analytics" className={`relative isolate scroll-mt-4 ${sectionY}`}>
           <div className={container}>
             <div data-animate className="flex flex-col gap-6">
-              <Eyebrow n="04">Analytics</Eyebrow>
+              <Eyebrow n="03">Vyuham · Analytics</Eyebrow>
               <p className="max-w-[22ch] text-[clamp(40px,5.6vw,76px)] font-extralight leading-[1.04] tracking-[-0.03em] text-white">
                 “Are we selling more than last month?”
               </p>
@@ -663,12 +637,12 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 5 · Dashboards and day to day — black */}
-        <section id="dashboards" className={`scroll-mt-4 ${sectionY}`}>
+        {/* 4 · Vyuham · Dashboards and day to day — band */}
+        <section id="dashboards" className={`band scroll-mt-4 ${sectionY}`}>
           <div className={container}>
             <div className="grid items-center gap-16 lg:grid-cols-[5fr_6fr]">
               <div data-animate className="flex flex-col gap-6">
-                <Eyebrow n="05">Dashboards</Eyebrow>
+                <Eyebrow n="04">Vyuham · Dashboards</Eyebrow>
                 <h2 className={h2}>
                   Monday morning, <span className={quiet}>already explained.</span>
                 </h2>
@@ -728,8 +702,8 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 6 · Pipelines and the AI Data Engineer — band, media left */}
-        <section id="pipelines" className={`band relative isolate scroll-mt-4 ${sectionY}`}>
+        {/* 5 · Kaveri · Pipelines and the AI Data Engineer — black, media left */}
+        <section id="pipelines" className={`relative isolate scroll-mt-4 ${sectionY}`}>
           <div className="glow glow--lilac right-[-5%] top-[10%] h-[380px] w-[520px]" />
           <div className={container}>
             <div className="grid items-center gap-16 lg:grid-cols-[6fr_5fr]">
@@ -738,7 +712,7 @@ export default function LandingPage() {
                 <p className="mt-4 text-center text-[13px] text-white/40">Sample run. Each step shows the rows it produced.</p>
               </div>
               <div data-animate className="order-1 flex flex-col gap-6 lg:order-2" style={delay(120)}>
-                <Eyebrow n="06">Pipelines</Eyebrow>
+                <Eyebrow n="05">Kaveri · Pipelines</Eyebrow>
                 <h2 className={h2}>
                   The nightly script, <span className={quiet}>where everyone can see it.</span>
                 </h2>
@@ -750,10 +724,10 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div data-animate className="mt-16 grid gap-8 rounded-[16px] border border-white/10 bg-black/40 p-6 sm:p-8 lg:grid-cols-[5fr_6fr] lg:items-start">
+            <div data-animate className="mt-16 grid gap-8 rounded-[16px] border border-white/10 bg-white/[0.03] p-6 sm:p-8 lg:grid-cols-[5fr_6fr] lg:items-start">
               <div>
                 <p className="flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.14em] text-highlight">
-                  <Sparkles className="size-4" aria-hidden /> AI Data Engineer
+                  <Sparkles className="size-4" aria-hidden /> Kaveri · AI Data Engineer
                 </p>
                 <h3 className="mt-3 text-[clamp(24px,2.6vw,32px)] font-semibold leading-[1.1] tracking-[-0.025em] text-white">
                   Describe the pipeline. <span className="font-light text-white/70">Approve it before it runs.</span>
@@ -779,11 +753,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 7 · SQL Workbench and dynamic tables — black, media right */}
-        <section id="workbench" className={`scroll-mt-4 ${sectionY}`}>
+        {/* 6 · Kaveri · SQL Workbench and dynamic tables — band, media right */}
+        <section id="workbench" className={`band scroll-mt-4 ${sectionY}`}>
           <div className={`${container} grid items-center gap-16 lg:grid-cols-[5fr_6fr]`}>
             <div data-animate className="flex flex-col gap-6">
-              <Eyebrow n="07">SQL and dynamic tables</Eyebrow>
+              <Eyebrow n="06">Kaveri · SQL and dynamic tables</Eyebrow>
               <h2 className={h2}>
                 Write the query once. <span className={quiet}>Keep the result fresh.</span>
               </h2>
@@ -799,14 +773,14 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 8 · Governance and cost — band, media left */}
-        <section id="governance" className={`band scroll-mt-4 ${sectionY}`}>
+        {/* 7 · Kaveri · Governance and cost — black, media left */}
+        <section id="governance" className={`scroll-mt-4 ${sectionY}`}>
           <div className={`${container} grid items-center gap-16 lg:grid-cols-[6fr_5fr]`}>
             <div data-animate className="order-2 lg:order-1">
               <GovernanceShot />
             </div>
             <div data-animate className="order-1 flex flex-col gap-6 lg:order-2" style={delay(120)}>
-              <Eyebrow n="08">Governance and cost</Eyebrow>
+              <Eyebrow n="07">Kaveri · Governance and cost</Eyebrow>
               <h2 className={h2}>
                 Decide who sees what. <span className={quiet}>Once.</span>
               </h2>
@@ -816,6 +790,38 @@ export default function LandingPage() {
               </p>
               <Points items={GOVERNANCE_POINTS} />
             </div>
+          </div>
+        </section>
+
+        {/* 8 · How it works — band, four steps */}
+        <section id="how-it-works" className={`band relative isolate scroll-mt-4 ${sectionY}`}>
+          <div className="glow glow--lilac left-[-5%] top-[20%] h-[380px] w-[520px]" />
+          <div className={container}>
+            <div data-animate className="mb-14 grid gap-6 lg:grid-cols-[5fr_6fr] lg:items-end">
+              <h2 className={h2}>
+                <Eyebrow n="08" className="mb-6 flex">How it works</Eyebrow>
+                From raw tables to answers <span className={quiet}>in one workspace.</span>
+              </h2>
+              <p className={`${body} max-w-[46ch]`}>
+                Everything happens in your browser, on one copy of your data. Builders shape it, everyone else{" "}
+                <Mark>asks it questions</Mark>, and the same access rules cover both.
+              </p>
+            </div>
+            <ol className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {STEPS.map((s, i) => (
+                <li
+                  key={s.title}
+                  data-animate
+                  style={delay(i * 100)}
+                  className="flex flex-col gap-4 rounded-[16px] border border-white/10 bg-black/40 p-6 sm:p-8"
+                >
+                  <span className="font-mono text-[13px] text-accent">Step {i + 1}</span>
+                  <h3 className="text-[22px] font-semibold tracking-[-0.02em] text-white">{s.title}</h3>
+                  <p className="text-base font-light leading-relaxed text-white/70">{s.text}</p>
+                </li>
+              ))}
+            </ol>
+            <CtaRow className="mt-12" note="The sample shows the asking side, with no sign-up. Building starts with a free account." />
           </div>
         </section>
 

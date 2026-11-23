@@ -19,11 +19,10 @@ const COLUMNS: { title: string; links: LinkList }[] = [
   {
     title: "Platform",
     links: [
-      ["Ask and dashboards", "/#analytics"],
-      ["Pipelines", "/#pipelines"],
-      ["AI Data Engineer", "/#pipelines"],
-      ["SQL and dynamic tables", "/#workbench"],
-      ["Governance and cost", "/#governance"],
+      ["Vyuham: ask and dashboards", "/#analytics"],
+      ["Kaveri: pipelines", "/#pipelines"],
+      ["Kaveri: SQL and dynamic tables", "/#workbench"],
+      ["Kaveri: governance and cost", "/#governance"],
     ],
   },
   {

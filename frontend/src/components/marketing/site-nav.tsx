@@ -1,21 +1,42 @@
 "use client";
 
-import { ArrowRight, Menu } from "lucide-react";
+import { ArrowRight, BarChart3, ChevronDown, Menu, MousePointerClick, Workflow, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { Logo } from "@/components/layout/logo";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 type NavLink = { href: string; label: string; match: (path: string) => boolean };
+type Product = { href: string; name: string; kind: string; text: string; icon: LucideIcon };
+
+/** The two products in the "Products" menu: Vyuham for analytics, Kaveri for data engineering. */
+export const PRODUCTS: Product[] = [
+  {
+    href: "/#analytics",
+    name: "Vyuham",
+    kind: "Analytics",
+    text: "Ask in plain English, dashboards, metrics, alerts and share links.",
+    icon: BarChart3,
+  },
+  {
+    href: "/#pipelines",
+    name: "Kaveri",
+    kind: "Engineering platform",
+    text: "Pipelines, the AI Data Engineer, SQL Workbench, dynamic tables and governance.",
+    icon: Workflow,
+  },
+];
+const TRY = { href: "/try", label: "Try Vyuham with sample data" };
+const productsActive = (p: string) => p.startsWith("/try");
 
 export const NAV: NavLink[] = [
   { href: "/", label: "Home", match: (p) => p === "/" },
   // An anchor on the homepage, so it's never the "current" page.
   { href: "/#platform", label: "Platform", match: () => false },
-  { href: "/try", label: "Try Vyuham", match: (p) => p.startsWith("/try") },
   { href: "/about", label: "About", match: (p) => p.startsWith("/about") },
   { href: "/blog", label: "Blog", match: (p) => p.startsWith("/blog") },
   {
@@ -25,15 +46,85 @@ export const NAV: NavLink[] = [
   },
 ];
 
+/** Desktop "Products" button and menu: Vyuham, Kaveri, and the sample-data demo. */
+function ProductsMenu({ overlay, active }: { overlay: boolean; active: boolean }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            className={cn(
+              "group flex min-h-9 items-center gap-1 whitespace-nowrap rounded-full px-4 text-[14px] transition-colors",
+              overlay
+                ? active
+                  ? "bg-white/15 text-white"
+                  : "text-white/75 hover:text-white data-[popup-open]:text-white"
+                : active
+                  ? "bg-surface-2 text-text"
+                  : "text-muted hover:text-text data-[popup-open]:text-text",
+            )}
+          />
+        }
+      >
+        Products
+        <ChevronDown className="size-3.5 transition-transform group-data-[popup-open]:rotate-180" aria-hidden />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="center" sideOffset={10} className="w-[min(340px,90vw)] p-1.5">
+        {PRODUCTS.map(({ href, name, kind, text, icon: Icon }) => (
+          <DropdownMenuItem key={name} render={<Link href={href} />} className="items-start gap-3 rounded-lg p-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-primary/15 text-highlight">
+              <Icon className="size-4" aria-hidden />
+            </span>
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[14px] font-semibold text-text">
+                {name} <span className="font-normal text-faint">· {kind}</span>
+              </span>
+              <span className="text-[13px] leading-snug text-muted">{text}</span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem render={<Link href={TRY.href} />} className="gap-2 rounded-lg px-3 py-2.5 text-[13px] text-muted">
+          <MousePointerClick className="size-4 text-highlight" aria-hidden />
+          {TRY.label}
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 /**
- * The marketing navbar: Home · Platform · Try Vyuham · About · Blog · Support, plus log in and the beta CTA.
- * `overlay` sits inside the dark hero panel; `bar` is a sticky bar for content pages.
- * Below lg the links move into a slide-in sheet.
+ * The marketing navbar: Home · Platform · Products (Vyuham, Kaveri) · About · Blog · Support, plus log in and
+ * the beta CTA. `overlay` sits inside the dark hero panel; `bar` is a sticky bar for content pages.
+ * Below lg the links move into a slide-in sheet, where the products are listed under their own heading.
  */
 export function SiteNav({ variant = "bar" }: { variant?: "overlay" | "bar" }) {
   const pathname = usePathname() ?? "/";
   const [open, setOpen] = useState(false);
   const overlay = variant === "overlay";
+  const link = (l: NavLink) => {
+    const active = l.match(pathname);
+    return (
+      <Link
+        key={l.href}
+        href={l.href}
+        aria-current={active ? "page" : undefined}
+        className={cn(
+          "flex min-h-9 items-center whitespace-nowrap rounded-full px-4 text-[14px] transition-colors",
+          overlay
+            ? active
+              ? "bg-white/15 text-white"
+              : "text-white/75 hover:text-white"
+            : active
+              ? "bg-surface-2 text-text"
+              : "text-muted hover:text-text",
+        )}
+      >
+        {l.label}
+      </Link>
+    );
+  };
 
   return (
     <header
@@ -57,28 +148,9 @@ export function SiteNav({ variant = "bar" }: { variant?: "overlay" | "bar" }) {
             overlay ? "border-white/10 bg-white/[0.06]" : "border-line bg-surface/70",
           )}
         >
-          {NAV.map((l) => {
-            const active = l.match(pathname);
-            return (
-              <Link
-                key={l.href}
-                href={l.href}
-                aria-current={active ? "page" : undefined}
-                className={cn(
-                  "flex min-h-9 items-center whitespace-nowrap rounded-full px-4 text-[14px] transition-colors",
-                  overlay
-                    ? active
-                      ? "bg-white/15 text-white"
-                      : "text-white/75 hover:text-white"
-                    : active
-                      ? "bg-surface-2 text-text"
-                      : "text-muted hover:text-text",
-                )}
-              >
-                {l.label}
-              </Link>
-            );
-          })}
+          {NAV.slice(0, 2).map(link)}
+          <ProductsMenu overlay={overlay} active={productsActive(pathname)} />
+          {NAV.slice(2).map(link)}
         </nav>
 
         <div className="flex items-center gap-1">
@@ -116,21 +188,52 @@ export function SiteNav({ variant = "bar" }: { variant?: "overlay" | "bar" }) {
             <Logo href="/" />
           </div>
           <nav aria-label="Main" className="flex flex-col gap-1">
-            {NAV.map((l) => {
+            {NAV.map((l, i) => {
               const active = l.match(pathname);
               return (
-                <Link
-                  key={l.href}
-                  href={l.href}
-                  onClick={() => setOpen(false)}
-                  aria-current={active ? "page" : undefined}
-                  className={cn(
-                    "flex min-h-12 items-center rounded-xl px-4 text-[16px] transition-colors",
-                    active ? "bg-surface-2 font-medium text-text" : "text-muted hover:bg-surface hover:text-text",
+                <Fragment key={l.href}>
+                  <Link
+                    href={l.href}
+                    onClick={() => setOpen(false)}
+                    aria-current={active ? "page" : undefined}
+                    className={cn(
+                      "flex min-h-12 items-center rounded-xl px-4 text-[16px] transition-colors",
+                      active ? "bg-surface-2 font-medium text-text" : "text-muted hover:bg-surface hover:text-text",
+                    )}
+                  >
+                    {l.label}
+                  </Link>
+                  {i === 1 && (
+                    <div className="my-1 flex flex-col gap-1 rounded-xl border border-line p-1.5" role="group" aria-label="Products">
+                      <p className="px-3 pb-0.5 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-faint">Products</p>
+                      {PRODUCTS.map(({ href, name, kind, icon: Icon }) => (
+                        <Link
+                          key={name}
+                          href={href}
+                          onClick={() => setOpen(false)}
+                          className="flex min-h-12 items-center gap-3 rounded-lg px-3 text-[15px] text-muted transition-colors hover:bg-surface hover:text-text"
+                        >
+                          <Icon className="size-4 shrink-0 text-highlight" aria-hidden />
+                          <span>
+                            <span className="font-medium text-text">{name}</span> <span className="text-[13px] text-faint">· {kind}</span>
+                          </span>
+                        </Link>
+                      ))}
+                      <Link
+                        href={TRY.href}
+                        onClick={() => setOpen(false)}
+                        aria-current={productsActive(pathname) ? "page" : undefined}
+                        className={cn(
+                          "flex min-h-11 items-center gap-3 rounded-lg px-3 text-[14px] transition-colors",
+                          productsActive(pathname) ? "bg-surface-2 text-text" : "text-muted hover:bg-surface hover:text-text",
+                        )}
+                      >
+                        <MousePointerClick className="size-4 shrink-0 text-highlight" aria-hidden />
+                        {TRY.label}
+                      </Link>
+                    </div>
                   )}
-                >
-                  {l.label}
-                </Link>
+                </Fragment>
               );
             })}
           </nav>
