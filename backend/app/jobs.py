@@ -30,6 +30,8 @@ from app.telemetry import count, record, span
 log = logging.getLogger("app.jobs")
 
 ALERT, AUTOMATION, SYNC, QUALITY = "alert", "automation", "sync", "quality"
+# Pipelines: a scheduled slot of a pipeline, or one queued run. Dynamic tables: a due table, or one queued refresh.
+PIPELINE, PIPELINE_RUN, DYNAMIC, DYNAMIC_REFRESH = "pipeline", "pipeline_run", "dynamic", "dynamic_refresh"
 FINISHED = ("done", "failed")
 # Longer than a job can legitimately take with all its retries (4 x 6 minutes plus backoff).
 STALE_AFTER = timedelta(minutes=45)
@@ -69,7 +71,53 @@ def find_due(db: Session, now: datetime) -> list[Due]:
         if at is not None and at <= now:
             due.append(Due(SYNC, ds.id, _second(sync_slot(at, now))))
     due.extend(_quality_due(db, now))
+    due.extend(_pipelines_due(db, now))
+    due.extend(_dynamic_due(db, now))
     return due
+
+
+def _pipelines_due(db: Session, now: datetime) -> list[Due]:
+    from app.models import Pipeline
+    from app.pipelines import schedule_slot
+
+    out = []
+    for p in db.scalars(select(Pipeline).where(Pipeline.enabled.is_(True), Pipeline.schedule != "manual")).all():
+        if p.generated_by_ai and p.approved_at is None:
+            continue  # AI-generated pipelines run only after approval
+        slot = schedule_slot(p, now)
+        created = _aware(p.created_at)
+        if slot is not None and (created is None or slot > created):
+            out.append(Due(PIPELINE, p.id, _second(slot)))
+    return out
+
+
+def _dynamic_due(db: Session, now: datetime) -> list[Due]:
+    from app.dynamic_tables import find_due as dynamic_due
+
+    out = []
+    for t, trigger in dynamic_due(db, now):
+        # A slot that stays the same until the table has refreshed, so a busy queue doesn't double it up.
+        anchor = _aware(t.next_refresh_at) if trigger in ("schedule", "retry") else _aware(t.last_refresh_at)
+        out.append(Due(DYNAMIC, t.id, _second(anchor or now)))
+    return out
+
+
+def dispatch(db: Session, d: Due, background=None) -> JobRun | None:
+    """Claim a job and hand it to the worker (Celery), or run it after the response when there's no Redis."""
+    from app.config import get_settings
+
+    run = claim(db, d)
+    if run is None:
+        return None
+    if get_settings().redis_url:
+        from app.worker import run_job as task
+
+        task.delay(run.id)
+    elif background is not None:
+        from app.routers.datasets import _run_job_inline
+
+        background.add_task(_run_job_inline, db.get_bind(), run.id)
+    return run
 
 
 def _quality_due(db: Session, now: datetime) -> list[Due]:
@@ -166,6 +214,11 @@ def _run_job(db: Session, job_id: str, now: datetime | None = None) -> JobRun | 
     run.status, run.attempts, run.started_at = "running", run.attempts + 1, datetime.now(timezone.utc)
     db.commit()
     try:
+        if run.kind in (PIPELINE, PIPELINE_RUN, DYNAMIC, DYNAMIC_REFRESH):
+            run.status, run.error = _run_platform_job(db, run)
+            run.finished_at = datetime.now(timezone.utc)
+            db.commit()
+            return run
         if run.kind == QUALITY:
             from app.quality import run_checks
 
@@ -223,6 +276,45 @@ def _run_job(db: Session, job_id: str, now: datetime | None = None) -> JobRun | 
     return run
 
 
+def _run_platform_job(db: Session, job: JobRun) -> tuple[str, str | None]:
+    """Pipelines and dynamic tables. Their own failures are recorded on the run or refresh, so the job is done."""
+    from app import dynamic_tables, pipelines
+    from app.models import DynamicRefresh, DynamicTable, Pipeline, PipelineRun
+
+    if job.kind == PIPELINE:
+        p = db.get(Pipeline, job.target_id)
+        if p is None or not p.enabled:
+            return "done", "Skipped: deleted or paused."
+        run = pipelines.execute(db, pipelines.start_run(db, p, "schedule", p.created_by))
+        return ("done", None) if run.status == "success" else ("failed", run.error)
+    if job.kind == PIPELINE_RUN:
+        run = db.get(PipelineRun, job.target_id)
+        if run is None:
+            return "done", "Skipped: run deleted."
+        run = pipelines.execute(db, run)
+        return ("done", None) if run.status == "success" else ("failed", run.error)
+    if job.kind == DYNAMIC:
+        t = db.get(DynamicTable, job.target_id)
+        if t is None or t.paused:
+            return "done", "Skipped: deleted or paused."
+        trigger = "retry" if t.failures else ("upstream" if t.on_upstream_change and not _is_time_due(t) else "schedule")
+        r = dynamic_tables.refresh(db, t, dynamic_tables.queue_refresh(db, t, trigger))
+        return ("done", None) if r.status == "success" else ("failed", r.error)
+    r = db.get(DynamicRefresh, job.target_id)
+    t = db.get(DynamicTable, r.table_id) if r is not None else None
+    if r is None or t is None:
+        return "done", "Skipped: deleted."
+    if r.status not in ("queued",):
+        return "done", None
+    r = dynamic_tables.refresh(db, t, r)
+    return ("done", None) if r.status == "success" else ("failed", r.error)
+
+
+def _is_time_due(t) -> bool:
+    nxt = _aware(t.next_refresh_at)
+    return nxt is not None and nxt <= datetime.now(timezone.utc)
+
+
 def _describe(e: BaseException) -> str:
     return f"{type(e).__name__}: {e}"[:500]
 
@@ -239,6 +331,40 @@ def mark_failed(db: Session, job_id: str, error: BaseException | str) -> None:
     db.commit()
 
 
+RETENTION_TARGETS = {
+    "audit_days": "audit", "query_history_days": "queries", "run_history_days": "runs", "ai_history_days": "ai",
+}
+MIN_RETENTION_DAYS = 7
+
+
+def apply_retention(db: Session, now: datetime) -> int:
+    """Workspace retention policies (Governance Center): delete history older than each workspace allows."""
+    from app.models import AiAction, DynamicRefresh, GovernancePolicy, PipelineRun
+
+    deleted = 0
+    for pol in db.scalars(select(GovernancePolicy).where(GovernancePolicy.kind == "retention", GovernancePolicy.enabled.is_(True))).all():
+        rules = pol.rules or {}
+        ws = pol.workspace_id
+        for key in RETENTION_TARGETS:
+            days = rules.get(key)
+            if not isinstance(days, int) or days <= 0:
+                continue
+            cutoff = now - timedelta(days=max(MIN_RETENTION_DAYS, days))
+            if key == "audit_days":
+                stmts = [delete(AuditLog).where(AuditLog.workspace_id == ws, AuditLog.created_at < cutoff)]
+            elif key == "query_history_days":
+                stmts = [delete(QueryExecution).where(QueryExecution.workspace_id == ws, QueryExecution.created_at < cutoff)]
+            elif key == "run_history_days":
+                stmts = [delete(PipelineRun).where(PipelineRun.workspace_id == ws, PipelineRun.created_at < cutoff),
+                         delete(DynamicRefresh).where(DynamicRefresh.workspace_id == ws, DynamicRefresh.created_at < cutoff)]
+            else:
+                stmts = [delete(AiAction).where(AiAction.workspace_id == ws, AiAction.created_at < cutoff)]
+            for st in stmts:
+                deleted += db.execute(st).rowcount or 0
+    db.commit()
+    return deleted
+
+
 def prune(db: Session, now: datetime | None = None, keep_days: int = 30) -> int:
     """Delete finished job rows older than `keep_days`; returns how many."""
     cutoff = (now or datetime.now(timezone.utc)) - timedelta(days=keep_days)
@@ -248,6 +374,11 @@ def prune(db: Session, now: datetime | None = None, keep_days: int = 30) -> int:
     db.execute(delete(QueryExecution).where(QueryExecution.created_at < cutoff))
     db.execute(delete(AuditLog).where(AuditLog.created_at < (now or datetime.now(timezone.utc)) - timedelta(days=365)))
     db.commit()
+    apply_retention(db, now or datetime.now(timezone.utc))
+    from app.config import get_settings
+    from app.pipelines import prune_run_dirs
+
+    prune_run_dirs(get_settings().data_dir)
     from app.routers.support import prune_attachments  # support uploads never sent with a message
 
     prune_attachments(db, now)
@@ -264,7 +395,8 @@ def tick(db: Session, now: datetime | None = None, enqueue: Callable[[str], None
         if run is None:
             counts["skipped"] += 1
             continue
-        counts[label[d.kind]] += 1
+        key = label.get(d.kind, "platform_jobs")
+        counts[key] = counts.get(key, 0) + 1
         if enqueue is not None:
             enqueue(run.id)
             continue

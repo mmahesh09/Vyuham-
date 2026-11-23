@@ -27,6 +27,9 @@ class Settings(BaseSettings):
         return url
 
     data_dir: str = "./data"
+    # AI (SQL help, the AI Data Engineer). Off when the key is empty: the AI endpoints then say so.
+    anthropic_api_key: str = ""
+    ai_model: str = "claude-opus-5-5"
     # Uploads (beta limits; the browser checks the same size before sending).
     max_upload_bytes: int = 10 * 1024 * 1024
     max_upload_rows: int = 1_000_000

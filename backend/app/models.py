@@ -329,6 +329,9 @@ class SavedQuery(Base):
     # The visual builder's state when the query was made in Builder mode (frontend/src/features/sql-lab/builder),
     # so it reopens there. The SQL above is always what runs.
     builder_state: Mapped[dict | None] = mapped_column(JSON)
+    # SQL Workbench organisation: the project it belongs to and a folder path inside it ("Finance/Monthly").
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"), index=True)
+    folder: Mapped[str | None] = mapped_column(String(200))
     created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
@@ -765,6 +768,14 @@ class QueryExecution(Base):
     status: Mapped[str] = mapped_column(String(10), default="ok")  # ok | partial | error
     rows: Mapped[int | None] = mapped_column(Integer)
     duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    # Workload analysis. `fingerprint` hashes the normalised SQL (never the text) so repeats can be counted;
+    # `scanned_bytes` is the Parquet size of the datasets read (an upper bound, labelled as such);
+    # `dataset_ids` doubles as the data-access log; `ref_*` ties a run to a saved query, pipeline or dynamic table.
+    fingerprint: Mapped[str | None] = mapped_column(String(16), index=True)
+    scanned_bytes: Mapped[int | None] = mapped_column(Integer)
+    dataset_ids: Mapped[list | None] = mapped_column(JSON)
+    ref_kind: Mapped[str | None] = mapped_column(String(16))
+    ref_id: Mapped[str | None] = mapped_column(String(32))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
 
 
@@ -801,3 +812,236 @@ class RefreshHook(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     last_called_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ---------- projects (SQL Workbench, pipelines, dynamic tables) ----------
+
+
+class Project(Base):
+    """A named group of queries, pipelines and dynamic tables; usage is reported per project."""
+
+    __tablename__ = "projects"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(String(500))
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# ---------- pipelines ----------
+
+
+class Pipeline(Base):
+    """An ETL/ELT DAG. `graph` is the canvas ({nodes, edges}); each node's `data.config` says what it does.
+
+    Steps run on a background worker (app/pipelines.py), never inside a web request.
+    """
+
+    __tablename__ = "pipelines"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"), index=True)
+    name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str | None] = mapped_column(Text)
+    graph: Mapped[dict] = mapped_column(JSON, default=dict)
+    schedule: Mapped[str] = mapped_column(String(8), default="manual")  # manual | hourly | daily
+    hour: Mapped[int] = mapped_column(Integer, default=6)  # UTC hour for daily runs
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    # AI-generated pipelines can't run until someone approves them (and again after an AI edit).
+    generated_by_ai: Mapped[bool] = mapped_column(Boolean, default=False)
+    approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    approved_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_status: Mapped[str | None] = mapped_column(String(10))
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class PipelineRun(Base):
+    """One execution of a pipeline. `steps` holds per-node status, rows, timing, logs and errors."""
+
+    __tablename__ = "pipeline_runs"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    pipeline_id: Mapped[str] = mapped_column(ForeignKey("pipelines.id", ondelete="CASCADE"), index=True)
+    trigger: Mapped[str] = mapped_column(String(10))  # manual | schedule | retry
+    status: Mapped[str] = mapped_column(String(10), default="queued")  # queued | running | success | failed
+    # {node_id: {status, rows, duration_ms, error, logs: [..]}}
+    steps: Mapped[dict] = mapped_column(JSON, default=dict)
+    only_steps: Mapped[list | None] = mapped_column(JSON)  # a retry of selected steps
+    options: Mapped[dict | None] = mapped_column(JSON)  # {"confirm_overwrite": true}
+    retry_of: Mapped[str | None] = mapped_column(String(32))
+    error: Mapped[str | None] = mapped_column(String(1000))
+    rows_written: Mapped[int | None] = mapped_column(Integer)
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    graph: Mapped[dict | None] = mapped_column(JSON)  # the graph as it ran
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ---------- dynamic tables ----------
+
+
+class DynamicTable(Base):
+    """A managed table kept up to date from a SQL query. Its data is the dataset `dataset_id`."""
+
+    __tablename__ = "dynamic_tables"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"), index=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"), unique=True)
+    name: Mapped[str] = mapped_column(String(200))
+    sql: Mapped[str] = mapped_column(Text)
+    params: Mapped[list] = mapped_column(JSON, default=list)
+    upstream_ids: Mapped[list] = mapped_column(JSON, default=list)  # dataset ids the query reads
+    # Target freshness: refresh every N minutes (None = manual only).
+    interval_minutes: Mapped[int | None] = mapped_column(Integer)
+    on_upstream_change: Mapped[bool] = mapped_column(Boolean, default=False)
+    # "full" always works. "incremental" appends rows whose `watermark_column` is newer than the last max.
+    refresh_mode: Mapped[str] = mapped_column(String(12), default="full")
+    watermark_column: Mapped[str | None] = mapped_column(String(200))
+    watermark_value: Mapped[str | None] = mapped_column(String(64))
+    paused: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(12), default="pending")  # pending | refreshing | ok | failed
+    last_refresh_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_refresh_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(String(1000))
+    failures: Mapped[int] = mapped_column(Integer, default=0)  # consecutive, for retry backoff
+    schema_hash: Mapped[str | None] = mapped_column(String(16))
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class DynamicRefresh(Base):
+    """One refresh of a dynamic table: history, duration, rows, errors and schema changes."""
+
+    __tablename__ = "dynamic_refreshes"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    table_id: Mapped[str] = mapped_column(ForeignKey("dynamic_tables.id", ondelete="CASCADE"), index=True)
+    trigger: Mapped[str] = mapped_column(String(12))  # manual | schedule | upstream | retry | create
+    mode: Mapped[str] = mapped_column(String(12))  # full | incremental
+    status: Mapped[str] = mapped_column(String(10), default="queued")  # queued | running | success | failed
+    attempt: Mapped[int] = mapped_column(Integer, default=1)
+    rows: Mapped[int | None] = mapped_column(Integer)
+    rows_added: Mapped[int | None] = mapped_column(Integer)
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    error: Mapped[str | None] = mapped_column(String(1000))
+    schema_change: Mapped[dict | None] = mapped_column(JSON)  # {added: [], removed: [], retyped: []}
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+# ---------- AI ----------
+
+
+class AiAction(Base):
+    """Every AI request: what kind, tokens used, what it proposed, and what became of it.
+
+    The prompt itself is not stored; the generated output is, so people can review what the AI proposed
+    and whether it was applied, approved or executed.
+    """
+
+    __tablename__ = "ai_actions"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    kind: Mapped[str] = mapped_column(String(24))  # sql_write | sql_explain | sql_fix | sql_optimize | sql_python | pipeline_plan | pipeline_debug
+    model: Mapped[str | None] = mapped_column(String(48))
+    status: Mapped[str] = mapped_column(String(12), default="ok")  # ok | error | refused
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+    duration_ms: Mapped[int | None] = mapped_column(Integer)
+    output: Mapped[dict | None] = mapped_column(JSON)
+    outcome: Mapped[str | None] = mapped_column(String(16))  # proposed | applied | approved | executed | rejected
+    ref_kind: Mapped[str | None] = mapped_column(String(16))
+    ref_id: Mapped[str | None] = mapped_column(String(32))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+
+
+# ---------- workload and cost ----------
+
+
+class CostSettings(Base):
+    """A workspace's own estimated rates and budget. Vyuham never sees a cloud bill: costs are estimates."""
+
+    __tablename__ = "cost_settings"
+
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), primary_key=True)
+    currency: Mapped[str] = mapped_column(String(3), default="USD")
+    compute_per_hour: Mapped[float] = mapped_column(Float, default=0.0)
+    storage_per_gb_month: Mapped[float] = mapped_column(Float, default=0.0)
+    scan_per_gb: Mapped[float] = mapped_column(Float, default=0.0)
+    ai_input_per_mtok: Mapped[float] = mapped_column(Float, default=0.0)
+    ai_output_per_mtok: Mapped[float] = mapped_column(Float, default=0.0)
+    monthly_budget: Mapped[float | None] = mapped_column(Float)
+    alert_threshold_pct: Mapped[int] = mapped_column(Integer, default=80)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+# ---------- governance ----------
+
+
+class ColumnClassification(Base):
+    """What a column holds and how sensitive it is, from the scanner or a person. Stores counts, never values."""
+
+    __tablename__ = "column_classifications"
+    __table_args__ = (UniqueConstraint("dataset_id", "column", name="uq_column_classification"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"), index=True)
+    column: Mapped[str] = mapped_column(String(200))
+    label: Mapped[str] = mapped_column(String(14), default="internal")  # public | internal | confidential | restricted
+    pii_type: Mapped[str | None] = mapped_column(String(24))  # email | phone | person_name | address | financial | government_id | sensitive
+    source: Mapped[str] = mapped_column(String(8), default="scanner")  # scanner | manual
+    confidence: Mapped[float | None] = mapped_column(Float)
+    matched: Mapped[int | None] = mapped_column(Integer)
+    sampled: Mapped[int | None] = mapped_column(Integer)
+    status: Mapped[str] = mapped_column(String(10), default="active")  # active | dismissed
+    updated_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class GovernancePolicy(Base):
+    """A masking, classification or retention policy, configured as JSON `rules`."""
+
+    __tablename__ = "governance_policies"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(14))  # masking | classification | retention
+    name: Mapped[str] = mapped_column(String(120))
+    rules: Mapped[dict] = mapped_column(JSON, default=dict)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
+class AccessGrant(Base):
+    """Dataset- or column-level access for a role. No row means the role's default (read)."""
+
+    __tablename__ = "access_grants"
+    __table_args__ = (UniqueConstraint("dataset_id", "column", "role", name="uq_access_grant"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    dataset_id: Mapped[str] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"), index=True)
+    column: Mapped[str] = mapped_column(String(200), default="")  # "" = the whole dataset
+    role: Mapped[str] = mapped_column(String(10))  # editor | viewer | public (shared links)
+    access: Mapped[str] = mapped_column(String(8))  # none | masked | read
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

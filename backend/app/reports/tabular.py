@@ -51,11 +51,11 @@ class Built:
 # ---------- dashboards ----------
 
 
-def dashboard_tables(db: Session, d: Dashboard, date_from: date | None, date_to: date | None, equals: dict[str, str]) -> tuple[list[Table], list[str]]:
+def dashboard_tables(db: Session, d: Dashboard, date_from: date | None, date_to: date | None, equals: dict[str, str], role: str = "owner") -> tuple[list[Table], list[str]]:
     """(one table per chart, the dashboard's headline sentences)."""
     from app.routers.dashboards import _view  # local import: the router imports app modules at load
 
-    view = _view(db, d, date_from, date_to, equals)
+    view = _view(db, d, date_from, date_to, equals, role=role)
     by_id = {c.id: c for c in view.charts}
     tables: list[Table] = []
     headlines: list[str] = []
@@ -207,11 +207,13 @@ def _query_source(db: Session, source: str, source_id: str, workspace_id: str) -
     return f"SELECT * FROM {view_name(ds.id)}", [], [ds], ds.name
 
 
-def query_export(db: Session, source: str, source_id: str, workspace_id: str, fmt: str, out_dir: str, name: str | None = None) -> Built:
+def query_export(db: Session, source: str, source_id: str, workspace_id: str, fmt: str, out_dir: str, name: str | None = None, role: str = "owner") -> Built:
     sql, params, datasets, default_name = _query_source(db, source, source_id, workspace_id)
     base = safe_name(name or default_name)
     cap = get_settings().report_max_rows
-    con = connect(workspace_id, datasets)
+    from app.governance import access_for
+
+    con = connect(workspace_id, datasets, access=access_for(db, workspace_id, role))
     try:
         if fmt == "csv":
             columns, batches = stream_rows(con, sql, params, max_rows=cap)

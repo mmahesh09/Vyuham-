@@ -37,3 +37,5 @@ sentry-sdk[fastapi,celery]==2.66.1
 # Pulled in by other packages; pinned to versions with known HIGH vulnerabilities fixed (Trivy image scan).
 msgpack==1.2.3  # CVE-2026-114613
 urllib3==2.8.0  # CVE-2026-97687, CVE-2026-97689
+# AI SQL help and the AI Data Engineer (app/ai.py); off unless ANTHROPIC_API_KEY is set.
+anthropic==2.12.0

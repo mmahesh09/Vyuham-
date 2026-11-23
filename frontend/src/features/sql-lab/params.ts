@@ -26,6 +26,9 @@ export type Saved = {
   updated_at: string;
   /** Builder mode's state when the query was built visually (reopens in Builder). */
   builder_state?: import("./builder/types").BuilderState | null;
+  project_id?: string | null;
+  /** "Finance/Monthly": where the query sits inside its project. */
+  folder?: string | null;
   /** "Daily at 09:00 (UTC)" when the query runs on a schedule. */
   schedule?: string | null;
 };

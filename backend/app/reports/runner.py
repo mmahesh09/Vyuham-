@@ -66,7 +66,11 @@ def _dashboard(db: Session, run: ReportRun) -> Dashboard:
 
 
 def _build(db: Session, run: ReportRun, out_dir: str) -> tabular.Built:
+    from app.governance import role_for_user
+
     opts = run.options or {}
+    # Files are built with the access of whoever asked for them, so masking holds in exports.
+    role = role_for_user(db, run.workspace_id, run.requested_by)
     if run.source == "dashboard":
         d = _dashboard(db, run)
         if run.format == "pdf":
@@ -79,13 +83,13 @@ def _build(db: Session, run: ReportRun, out_dir: str) -> tabular.Built:
             name = tabular.safe_name(run.name, "dashboard")
             return tabular.Built(path, f"{name}.pdf", 0)
         date_from, date_to = period(opts)
-        tables, headlines = tabular.dashboard_tables(db, d, date_from, date_to, opts.get("filters") or {})
+        tables, headlines = tabular.dashboard_tables(db, d, date_from, date_to, opts.get("filters") or {}, role)
         if run.format == "csv":
             return tabular.dashboard_csv(tables, run.name, out_dir)
         return tabular.dashboard_xlsx(tables, headlines, run.name, period_label(date_from, date_to), out_dir)
     if run.format == "pdf":
         raise QueryError("PDF reports are for dashboards. Use CSV or Excel for queries and datasets.")
-    return tabular.query_export(db, run.source, run.source_id, run.workspace_id, run.format, out_dir, run.name)
+    return tabular.query_export(db, run.source, run.source_id, run.workspace_id, run.format, out_dir, run.name, role)
 
 
 def generate(db: Session, run_id: str) -> ReportRun | None:

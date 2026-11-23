@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.governance import connect_as
 from app.audit import record_action
 from app.config import get_settings
 from app.db import get_db
@@ -40,7 +41,7 @@ def _unprocessable(message: str) -> HTTPException:
 @router.get("/datasets/{dataset_id}/profile")
 def dataset_profile(dataset_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     ds = owned_dataset(db, member, dataset_id)
-    con = connect(member.workspace_id, [ds])
+    con = connect_as(db, member, [ds])
     try:
         return profile_dataset(con, ds)
     except QueryError as e:
@@ -100,7 +101,7 @@ def quality_overview(dataset_id: str, member: WorkspaceMember = Depends(current_
     rules = db.scalars(select(QualityRule).where(QualityRule.dataset_id == ds.id).order_by(QualityRule.created_at)).all()
     runs = db.scalars(select(QualityRun).where(QualityRun.dataset_id == ds.id).order_by(QualityRun.created_at.desc()).limit(20)).all()
     suggestions: list[dict] = []
-    con = connect(member.workspace_id, [ds])
+    con = connect_as(db, member, [ds])
     try:
         suggestions = suggest(profile_dataset(con, ds), list(rules))
     except QueryError:

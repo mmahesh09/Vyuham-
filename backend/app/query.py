@@ -190,8 +190,16 @@ def column_readability(dataset: Dataset, names: list[str]) -> dict[str, dict]:
     return out
 
 
-def connect(workspace_id: str, datasets: list[Dataset]) -> duckdb.DuckDBPyConnection:
-    """A sandboxed connection with one view per dataset, columns cast to their declared types."""
+def connect(workspace_id: str, datasets: list[Dataset], access: dict | None = None) -> duckdb.DuckDBPyConnection:
+    """A sandboxed connection with one view per dataset, columns cast to their declared types.
+
+    `access` (app/governance.py) applies a role's permissions: hidden datasets get no view, hidden
+    columns are left out and masked columns are rewritten inside the view, so no query can see more.
+    """
+    from app.governance import column_method, mask_sql
+
+    if access:
+        datasets = [d for d in datasets if not (access.get(d.id) and access[d.id].hidden)]
     folder = workspace_dir(workspace_id)
     con = duckdb.connect(
         ":memory:",
@@ -210,13 +218,29 @@ def connect(workspace_id: str, datasets: list[Dataset]) -> duckdb.DuckDBPyConnec
         if not os.path.exists(path):
             continue
         text_cols = stored_as_text(path)
-        cols = ", ".join(
-            f"{typed_column_sql(c, quote(c['name']), c['name'] in text_cols)} AS {quote(c['name'])}" for c in d.columns if not c.get("sql")
-        )
+        parts, hidden = [], []
+        for c in d.columns:
+            if c.get("sql"):
+                continue
+            expr = typed_column_sql(c, quote(c["name"]), c["name"] in text_cols)
+            method = column_method(access, d.id, c["name"])
+            if method == "hide":
+                hidden.append(c["name"])
+                continue
+            if method:
+                expr = mask_sql(expr, c.get("type") or "text", method, workspace_id)
+            parts.append(f"{expr} AS {quote(c['name'])}")
+        if not parts:
+            continue
+        cols = ", ".join(parts)
         literal = path.replace("'", "''")  # server-built path (hex ids); escaped anyway
         typed = f"SELECT {cols} FROM read_parquet('{literal}')"  # server-built names and path  # nosec B608
-        # Calculated columns are compiled by app/analytics/formula.py and work on the typed columns.
-        extra = "".join(f", ({c['sql']}) AS {quote(c['name'])}" for c in d.columns if c.get("sql"))
+        # Calculated columns are compiled by app/analytics/formula.py and work on the typed columns
+        # (a calculated column that reads a hidden column is left out too).
+        extra = "".join(
+            f", ({c['sql']}) AS {quote(c['name'])}" for c in d.columns
+            if c.get("sql") and not any(quote(h) in c["sql"] for h in hidden) and column_method(access, d.id, c["name"]) != "hide"
+        )
         con.execute(f"CREATE VIEW {view_name(d.id)} AS SELECT *{extra} FROM ({typed})")  # nosec B608
     # Friendly names for SQL Lab: SELECT * FROM sales
     present = [d for d in datasets if os.path.exists(os.path.join(folder, f"{d.id}.parquet"))]
@@ -598,6 +622,28 @@ def validate_select(sql: str) -> None:
     for node in tree.walk():
         if isinstance(node, (exp.Insert, exp.Update, exp.Delete, exp.Create, exp.Drop, exp.Alter, exp.Command, exp.Copy)):
             raise QueryError("Only SELECT queries are allowed.")
+        # Reading files directly would skip the dataset views, and with them access rules and masking.
+        if isinstance(node, exp.Func) and _func_name(node) in FILE_FUNCTIONS:
+            raise QueryError("Read datasets by their table names. Reading files directly isn't allowed.")
+        if isinstance(node, exp.Table) and FILE_LIKE.search(node.name or ""):
+            raise QueryError("Read datasets by their table names. Reading files directly isn't allowed.")
+
+
+FILE_FUNCTIONS = {
+    "read_parquet", "parquet_scan", "read_csv", "read_csv_auto", "read_json", "read_json_auto", "read_ndjson",
+    "read_ndjson_auto", "read_text", "read_blob", "glob", "parquet_metadata", "parquet_schema", "parquet_file_metadata",
+    "parquet_kv_metadata", "read_xlsx", "sniff_csv", "delta_scan", "iceberg_scan",
+}
+FILE_LIKE = re.compile(r"[/\\]|\.(parquet|csv|tsv|json|ndjson|txt|xlsx|gz|zst)$", re.IGNORECASE)
+
+
+def _func_name(node: exp.Func) -> str:
+    if isinstance(node, exp.Anonymous):
+        return str(node.this).lower()
+    try:
+        return node.sql_name().lower()
+    except Exception:
+        return type(node).__name__.lower()
 
 
 def _run_sql_chart(con: duckdb.DuckDBPyConnection, spec: dict) -> list[dict]:

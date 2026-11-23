@@ -10,6 +10,8 @@ export const SHORTCUTS: { keys: string[]; label: string }[] = [
   { keys: ["Ctrl/⌘", "B"], label: "Show or hide the schema panel" },
   { keys: ["Ctrl/⌘", "J"], label: "Show or hide the results panel" },
   { keys: ["Ctrl/⌘", "Space"], label: "Suggest tables and columns" },
+  { keys: ["Ctrl/⌘", "I"], label: "Open or close the AI assistant" },
+  { keys: ["Esc"], label: "Cancel the running query" },
   { keys: ["?"], label: "Show these shortcuts" },
 ];
 

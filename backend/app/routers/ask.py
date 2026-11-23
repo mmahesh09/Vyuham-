@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.governance import connect_as
 from app.analytics.semantic import ask_vocabulary
 from app.ask import phrase_words, parse_question, suggestions
 from app.db import get_db
@@ -72,7 +73,7 @@ def ask(body: AskIn, member: WorkspaceMember = Depends(current_membership), db: 
     datasets = _datasets(db, member)
     if not datasets:
         return AskOut(answered=False, question=question, message="Add a dataset first, then ask about it.")
-    con = connect(member.workspace_id, datasets)
+    con = connect_as(db, member, datasets)
     try:
         parsed = parse_question(question, datasets, con, vocabulary=ask_vocabulary(db, member.workspace_id, phrase_words))
         if parsed is None:

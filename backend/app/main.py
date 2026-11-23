@@ -10,7 +10,7 @@ from app.db import get_db
 from app.errors import capture
 from app.ratelimit import RateLimitMiddleware
 from app.errors import setup_error_tracking
-from app.routers import account, alerts, ask, connections, dashboards, data_platform, datasets, health, hooks, kb, me, metrics, presence, profile, reports, sql_lab, status_page, support, team, templates
+from app.routers import account, ai, alerts, ask, connections, dashboards, data_platform, datasets, dynamic_tables, governance, health, hooks, kb, me, metrics, pipelines, presence, profile, reports, sql_lab, status_page, support, team, templates, usage
 from app.scheduler import Scheduler
 from app.telemetry import configure_logging, count, current_trace_id, record_error, scrub, setup_telemetry
 
@@ -61,6 +61,11 @@ app.include_router(metrics.router)
 app.include_router(templates.router)
 app.include_router(team.router)
 app.include_router(sql_lab.router)
+app.include_router(ai.router)
+app.include_router(pipelines.router)
+app.include_router(dynamic_tables.router)
+app.include_router(usage.router)
+app.include_router(governance.router)
 app.include_router(alerts.router)
 app.include_router(account.router)
 app.include_router(health.router)

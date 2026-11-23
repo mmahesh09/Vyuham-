@@ -92,7 +92,7 @@ export function ResultsPanel({
             ))}
         </div>
         <div className="ml-auto">
-          <ResultActions result={result} name={name} />
+          <ResultActions result={result} name={name} query={{ sql: output.sql, params: output.params }} />
         </div>
       </div>
 

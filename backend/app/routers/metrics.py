@@ -16,6 +16,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.governance import connect_as
 from app.analytics.formula import FUNCTIONS, Compiled, FormulaError, Scope, compile_formula
 from app.analytics.semantic import (
     approved_version,
@@ -127,7 +128,7 @@ def preview_formula(body: FormulaIn, member: WorkspaceMember = Depends(current_m
         compiled = _compile(db, member, ds, body)
     except FormulaError as e:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, e.message) from e
-    con = connect(member.workspace_id, [ds])
+    con = connect_as(db, member, [ds])
     try:
         rows = preview_column(con, ds, compiled) if body.kind == "column" else preview_measure(con, ds, compiled, body.group_by)
     except QueryError as e:
@@ -423,7 +424,7 @@ def _run_tests(db: Session, member: WorkspaceMember, m: SemanticMetric, ds: Data
     if not tests:
         return []
     out: list[MetricTestResult] = []
-    con = connect(member.workspace_id, [ds])
+    con = connect_as(db, member, [ds])
     try:
         compiled = compile_measure(db, ds, latest_version(db, m).formula, m.name)
         for t in tests:

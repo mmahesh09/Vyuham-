@@ -14,6 +14,7 @@ from app.insights import chart_insight, previous_period, starter_specs
 from app.analytics.semantic import require_approved
 from app.audit import log_query, record_action
 from app.models import Chart, Dashboard, Dataset, UserProfile, WorkspaceMember
+from app.governance import access_for, connect_as
 from app.query import Filters, QueryError, connect, distinct_values, validate_select
 from app.routers.datasets import CAN_UPLOAD, owned_dataset
 from app.sql_params import Param, bind
@@ -159,12 +160,13 @@ def _view(
     page: str | None = None,
     cross: dict[str, str] | None = None,
     cross_source: str | None = None,
+    role: str = "owner",
 ) -> DashboardViewOut:
     """Every chart's rows and insight (or one page's). Traced as `vyuham.dashboard.view` (counts only, no data)."""
     with span("vyuham.dashboard.view", **{"vyuham.workspace_id": d.workspace_id, "vyuham.dashboard.charts": len(d.charts)}) as s:
         started = time.perf_counter()
         workspace_id = d.workspace_id
-        view = _view_impl(db, d, date_from, date_to, equals, page, cross or {}, cross_source)
+        view = _view_impl(db, d, date_from, date_to, equals, page, cross or {}, cross_source, role)
         failed = sum(1 for c in view.charts if c.error)
         log_query(db, workspace_id, None, "dashboard", started, "partial" if failed else "ok", len(view.charts))
         s.set_attribute("vyuham.dashboard.failed_charts", failed)
@@ -181,6 +183,7 @@ def _view_impl(
     page: str | None = None,
     cross: dict[str, str] | None = None,
     cross_source: str | None = None,
+    role: str = "owner",
 ) -> DashboardViewOut:
     if date_from and date_to and date_from > date_to:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "The start date is after the end date")
@@ -189,7 +192,7 @@ def _view_impl(
         page_ids = [p["id"] for p in _pages(d)]
         charts = [c for c in charts if _page_of(page_ids, c) == page]
     datasets = _all_datasets(db, d.workspace_id) if any(c.spec.get("sql") for c in charts) else _datasets(db, d)
-    con = connect(d.workspace_id, list(datasets.values()))
+    con = connect(d.workspace_id, list(datasets.values()), access=access_for(db, d.workspace_id, role))
     allowed = set(d.filter_columns or [])
     cross = cross or {}
     out: list[ChartViewOut] = []
@@ -373,16 +376,16 @@ def dashboard_view(
 ):
     d = _dashboard(db, member, dashboard_id)
     cross, source = _cross_filter(d, x, xs)
-    return _view(db, d, date_from, date_to, _parse_filters(f), page, cross, source)
+    return _view(db, d, date_from, date_to, _parse_filters(f), page, cross, source, member.role)
 
 
 @router.get("/dashboards/{dashboard_id}/filter-values/{column}", response_model=list[str])
 def filter_values(dashboard_id: str, column: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     d = _dashboard(db, member, dashboard_id)
-    return _filter_values(db, d, column)
+    return _filter_values(db, d, column, member.role)
 
 
-def _filter_values(db: Session, d: Dashboard, column: str) -> list[str]:
+def _filter_values(db: Session, d: Dashboard, column: str, role: str = "owner") -> list[str]:
     # Only the dashboard's own filter columns: otherwise a share link would list the raw values of any
     # column behind it (emails, phone numbers...).
     if column not in (d.filter_columns or []):
@@ -390,7 +393,7 @@ def _filter_values(db: Session, d: Dashboard, column: str) -> list[str]:
     datasets = [ds for ds in _datasets(db, d).values() if any(c["name"] == column for c in ds.columns)]
     if not datasets:
         return []
-    con = connect(d.workspace_id, datasets)
+    con = connect(d.workspace_id, datasets, access=access_for(db, d.workspace_id, role))
     try:
         values: dict[str, None] = {}
         for ds in datasets:
@@ -491,7 +494,7 @@ def preview(body: PreviewIn, member: WorkspaceMember = Depends(current_membershi
     ds = _check_spec_dataset(db, member, spec)
     date_field = body.date_field or next((c["name"] for c in ds.columns if c["type"] == "date"), None)
     filters = Filters(date_field, body.date_from, body.date_to) if date_field and (body.date_from or body.date_to) else None
-    con = connect(member.workspace_id, list(_all_datasets(db, member.workspace_id).values()) if spec.get("sql") else [ds])
+    con = connect_as(db, member, list(_all_datasets(db, member.workspace_id).values()) if spec.get("sql") else [ds])
     try:
         rows, insight = chart_insight(con, spec, ds, filters)
     except QueryError as e:
@@ -506,7 +509,7 @@ def starter_dashboard(dataset_id: str, member: WorkspaceMember = Depends(current
     """Build a first dashboard from the dataset's column types (rules only; AI comes later)."""
     _editor(member)
     ds = owned_dataset(db, member, dataset_id)
-    con = connect(member.workspace_id, [ds])
+    con = connect_as(db, member, [ds])
     try:
         charts, date_fields, filter_columns = starter_specs(con, ds)
     finally:
@@ -588,11 +591,11 @@ def public_view(
 ):
     d = _shared(db, token)
     cross, source = _cross_filter(d, x, xs)
-    return _view(db, d, date_from, date_to, _parse_filters(f), page, cross, source)
+    return _view(db, d, date_from, date_to, _parse_filters(f), page, cross, source, "public")
 
 
 @public.get("/dashboards/{token}/filter-values/{column}", response_model=list[str])
 def public_filter_values(token: str, column: str, db: Session = Depends(get_db)):
-    return _filter_values(db, _shared(db, token), column)
+    return _filter_values(db, _shared(db, token), column, "public")
 
 

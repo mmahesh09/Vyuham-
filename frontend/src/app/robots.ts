@@ -13,6 +13,7 @@ export default function robots(): MetadataRoute.Robots {
       disallow: [
         "/api/", "/home", "/dashboards", "/data", "/templates", "/alerts", "/lab", "/metrics", "/profile",
         "/reports", "/sql", "/team", "/support/", "/s/", "/print/", "/invite/", "/internal/",
+        "/pipelines", "/dynamic-tables", "/governance", "/usage",
       ],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,

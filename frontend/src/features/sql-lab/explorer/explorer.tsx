@@ -20,6 +20,7 @@ import {
   Trash2,
   Type,
   type LucideIcon,
+  Folder,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -29,6 +30,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { isApproved, metricSql, useMetrics } from "@/features/metrics/api";
+import { useProjects } from "@/features/platform/api";
 import { api } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
@@ -339,13 +341,37 @@ function Relationships({ onOpenSql }: { onOpenSql: ExplorerProps["onOpenSql"] })
 
 /* ---------- saved and history ---------- */
 
-function SavedList({ saved, filter, activeSavedId, onOpenSaved, onDeleteSaved }: ExplorerProps & { filter: string }) {
+function SavedList(props: ExplorerProps & { filter: string }) {
+  const { saved, filter } = props;
+  const projects = useProjects();
   if (!saved?.length)
     return <p className="px-1 text-[13px] leading-relaxed text-faint">Save a query (Ctrl/⌘+S) to reuse it, export it, or share it with your team.</p>;
+  const names = new Map((projects.data ?? []).map((p) => [p.id, p.name]));
+  const shown = saved.filter((q) => !filter || q.name.toLowerCase().includes(filter) || q.sql.toLowerCase().includes(filter) || (q.folder ?? "").toLowerCase().includes(filter));
+  // Group by project, then folder ("Finance › Monthly"); ungrouped queries come last.
+  const groups = new Map<string, Saved[]>();
+  for (const q of shown) {
+    const project = q.project_id ? names.get(q.project_id) ?? "Project" : null;
+    const key = [project, ...(q.folder ? q.folder.split("/") : [])].filter(Boolean).join(" › ");
+    groups.set(key, [...(groups.get(key) ?? []), q]);
+  }
+  const keys = [...groups.keys()].sort((a, b) => (a === "" ? 1 : b === "" ? -1 : a.localeCompare(b)));
+  return (
+    <div className="flex flex-col gap-2">
+      {keys.map((k) => (
+        <div key={k || "none"}>
+          {keys.length > 1 && <p className="flex items-center gap-1 px-1.5 pb-0.5 text-[11px] font-semibold uppercase tracking-[0.06em] text-faint"><Folder className="size-3" aria-hidden />{k || "Not in a folder"}</p>}
+          <SavedItems {...props} saved={groups.get(k)!} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SavedItems({ saved, activeSavedId, onOpenSaved, onDeleteSaved }: ExplorerProps & { filter: string }) {
   return (
     <ul className="flex flex-col gap-0.5">
-      {saved
-        .filter((q) => !filter || q.name.toLowerCase().includes(filter) || q.sql.toLowerCase().includes(filter))
+      {saved!
         .map((q) => (
           <li key={q.id} className={cn("group flex items-center gap-1 rounded-md px-1.5 py-1.5 hover:bg-surface-2", activeSavedId === q.id && "bg-surface-2")}>
             <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpenSaved(q)}>

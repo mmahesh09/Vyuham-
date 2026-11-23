@@ -187,7 +187,7 @@ export function ResultsGrid({ result, view }: { result: RunResult; view: "rows" 
 }
 
 /** Copy the returned rows as TSV (pastes into spreadsheets) or CSV, or download them as a CSV file. */
-export function ResultActions({ result, name }: { result: RunResult; name: string }) {
+export function ResultActions({ result, name, query }: { result: RunResult; name: string; query?: { sql: string; params: unknown[] } }) {
   const [copied, setCopied] = useState<"csv" | "tsv" | null>(null);
   const copy = async (sep: "," | "\t") => {
     try {
@@ -198,8 +198,25 @@ export function ResultActions({ result, name }: { result: RunResult; name: strin
       /* clipboard blocked */
     }
   };
-  const download = () => {
-    const blob = new Blob(["﻿" + delimited(result.columns, result.rows, ",")], { type: "text/csv;charset=utf-8" });
+  const [exporting, setExporting] = useState(false);
+  const download = async () => {
+    // Re-run on the server so the export is recorded in the audit log and follows the same access rules.
+    let blob: Blob | null = null;
+    if (query) {
+      setExporting(true);
+      try {
+        const res = await fetch("/api/sql/export", {
+          method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin",
+          body: JSON.stringify({ sql: query.sql, params: query.params, format: "csv" }),
+        });
+        if (res.ok) blob = await res.blob();
+      } catch {
+        blob = null;
+      } finally {
+        setExporting(false);
+      }
+    }
+    blob ??= new Blob(["﻿" + delimited(result.columns, result.rows, ",")], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = Object.assign(document.createElement("a"), { href: url, download: `${name.replace(/[^\w.-]+/g, "_") || "query"}.csv` });
     a.click();
@@ -213,7 +230,7 @@ export function ResultActions({ result, name }: { result: RunResult; name: strin
       <Button variant="ghost" size="sm" onClick={() => copy(",")} title="Copy as CSV">
         {copied === "csv" ? <Check /> : <ClipboardCopy />} CSV
       </Button>
-      <Button variant="ghost" size="sm" onClick={download} title="Download these rows as CSV">
+      <Button variant="ghost" size="sm" onClick={() => void download()} disabled={exporting} title="Download the result as CSV (recorded in the audit log)">
         <Download /> Download
       </Button>
     </div>

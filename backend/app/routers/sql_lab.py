@@ -1,5 +1,6 @@
 """SQL Lab: read-only SQL over the workspace's datasets, plus saved queries (owners and editors)."""
 
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Literal
@@ -9,9 +10,10 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.governance import connect_as
 from app.audit import log_query
 from app.db import get_db
-from app.models import Automation, Dataset, SavedQuery, WorkspaceMember
+from app.models import Automation, Dataset, Project, SavedQuery, WorkspaceMember
 from app.query import MAX_ROWS, QueryError, connect, explain_sql, run_sql, table_names
 from app.routers.datasets import CAN_UPLOAD
 from app.schemas import ColumnOut, SqlParam, UtcDatetime
@@ -27,7 +29,10 @@ def _editor(member: WorkspaceMember) -> None:
 
 
 def _datasets(db: Session, member: WorkspaceMember) -> list[Dataset]:
-    return list(db.scalars(select(Dataset).where(Dataset.workspace_id == member.workspace_id).order_by(Dataset.created_at)))
+    from app.governance import visible_datasets
+
+    rows = list(db.scalars(select(Dataset).where(Dataset.workspace_id == member.workspace_id).order_by(Dataset.created_at)))
+    return visible_datasets(db, member, rows)
 
 
 class TableOut(BaseModel):
@@ -41,6 +46,9 @@ class TableOut(BaseModel):
 class RunIn(BaseModel):
     sql: str = Field(min_length=1, max_length=10_000)
     params: list[SqlParam] = Field(default_factory=list, max_length=20)
+    # Set by the browser so the run can be cancelled with POST /sql/cancel/{run_id}.
+    run_id: str | None = Field(default=None, max_length=40, pattern=r"^[A-Za-z0-9_-]+$")
+    saved_id: str | None = Field(default=None, max_length=32)
 
 
 class RunOut(BaseModel):
@@ -72,6 +80,8 @@ class SavedIn(BaseModel):
     params: list[SqlParam] = Field(default_factory=list, max_length=20)
     # Builder mode's state (see features/sql-lab/builder); the SQL is what runs.
     builder_state: dict[str, Any] | None = None
+    project_id: str | None = Field(default=None, max_length=32)
+    folder: str | None = Field(default=None, max_length=200)
 
     @field_validator("builder_state")
     @classmethod
@@ -90,6 +100,8 @@ class SavedOut(BaseModel):
     sql: str
     params: list[SqlParam]
     builder_state: dict[str, Any] | None = None
+    project_id: str | None = None
+    folder: str | None = None
     # "Daily at 09:00 (UTC)" when the query is scheduled; None otherwise.
     schedule: str | None = None
     created_at: UtcDatetime
@@ -177,7 +189,14 @@ def schema(member: WorkspaceMember = Depends(current_membership), db: Session = 
     _editor(member)
     datasets = _datasets(db, member)
     names = table_names(datasets)
-    return [TableOut(table=names[d.id], dataset_id=d.id, dataset_name=d.name, row_count=d.row_count, columns=d.columns) for d in datasets]
+    from app.governance import member_access
+    from app.routers.datasets import governed_out
+
+    access = member_access(db, member)
+    return [
+        TableOut(table=names[d.id], dataset_id=d.id, dataset_name=d.name, row_count=d.row_count, columns=governed_out(d, access).columns)
+        for d in datasets
+    ]
 
 
 @router.get("/schema/joins", response_model=list[JoinHintOut])
@@ -189,29 +208,156 @@ def schema_joins(member: WorkspaceMember = Depends(current_membership), db: Sess
     return [h.as_dict() for h in find_joins(member.workspace_id, _datasets(db, member))]
 
 
+# Running SQL Workbench queries by run id, so "Cancel" can interrupt one. Per API process: with several
+# processes a cancel can land on another one, and the query then stops at its timeout instead.
+_RUNNING: dict[str, tuple[str, object]] = {}
+_RUNNING_LOCK = threading.Lock()
+
+
 @router.post("/run", response_model=RunOut)
 def run(body: RunIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     _editor(member)
-    con = connect(member.workspace_id, _datasets(db, member))
+    datasets = _datasets(db, member)
+    con = connect_as(db, member, datasets)
+    key = f"{member.user_id}:{body.run_id}" if body.run_id else None
+    if key:
+        with _RUNNING_LOCK:
+            _RUNNING[key] = (member.workspace_id, con)
+    started = time.perf_counter()
+    ref = {"ref_kind": "saved_query", "ref_id": body.saved_id} if body.saved_id else {}
+    try:
+        rows = run_sql(con, *bind(body.sql, body.params))
+    except QueryError as e:
+        cancelled = key is not None and key in _CANCELLED
+        log_query(db, member.workspace_id, member.user_id, "sql", started, "error", sql=body.sql, datasets=datasets, **ref)
+        if cancelled:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Query cancelled.") from e
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
+    finally:
+        if key:
+            with _RUNNING_LOCK:
+                _RUNNING.pop(key, None)
+                _CANCELLED.discard(key)
+        con.close()
+    log_query(db, member.workspace_id, member.user_id, "sql", started, rows=len(rows), sql=body.sql, datasets=datasets, **ref)
+    columns = list(rows[0].keys()) if rows else []
+    return RunOut(columns=columns, rows=rows, row_count=len(rows), truncated=len(rows) >= MAX_ROWS,
+                  elapsed_ms=int((time.perf_counter() - started) * 1000))
+
+
+_CANCELLED: set[str] = set()
+
+
+@router.post("/cancel/{run_id}", status_code=status.HTTP_202_ACCEPTED)
+def cancel(run_id: str, member: WorkspaceMember = Depends(current_membership)):
+    """Stop a running query this person started. 404 when no such query is running (finished, or not theirs)."""
+    key = f"{member.user_id}:{run_id}"
+    with _RUNNING_LOCK:
+        entry = _RUNNING.get(key)
+        if entry is None or entry[0] != member.workspace_id:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "That query isn't running.")
+        _CANCELLED.add(key)
+        entry[1].interrupt()  # type: ignore[attr-defined]
+    return {"cancelled": True}
+
+
+class ExportIn(RunIn):
+    format: Literal["csv"] = "csv"
+
+
+@router.post("/export")
+def export(body: ExportIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+    """Run the query and return its rows as CSV. Recorded in the audit log (who exported what, and when)."""
+    import csv
+    import io
+
+    from app.audit import record_action
+
+    _editor(member)
+    datasets = _datasets(db, member)
+    con = connect_as(db, member, datasets)
     started = time.perf_counter()
     try:
         rows = run_sql(con, *bind(body.sql, body.params))
     except QueryError as e:
-        log_query(db, member.workspace_id, member.user_id, "sql", started, "error")
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(e)) from e
     finally:
         con.close()
-    log_query(db, member.workspace_id, member.user_id, "sql", started, rows=len(rows))
-    columns = list(rows[0].keys()) if rows else []
-    return RunOut(columns=columns, rows=rows, row_count=len(rows), truncated=len(rows) >= MAX_ROWS,
-                  elapsed_ms=int((time.perf_counter() - started) * 1000))
+    from app.materialize import referenced
+
+    read = referenced(bind(body.sql, body.params)[0], datasets)
+    log_query(db, member.workspace_id, member.user_id, "sql", started, rows=len(rows), sql=body.sql, datasets=datasets)
+    record_action(db, member, "data.export", "query", body.saved_id, {"rows": len(rows), "format": "csv", "datasets": [d.id for d in read]})
+    db.commit()
+    buf = io.StringIO()
+    if rows:
+        w = csv.DictWriter(buf, fieldnames=list(rows[0].keys()))
+        w.writeheader()
+        w.writerows(rows)
+    return Response("﻿" + buf.getvalue(), media_type="text/csv; charset=utf-8",
+                    headers={"Content-Disposition": 'attachment; filename="query.csv"'})
+
+
+# ---------- projects ----------
+
+
+class ProjectIn(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+    description: str | None = Field(default=None, max_length=500)
+
+
+class ProjectOut(BaseModel):
+    model_config = {"from_attributes": True}
+    id: str
+    name: str
+    description: str | None
+    created_at: UtcDatetime
+
+
+@router.get("/projects", response_model=list[ProjectOut])
+def list_projects(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+    return db.scalars(select(Project).where(Project.workspace_id == member.workspace_id).order_by(Project.name)).all()
+
+
+@router.post("/projects", response_model=ProjectOut, status_code=status.HTTP_201_CREATED)
+def create_project(body: ProjectIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+    _editor(member)
+    p = Project(workspace_id=member.workspace_id, name=body.name.strip(), description=body.description, created_by=member.user_id)
+    db.add(p)
+    db.commit()
+    db.refresh(p)
+    return p
+
+
+@router.delete("/projects/{pid}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_project(pid: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+    """Queries, pipelines and dynamic tables in it stay, unassigned."""
+    _editor(member)
+    p = db.get(Project, pid)
+    if p is None or p.workspace_id != member.workspace_id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Project not found")
+    for model in (SavedQuery,):
+        for q in db.scalars(select(model).where(model.project_id == pid)).all():
+            q.project_id = None
+    db.delete(p)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def check_project(db: Session, member: WorkspaceMember, pid: str | None) -> str | None:
+    if pid is None:
+        return None
+    p = db.get(Project, pid)
+    if p is None or p.workspace_id != member.workspace_id:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "That project doesn't exist.")
+    return pid
 
 
 @router.post("/explain", response_model=ExplainOut)
 def explain(body: RunIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     """DuckDB's query plan, without running the query."""
     _editor(member)
-    con = connect(member.workspace_id, _datasets(db, member))
+    con = connect_as(db, member, _datasets(db, member))
     try:
         return ExplainOut(plan=explain_sql(con, *bind(body.sql, body.params)))
     except QueryError as e:
@@ -243,11 +389,20 @@ def save(body: SavedIn, member: WorkspaceMember = Depends(current_membership), d
     q = SavedQuery(
         workspace_id=member.workspace_id, name=body.name.strip(), sql=body.sql, params=_params(body),
         builder_state=body.builder_state, created_by=member.user_id,
+        project_id=check_project(db, member, body.project_id), folder=_folder(body.folder),
     )
     db.add(q)
     db.commit()
     db.refresh(q)
     return q
+
+
+def _folder(folder: str | None) -> str | None:
+    """Normalise "Finance / Monthly/" to "Finance/Monthly"; empty means no folder."""
+    if not folder:
+        return None
+    parts = [p.strip() for p in folder.replace("\\", "/").split("/") if p.strip()]
+    return "/".join(parts)[:200] or None
 
 
 def _params(body: SavedIn) -> list[dict]:
@@ -270,6 +425,7 @@ def update_saved(qid: str, body: SavedIn, member: WorkspaceMember = Depends(curr
     _editor(member)
     q = _saved(db, member, qid)
     q.name, q.sql, q.params, q.builder_state = body.name.strip(), body.sql, _params(body), body.builder_state
+    q.project_id, q.folder = check_project(db, member, body.project_id), _folder(body.folder)
     db.commit()
     db.refresh(q)
     return _saved_out(q, _schedules(db, member.workspace_id).get(q.id))

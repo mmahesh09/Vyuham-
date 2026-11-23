@@ -20,6 +20,10 @@ import {
   UserRound,
   Users,
   type LucideIcon,
+  Gauge,
+  RefreshCcwDot,
+  ShieldCheck,
+  Workflow,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -50,7 +54,9 @@ export const NAV_GROUPS: { label?: string; items: NavItem[] }[] = [
     label: "Build",
     items: [
       { href: "/metrics", label: "Metrics", icon: Sigma },
-      { href: "/sql", label: "SQL Lab", icon: Code2 },
+      { href: "/sql", label: "SQL Workbench", icon: Code2 },
+      { href: "/pipelines", label: "Pipelines", icon: Workflow },
+      { href: "/dynamic-tables", label: "Dynamic tables", icon: RefreshCcwDot },
       { href: "/lab", label: "Dashboard Lab", icon: LayoutGrid },
     ],
   },
@@ -61,6 +67,13 @@ export const NAV_GROUPS: { label?: string; items: NavItem[] }[] = [
       { href: "/reports", label: "Reports", icon: FileText },
       // The open-slide deck app (my-deck/): a separate static app, so a full page load, not <Link>.
       { href: "/decks", label: "Decks", icon: Presentation, external: true },
+    ],
+  },
+  {
+    label: "Govern",
+    items: [
+      { href: "/governance", label: "Governance", icon: ShieldCheck },
+      { href: "/usage", label: "Workload & cost", icon: Gauge },
     ],
   },
   { label: "Team", items: [{ href: "/team", label: "Team", icon: Users }] },

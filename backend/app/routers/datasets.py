@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
+from app.governance import connect_as
 from app.analytics.semantic import refresh_calculated
 from app.config import get_settings
 from app.db import get_db
@@ -110,15 +111,40 @@ def upload_dataset(
 
 @router.get("", response_model=list[DatasetOut])
 def list_datasets(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
+    from app.governance import member_access
+
     stmt = select(Dataset).where(Dataset.workspace_id == member.workspace_id).order_by(Dataset.created_at.desc())
-    return db.scalars(stmt).all()
+    access = member_access(db, member)
+    return [governed_out(d, access) for d in db.scalars(stmt).all() if not (access.get(d.id) and access[d.id].hidden)]
+
+
+def governed_out(ds: Dataset, access: dict) -> DatasetOut:
+    """The dataset as this member may see it: hidden columns removed, masked columns without example values."""
+    from app.governance import column_method
+
+    out = DatasetOut.model_validate(ds)
+    if not access or ds.id not in access:
+        return out
+    cols = []
+    for c in out.columns:
+        method = column_method(access, ds.id, c.name)
+        if method == "hide":
+            continue
+        cols.append(c.model_copy(update={"examples": [], "unreadable_examples": []}) if method else c)
+    return out.model_copy(update={"columns": cols, "source_query": None if access else out.source_query})
 
 
 def owned_dataset(db: Session, member: WorkspaceMember, dataset_id: str) -> Dataset:
+    from app.governance import member_access
+
     dataset = db.get(Dataset, dataset_id)
-    # Same 404 for "missing" and "another workspace's", so ids can't be probed.
+    # Same 404 for "missing", "another workspace's" and "not visible to your role", so ids can't be probed.
     if dataset is None or dataset.workspace_id != member.workspace_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dataset not found")
+    if member.role != "owner":
+        acc = member_access(db, member).get(dataset.id)
+        if acc is not None and acc.hidden:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, "Dataset not found")
     return dataset
 
 
@@ -129,7 +155,9 @@ def require_editor(member: WorkspaceMember) -> None:
 
 @router.get("/{dataset_id}", response_model=DatasetOut)
 def get_dataset(dataset_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    return owned_dataset(db, member, dataset_id)
+    from app.governance import member_access
+
+    return governed_out(owned_dataset(db, member, dataset_id), member_access(db, member))
 
 
 @router.get("/{dataset_id}/rows", response_model=RowsOut)
@@ -151,7 +179,7 @@ def dataset_rows(
             raise ValueError
     except ValueError:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Filters must be a JSON list") from None
-    con = connect(member.workspace_id, [dataset])
+    con = connect_as(db, member, [dataset])
     try:
         rows, total = page_rows(con, dataset, page, size, sort, direction, parsed, q)
     except QueryError as e:
@@ -164,7 +192,7 @@ def dataset_rows(
 @router.get("/{dataset_id}/values/{column}", response_model=list[str])
 def column_values(dataset_id: str, column: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     dataset = owned_dataset(db, member, dataset_id)
-    con = connect(member.workspace_id, [dataset])
+    con = connect_as(db, member, [dataset])
     try:
         return distinct_values(con, dataset, column)
     except QueryError as e:

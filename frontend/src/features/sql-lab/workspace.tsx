@@ -2,18 +2,21 @@
 
 import type { SQLNamespace } from "@codemirror/lang-sql";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Blocks, CalendarClock, Code2, FileCode2, Keyboard, Loader2, PanelBottom, PanelLeft, Play, Plus, Save, Sparkles, Wand2, X } from "lucide-react";
+import { Blocks, CalendarClock, Code2, FileCode2, Keyboard, Loader2, PanelBottom, PanelLeft, Play, Plus, Save, Sparkles, Square, Wand2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useDefaultLayout, usePanelRef } from "react-resizable-panels";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { NativeSelect } from "@/components/ui/native-select";
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from "@/components/ui/resizable";
 import { useMe } from "@/features/auth/hooks";
+import { useProjects } from "@/features/platform/api";
 import { ExportMenu } from "@/features/reports/export-menu";
 import { api } from "@/lib/api/client";
 import { cn } from "@/lib/utils";
 
+import { AiAssist } from "./ai-assist";
 import { BuilderPanel } from "./builder/builder-panel";
 import { compile } from "./builder/compile";
 import { emptyBuilder, type BuilderState } from "./builder/types";
@@ -104,6 +107,12 @@ export function SqlWorkspace() {
   const [notice, setNotice] = useState<string | null>(null);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [projectId, setProjectId] = useState("");
+  const [folder, setFolder] = useState("");
+  const projects = useProjects();
+  // The running query, so Cancel can abort the request and stop it on the server.
+  const running = useRef<{ runId: string; controller: AbortController } | null>(null);
 
   // First visit: one tab with a query that works on the first dataset.
   useEffect(() => {
@@ -112,6 +121,12 @@ export function SqlWorkspace() {
 
   // The name box follows the tab.
   useEffect(() => setName(active?.savedId ? active.title : ""), [active?.id, active?.savedId, active?.title]);
+  // So do its project and folder.
+  const savedRow = saved.data?.find((q) => q.id === active?.savedId);
+  useEffect(() => {
+    setProjectId(savedRow?.project_id ?? "");
+    setFolder(savedRow?.folder ?? "");
+  }, [active?.id, savedRow?.project_id, savedRow?.folder]);
 
   const completion: SQLNamespace = useMemo(
     () =>
@@ -150,8 +165,17 @@ export function SqlWorkspace() {
   const setOut = (id: string, o: Output) => setOutputs((all) => ({ ...all, [id]: o }));
 
   const run = useMutation({
-    mutationFn: (v: { tabId: string; sql: string; params: Param[]; firstLine: number }) =>
-      api<RunResult>("/sql/run", { method: "POST", body: JSON.stringify({ sql: v.sql, params: v.params }) }),
+    mutationFn: (v: { tabId: string; sql: string; params: Param[]; firstLine: number }) => {
+      const runId = Math.random().toString(36).slice(2, 12);
+      const controller = new AbortController();
+      running.current = { runId, controller };
+      const savedId = lab.tabs.find((t) => t.id === v.tabId)?.savedId ?? undefined;
+      return api<RunResult>("/sql/run", {
+        method: "POST", body: JSON.stringify({ sql: v.sql, params: v.params, run_id: runId, saved_id: savedId }), signal: controller.signal,
+      }).finally(() => {
+        if (running.current?.runId === runId) running.current = null;
+      });
+    },
     onMutate: () => setNotice(null),
     onSuccess: (result, v) => {
       setOut(v.tabId, { sql: v.sql, params: v.params, result });
@@ -161,6 +185,10 @@ export function SqlWorkspace() {
       if (!desktop) setMobileView("results");
     },
     onError: (e, v) => {
+      if (e.name === "AbortError" || e.message === "Query cancelled.") {
+        setNotice("Query cancelled.");
+        return;
+      }
       // Keep the last good result (and the SQL it came from) on screen, marked as stale.
       setOutputs((all) => {
         const prev = all[v.tabId];
@@ -182,6 +210,15 @@ export function SqlWorkspace() {
     if (!r.sql.trim()) return;
     run.mutate({ tabId: active.id, sql: r.sql, params: paramsFor(r.sql, active.params), firstLine: r.firstLine });
   }, [active, run, compiled]);
+
+  const cancel = useCallback(() => {
+    const r = running.current;
+    if (!r) return;
+    running.current = null;
+    // Stop it on the server first (frees the slot), then drop the request.
+    void api(`/sql/cancel/${r.runId}`, { method: "POST" }).catch(() => undefined);
+    r.controller.abort();
+  }, []);
 
   /** New tab with this SQL; with `andRun`, run it straight away (no editor needed). */
   const openSql = useCallback(
@@ -208,6 +245,8 @@ export function SqlWorkspace() {
         sql: tab.sql,
         params: paramsFor(tab.sql, tab.params),
         builder_state: tab.mode === "builder" ? tab.builder ?? null : null,
+        project_id: projectId || null,
+        folder: folder.trim() || null,
       });
       return tab.savedId ? api<Saved>(`/sql/saved/${tab.savedId}`, { method: "PUT", body }) : api<Saved>("/sql/saved", { method: "POST", body });
     },
@@ -272,6 +311,12 @@ export function SqlWorkspace() {
       } else if (mod && e.key.toLowerCase() === "j") {
         e.preventDefault();
         togglePanel(resultsPanel);
+      } else if (mod && e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        setAiOpen((v) => !v);
+      } else if (e.key === "Escape" && running.current) {
+        e.preventDefault();
+        cancel();
       } else if (e.key === "?" && !mod && !isTyping(e.target)) {
         e.preventDefault();
         setShortcutsOpen(true);
@@ -279,7 +324,7 @@ export function SqlWorkspace() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [togglePanel, explorerPanel, resultsPanel, doRun]);
+  }, [togglePanel, explorerPanel, resultsPanel, doRun, cancel]);
 
   const params = active ? paramsFor(active.sql, active.params) : [];
   const setParam = (pname: string, patch: Partial<Param>) =>
@@ -373,8 +418,17 @@ export function SqlWorkspace() {
 
   const toolbar = active && (
     <div className="flex flex-wrap items-center gap-2 border-t border-line px-2.5 py-2">
-      <Button size="sm" onClick={doRun} disabled={pending || !active.sql.trim()} title="Run (Ctrl/⌘+Enter)">
-        {pending ? <Loader2 className="animate-spin" /> : <Play />} {hasSelection ? "Run selection" : "Run"}
+      {pending ? (
+        <Button size="sm" variant="destructive" onClick={cancel} title="Cancel the running query (Esc)">
+          <Square /> Cancel
+        </Button>
+      ) : (
+        <Button size="sm" onClick={doRun} disabled={!active.sql.trim()} title="Run (Ctrl/⌘+Enter)">
+          <Play /> {hasSelection ? "Run selection" : "Run"}
+        </Button>
+      )}
+      <Button variant={aiOpen ? "secondary" : "ghost"} size="sm" onClick={() => setAiOpen((v) => !v)} aria-pressed={aiOpen} title="AI assistant (Ctrl/⌘+I)">
+        <Sparkles /> AI
       </Button>
       {!inBuilder && (
         <Button variant="ghost" size="sm" onClick={format} disabled={!active.sql.trim()} title="Format (Shift+Alt+F)">
@@ -389,6 +443,11 @@ export function SqlWorkspace() {
           onChange={(e) => setName(e.target.value)}
           className="h-8 w-36 text-[13px] sm:w-44"
         />
+        <NativeSelect aria-label="Project" value={projectId} onChange={(e) => setProjectId(e.target.value)} className="h-8 max-w-[140px] text-[13px]" title="Save to a project">
+          <option value="">No project</option>
+          {projects.data?.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </NativeSelect>
+        <Input aria-label="Folder" placeholder="Folder" value={folder} onChange={(e) => setFolder(e.target.value)} className="h-8 w-24 text-[13px] sm:w-28" title="Folder inside the project, e.g. Monthly/Revenue" />
         <Button variant="outline" size="sm" onClick={doSave} disabled={save.isPending || !active.sql.trim()} title="Save (Ctrl/⌘+S)">
           <Save /> {active.savedId ? "Update" : "Save"}
         </Button>
@@ -447,6 +506,16 @@ export function SqlWorkspace() {
             </div>
           )}
           {toolbar}
+          {aiOpen && (
+            <AiAssist
+              sql={active.sql}
+              params={params}
+              error={out?.error}
+              onReplace={(s) => updateTab(active.id, { sql: s, ...(inBuilder ? { mode: "sql" as const, builder: undefined } : {}) })}
+              onNewTab={(s) => openTab({ title: "AI query", sql: s })}
+              onClose={() => setAiOpen(false)}
+            />
+          )}
           {notice && (
             <p role="status" className="border-t border-line px-3 py-1.5 text-[13px] text-muted">
               {notice}
@@ -530,9 +599,9 @@ export function SqlWorkspace() {
   const header = (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
       <div className="min-w-0">
-        <h1 className="type-page-title text-text">SQL Lab</h1>
+        <h1 className="type-page-title text-text">SQL Workbench</h1>
         <p className="text-[13px] text-muted">
-          Read-only SQL (DuckDB) over this workspace&apos;s data. Write <code className="text-accent">{"{{name}}"}</code> to add a parameter.
+          Read-only SQL (DuckDB) over this workspace&apos;s data, with a 10-second limit per query. Write <code className="text-accent">{"{{name}}"}</code> to add a parameter.
         </p>
       </div>
       <div className="ml-auto flex items-center gap-1">
