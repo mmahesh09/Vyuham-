@@ -1,17 +1,22 @@
 ---
-title: "What is Vyuham? Dashboards from your spreadsheets, in plain English"
-description: "Vyuham turns Excel files, CSVs and PostgreSQL or MySQL tables into dashboards you can question in plain English. Here's what it does, who it's for and its limits."
+title: "What is Vyuham? Analytics and data engineering in one workspace"
+description: "Vyuham turns Excel files, CSVs and PostgreSQL or MySQL tables into dashboards you can question in plain English, and lets you build the pipelines, SQL and refreshing tables behind them. Here's what it does, who it's for and its limits."
 date: 2026-11-19
+updated: 2026-11-24
 author: The Vyuham team
-tags: [guides, dashboards, small-business]
+tags: [guides, dashboards, data-engineering, small-business]
 ---
 
-Vyuham is a web app that turns your business data into dashboards. You upload an Excel or CSV file, or connect a PostgreSQL
-or MySQL database, then type a short question such as "revenue by month". Vyuham returns a chart and a one-line answer, and
+Vyuham is a web app for two kinds of work on the same data. You upload an Excel or CSV file, or connect a PostgreSQL or
+MySQL database, then type a short question such as "revenue by month". Vyuham returns a chart and a one-line answer, and
 you can pin that answer to a dashboard your team can open.
 
-It's built for companies of 1 to 100 people where nobody's job title says "analyst". The person building the report is
-usually a founder, an owner or an operations manager who has other work waiting.
+The same workspace holds the work behind those answers: pipelines that clean and join your tables, a SQL Workbench, dynamic
+tables that refresh themselves, and rules about who can see which columns.
+
+It's built for growing companies where some people need the numbers and someone prepares them. Often that's a founder, an
+owner or an operations manager on one side and an analyst or engineer on the other. In a small team it can be the same
+person.
 
 You can [try it with sample data](/try) without signing up. The rest of this post explains how it works, where it fits and
 what it can't do yet.
@@ -57,7 +62,29 @@ Save any answer to a dashboard, or let Vyuham build a starter dashboard from you
 carries a one-line headline, so you can read the page before you study it. A date filter applies across the dashboard.
 
 When it's ready, invite teammates, create a read-only share link that you can turn off later, or export a PDF, CSV or Excel
-copy.
+copy. Alerts tell you when a number crosses a line, and scheduled reports send the dashboard on a set day.
+
+### 4. Build what feeds it
+
+When the raw data needs work before anyone asks about it, build that work in Vyuham too.
+
+- **Pipelines.** Steps on a canvas: read a dataset, remove duplicates, run quality checks, transform rows in SQL and write a
+  Bronze, Silver or Gold table. A pipeline runs on demand, hourly or daily in the background. Each step keeps a log, and you
+  can retry only the steps that failed.
+- **The AI Data Engineer.** Describe the pipeline in a sentence. It reads your real table and column names, drafts the
+  steps, checks each one against your data and explains the design. Nothing it writes runs until a person approves it.
+- **SQL Workbench.** Tabs, autocomplete, query plans, parameters and a cancel button, plus AI help to write, explain, fix or
+  optimize a query. Every query is read-only and has a time limit.
+- **Dynamic tables.** Save a query as a table and choose how fresh it should be. Vyuham works out what it depends on,
+  refreshes upstream tables first, retries failures and records every refresh.
+
+### 5. Decide who sees what
+
+A scanner finds columns that look like emails, phone numbers, names, addresses, card numbers or government IDs. You label
+them and choose a masking rule per role: partial, hashed, redacted or hidden. The query engine applies the rule, so a viewer
+sees the masked value in a chart, an export, a shared link and an AI request alike. An audit log records who read, exported
+or changed what. A workload report shows which queries and pipelines use the most time, with costs estimated from rates you
+enter.
 
 ## How Vyuham is built
 
@@ -81,8 +108,9 @@ Vyuham suits you if most of these sound familiar:
 
 - Your numbers live in spreadsheets, exports or a single application database.
 - One person spends hours each month copying data into a report.
+- Cleaning and joining the data happens in scripts or cron jobs that only one person understands.
 - You want several people to look at the same numbers without buying a license for each of them.
-- Your questions are about totals, trends, rankings and breakdowns.
+- Some columns, like customer emails, shouldn't be visible to everyone who reads a dashboard.
 
 A shop owner tracking sales by product, a startup founder watching monthly revenue and an agency checking income by client
 all fit that description. If you're still deciding whether this is worth your time, start with our guide to
@@ -92,41 +120,58 @@ all fit that description. If you're still deciding whether this is worth your ti
 
 Knowing the limits will save you time, so here they are.
 
-**Ask follows rules today.** It doesn't use an AI model. It understands totals, averages, counts, rankings, time periods
-and "by" breakdowns. It won't answer "why did revenue drop?" with a reason, and a broad question such as "are we doing
-well?" needs rewording into something like "revenue by month".
+**Plain-English questions follow rules.** Asking on a dashboard doesn't use an AI model. It understands totals, averages,
+counts, rankings, time periods and "by" breakdowns. It won't answer "why did revenue drop?" with a reason, and a broad
+question such as "are we doing well?" needs rewording into something like "revenue by month". The AI features (SQL help and
+the AI Data Engineer) work when AI is switched on for your workspace.
+
+**Pipelines run SQL.** The AI also writes a pandas version of each step for you to export, but Vyuham runs the SQL.
+
+**Incremental refresh is append-only.** It adds rows newer than a date or ID column, which suits tables that only grow.
+Rows changed or deleted upstream show up after a full refresh.
+
+**Costs are estimates.** Workload reports measure Vyuham's own work and multiply it by your rates. They aren't connected to a
+cloud bill.
 
 **Labels need to be consistent.** "Paid" and "PAID" count as two different values, so tidy those before you upload. A good
 rule of thumb is one header row, one record per row and one date format per column.
 
-**Google Sheets isn't connected.** Download the sheet as Excel or CSV for now.
+**Google Sheets isn't connected, and there are no notebooks.** Download a sheet as Excel or CSV for now.
 
 **Databases must be reachable from the internet.** Vyuham refuses private and local addresses, so a database that only
 exists inside your office network won't connect.
 
-## How is Vyuham different from Excel or Power BI?
+## How is Vyuham different from Excel, Power BI or Airflow?
 
 Excel is where a lot of good data starts, and you can keep using it. Vyuham reads the export and handles the charting and
 the repeat reporting, so you stop rebuilding the same pivot table every month.
 
 Power BI and Tableau do far more. They suit companies with someone who will own data models and maintain reports. If you
 have that person, or you need custom measures across many systems, they're the better choice. Vyuham is for the team
-without that person. There's a [side-by-side comparison on our homepage](/#compare).
+without that person, or for the team that wants the building and the asking in one place.
+
+Orchestrators such as Airflow, and tools such as dbt, go deeper on data engineering. Vyuham covers SQL pipelines on the data
+in your workspace, with schedules, checks, lineage and retries built in. If you already run Airflow, Airbyte or cron, a
+refresh hook lets them trigger Vyuham. There's a [side-by-side comparison on our homepage](/#compare).
 
 | | Excel | Power BI or Tableau | Vyuham |
 | --- | --- | --- | --- |
 | Starting point | A blank sheet | A data model | Your existing file or table |
 | How you ask | Formulas and pivots | DAX or calculated fields | A short plain-English question |
-| Best for | Working on the data itself | Teams with an analyst | Teams without one |
-| Depth | Very high, by hand | Very high | Everyday business questions |
+| Preparing data | By hand, each month | A separate tool or script | Pipelines and dynamic tables in the same workspace |
+| Best for | Working on the data itself | Teams with an analyst | Teams that want asking and building in one place |
+| Depth | Very high, by hand | Very high | Everyday business questions and SQL pipelines |
 
 ## Is my data safe in Vyuham?
 
 Each company's data is kept in its own workspace, and a dashboard only becomes public if you create a share link for it.
 
 For database connections, Vyuham opens read-only sessions, stores your password encrypted and asks for SSL by default. We
-still recommend creating a separate database user that can only read the tables you want to analyze. You can read more on
-the [privacy page](/privacy).
+still recommend creating a separate database user that can only read the tables you want to analyze. Pipelines and dynamic
+tables write to tables inside Vyuham, never to your database.
+
+Masking rules and column access are applied in the query engine, as described above, and every export and permission change
+is recorded in the audit log. You can read more on the [privacy page](/privacy).
 
 ## How much does Vyuham cost?
 
@@ -137,8 +182,13 @@ the whole company, so adding a teammate won't add to the bill. Anything you buil
 
 ### Do I need to know SQL or formulas?
 
-No. You can do everything by typing short questions. If you do know SQL, SQL Lab gives you an editor and can join an uploaded
-file with a table from your database.
+No. You can ask questions and build dashboards by typing short questions. If you do know SQL, the SQL Workbench gives you an
+editor that can join an uploaded file with a table from your database, and pipelines and dynamic tables use SQL too.
+
+### Can I build data pipelines without writing code?
+
+Partly. Reading a dataset, removing duplicates, quality checks and writing a table are form fields on the canvas. Transforms
+are SQL, which you can write yourself or ask the AI Data Engineer to draft for your approval.
 
 ### What file types does Vyuham accept?
 
@@ -158,3 +208,4 @@ Yes. You can set an alert on a number that matters, such as weekly sales falling
 The quickest way to judge Vyuham is to give it a file you already know well. Start with [the sample data](/try) if you'd
 like a look first, or read [more about why we built it](/about). When you're ready, [create a free account](/signup), upload
 one spreadsheet and type "revenue by month", using your own column name in place of revenue if it's called something else.
+Then open Pipelines and turn the clean-up you do by hand into steps that run on their own.

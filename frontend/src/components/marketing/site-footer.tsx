@@ -10,12 +10,22 @@ type LinkList = [label: string, href: string][];
 /** The lead column, set large and light: the four places most visitors are looking for. */
 const PRODUCT: LinkList = [
   ["Try Vyuham", "/try"],
-  ["How it works", "/#how-it-works"],
+  ["The platform", "/#platform"],
   ["Pricing", "/#pricing"],
-  ["Compare to Power BI", "/#compare"],
+  ["Compare", "/#compare"],
 ];
 
 const COLUMNS: { title: string; links: LinkList }[] = [
+  {
+    title: "Platform",
+    links: [
+      ["Ask and dashboards", "/#analytics"],
+      ["Pipelines", "/#pipelines"],
+      ["AI Data Engineer", "/#pipelines"],
+      ["SQL and dynamic tables", "/#workbench"],
+      ["Governance and cost", "/#governance"],
+    ],
+  },
   {
     title: "Company",
     links: [
@@ -71,7 +81,7 @@ export function SiteFooter() {
 
           <nav
             aria-label="Footer"
-            className={`${container} grid grid-cols-2 gap-x-6 gap-y-14 pt-[clamp(64px,8vw,104px)] lg:grid-cols-[2.2fr_1fr_1.2fr_1.2fr]`}
+            className={`${container} grid grid-cols-2 gap-x-6 gap-y-14 pt-[clamp(64px,8vw,104px)] lg:grid-cols-[2fr_1.2fr_1fr_1.1fr_1fr]`}
           >
             <div className="col-span-2 lg:col-span-1">
               <p className={colTitle}>Product</p>
@@ -137,7 +147,7 @@ export function SiteFooter() {
             className={`${container} mt-[clamp(120px,16vw,220px)] flex flex-wrap items-center justify-between gap-x-6 gap-y-2 pb-8 text-[13px] font-light text-faint`}
           >
             <p>© 2026 {SITE_NAME}</p>
-            <p>Dashboards for teams without a data team</p>
+            <p>Analytics and data engineering in one workspace</p>
           </div>
         </div>
       </div>

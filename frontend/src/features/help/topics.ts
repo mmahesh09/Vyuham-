@@ -1,7 +1,7 @@
-import { BarChart3, CreditCard, FileSpreadsheet, LayoutDashboard, Rocket, Users, type LucideIcon } from "lucide-react";
+import { BarChart3, CreditCard, FileSpreadsheet, LayoutDashboard, Rocket, ShieldCheck, Users, Workflow, type LucideIcon } from "lucide-react";
 
 /**
- * The six help topics. An article belongs to a topic when one of its tags contains one of the
+ * The help topics. An article belongs to a topic when one of its tags contains one of the
  * topic's keys (lowercase, partial match), so counts and lists always come from the real articles.
  */
 export type HelpTopic = { id: string; title: string; text: string; icon: LucideIcon; keys: string[] };
@@ -24,9 +24,23 @@ export const HELP_TOPICS: HelpTopic[] = [
   {
     id: "analytics-questions",
     title: "Analytics & Questions",
-    text: "Phrasing a question, reading the answer and checking how it was worked out.",
+    text: "Phrasing a question, the SQL Workbench, metrics and checking how an answer was worked out.",
     icon: BarChart3,
-    keys: ["question", "ask", "ai", "answer", "analytic", "metric", "insight"],
+    keys: ["question", "ask", "answer", "analytic", "metric", "insight", "sql"],
+  },
+  {
+    id: "pipelines-engineering",
+    title: "Pipelines & Data Engineering",
+    text: "Building pipelines, the AI Data Engineer, dynamic tables, quality checks and refresh history.",
+    icon: Workflow,
+    keys: ["pipeline", "dynamic", "transform", "engineer", "refresh", "lineage", "quality", "ai"],
+  },
+  {
+    id: "governance-security",
+    title: "Governance & Security",
+    text: "Sensitive data, masking, dataset and column access, the audit log and workload costs.",
+    icon: ShieldCheck,
+    keys: ["governance", "mask", "privacy", "security", "pii", "audit", "permission", "cost", "usage"],
   },
   {
     id: "dashboards-sharing",

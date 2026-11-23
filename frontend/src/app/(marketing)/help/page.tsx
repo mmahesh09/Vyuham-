@@ -10,7 +10,7 @@ import { publicGet, type HelpSummary } from "@/lib/public-api";
 
 export const metadata: Metadata = {
   title: "Help center",
-  description: "Answers to common questions about uploading data, building dashboards, sharing and your account.",
+  description: "Answers to common questions about uploading data, dashboards, pipelines, dynamic tables, governance, sharing and your account.",
   alternates: { canonical: "/help" },
 };
 

@@ -13,6 +13,8 @@ type NavLink = { href: string; label: string; match: (path: string) => boolean }
 
 export const NAV: NavLink[] = [
   { href: "/", label: "Home", match: (p) => p === "/" },
+  // An anchor on the homepage, so it's never the "current" page.
+  { href: "/#platform", label: "Platform", match: () => false },
   { href: "/try", label: "Try Vyuham", match: (p) => p.startsWith("/try") },
   { href: "/about", label: "About", match: (p) => p.startsWith("/about") },
   { href: "/blog", label: "Blog", match: (p) => p.startsWith("/blog") },
@@ -24,7 +26,7 @@ export const NAV: NavLink[] = [
 ];
 
 /**
- * The marketing navbar: Home · Try Vyuham · About · Blog · Support, plus log in and the beta CTA.
+ * The marketing navbar: Home · Platform · Try Vyuham · About · Blog · Support, plus log in and the beta CTA.
  * `overlay` sits inside the dark hero panel; `bar` is a sticky bar for content pages.
  * Below lg the links move into a slide-in sheet.
  */

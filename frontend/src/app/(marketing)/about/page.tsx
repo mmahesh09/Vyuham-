@@ -7,16 +7,27 @@ import { SiteHeader } from "@/components/marketing/site-header";
 
 export const metadata: Metadata = {
   title: "About",
-  description: "Vyuham turns spreadsheets and databases into dashboards for small businesses. Learn who it is for, how it works and what the name means.",
+  description:
+    "Vyuham puts analytics and data engineering in one workspace: plain-English answers and dashboards, plus pipelines, SQL, dynamic tables and governance on the same data. Learn who it is for and what the name means.",
   alternates: { canonical: "/about" },
 };
 
 const DIFFERENCES = [
-  ["You start with a question", "Type “Revenue by month” and you have your first chart."],
-  ["Your columns are labelled for you", "Vyuham reads each column as a number, date, category or text, and you can correct it."],
-  ["Every chart has a headline", "Each card opens with one line about what the numbers show."],
-  ["Your database stays yours", "PostgreSQL and MySQL connections run in read-only sessions."],
-  ["One price per company", "Paid plans will be flat, so a new teammate never adds to the bill."],
+  ["Asking and building share one copy of the data", "A pipeline writes a Gold table, and the dashboard reads it. Nobody copies data between tools."],
+  ["You can start with a question", "Type “Revenue by month” and you have your first chart, with a one-line headline above it."],
+  ["Data work you can see", "Pipelines are steps on a canvas with a log for each one, and dynamic tables keep a history of every refresh."],
+  ["The AI shows its work and waits", "It drafts SQL and pipelines from your real tables, checks them first, and nothing it writes runs until a person approves it."],
+  ["Access rules hold everywhere", "Masking and column access are applied in the query engine, so they cover queries, exports, shared links and AI requests."],
+  ["Your database stays yours", "PostgreSQL and MySQL connections run in read-only sessions. What Vyuham builds lives in your workspace."],
+  ["One price per company", "Paid plans will be flat, so the people who ask and the people who build never add to the bill."],
+];
+
+const LIMITS = [
+  "Plain-English questions follow rules, so they handle totals, rankings, trends and breakdowns better than open-ended questions. Use the SQL Workbench for the rest.",
+  "Pipeline steps run SQL. The AI also writes a pandas version of each step, which you can export but Vyuham doesn't run.",
+  "Incremental refresh appends rows newer than a date or ID column. It suits tables that only grow; a full refresh handles the rest.",
+  "Workload and cost reports measure Vyuham's own work and use rates you enter. They aren't connected to a cloud bill.",
+  "Google Sheets isn't connected yet, and there are no notebooks.",
 ];
 
 export default function AboutPage() {
@@ -26,20 +37,21 @@ export default function AboutPage() {
       <BlogHero column="max-w-[860px]" variant="amber">
         <p className="font-mono text-[11px] uppercase tracking-[0.16em]">About Vyuham</p>
         <h1 className="font-display text-[clamp(34px,5vw,56px)] font-semibold leading-[1.05] tracking-tight">
-          Answers from your spreadsheets, without a data team.
+          The people who ask and the people who build, on the same data.
         </h1>
         <p className="max-w-[60ch] text-[16.5px] leading-[1.7]">
-          Small businesses run on spreadsheets, and simple questions about revenue or costs still take hours of copying and
-          checking. Business intelligence tools can help, but they expect an analyst to run them. Vyuham is for the teams
-          that don&apos;t have one.
+          In most companies the numbers pass through a spreadsheet, a script, a pipeline tool and a BI tool before anyone reads
+          them. Each step keeps its own copy and its own access rules. Vyuham puts the asking and the building in one
+          workspace, so a question and the pipeline that answers it read the same tables.
         </p>
       </BlogHero>
       <main className="mx-auto w-full max-w-[860px] flex-1 px-5 pb-24 pt-14">
         <section className="flex flex-col gap-3">
           <h2 className="text-[20px] font-semibold text-text">Who it&apos;s for</h2>
           <p className="max-w-[65ch] text-[16px] leading-[1.75] text-muted">
-            Founders, owners and managers at companies of 1 to 100 people: startups tracking revenue, small businesses running
-            sales and expenses in Excel, and agencies watching their own numbers.
+            Growing companies where some people need answers and someone prepares the data. Founders, owners and managers ask
+            questions and read dashboards. Analysts and data engineers build pipelines, SQL and dynamic tables. In a small team,
+            that can be the same person on the same afternoon.
           </p>
         </section>
 
@@ -57,10 +69,14 @@ export default function AboutPage() {
 
         <section className="mt-12 flex flex-col gap-3">
           <h2 className="text-[20px] font-semibold text-text">What it doesn&apos;t do yet</h2>
+          <ul className="flex max-w-[65ch] list-disc flex-col gap-2 pl-5 text-[16px] leading-[1.75] text-muted">
+            {LIMITS.map((l) => (
+              <li key={l}>{l}</li>
+            ))}
+          </ul>
           <p className="max-w-[65ch] text-[16px] leading-[1.75] text-muted">
-            Ask follows rules today and doesn&apos;t use an AI model, so it handles totals, rankings, trends and breakdowns
-            better than open-ended questions. Google Sheets isn&apos;t connected yet either. If you need custom data models
-            across many systems, a tool like Power BI will serve you better.
+            If you need custom data models across many systems or a large orchestration platform, tools like Power BI and Airflow
+            go deeper. Vyuham connects to them where it can: a refresh hook lets Airflow, Airbyte or cron trigger its refreshes.
           </p>
         </section>
 

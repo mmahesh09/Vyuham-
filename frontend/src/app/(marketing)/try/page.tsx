@@ -1,4 +1,4 @@
-import { ArrowRight, FileSpreadsheet, MessageSquareText, Share2 } from "lucide-react";
+import { ArrowRight, FileSpreadsheet, MessageSquareText, Share2, Workflow } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -14,7 +14,7 @@ import { TryAsk, type TryQuestion } from "@/components/marketing/try-ask";
 export const metadata: Metadata = {
   title: "Try Vyuham with sample data",
   description:
-    "See how Vyuham answers plain-English questions about business data. Pick a question and get a one-line answer with a chart, using sample data. No sign-up needed.",
+    "See how Vyuham answers plain-English questions about business data. Pick a question and get a one-line answer with a chart, using sample data. No sign-up needed. Pipelines, SQL and governance open with a free account.",
   alternates: { canonical: "/try" },
 };
 
@@ -40,6 +40,7 @@ const STEPS = [
   { icon: FileSpreadsheet, title: "Upload a file", text: "Excel or CSV, or connect PostgreSQL or MySQL. Column types are labelled for you." },
   { icon: MessageSquareText, title: "Ask in plain English", text: "Type something like “Top 5 customers by revenue”." },
   { icon: Share2, title: "Save and share", text: "Pin answers to a dashboard and send a read-only link." },
+  { icon: Workflow, title: "Build what feeds it", text: "Clean and join tables with a pipeline, or keep a query fresh as a dynamic table." },
 ];
 
 export default function TryPage() {
@@ -58,7 +59,8 @@ export default function TryPage() {
             </h1>
             <p className={`${body} mt-6 max-w-[52ch]`}>
               This is a small online shop&apos;s sales data. Pick a question below to see the one-line answer and the
-              chart that comes with it.
+              chart that comes with it. The sample shows the asking side; pipelines, SQL and governance open with a free
+              account.
             </p>
           </div>
           <div className="mx-auto mt-12 w-full max-w-[1000px] px-[clamp(16px,5vw,48px)]">
@@ -92,9 +94,9 @@ export default function TryPage() {
         <section className={sectionY}>
           <div className={container}>
             <h2 data-animate className={`${h2} mb-12 max-w-[20ch]`}>
-              Now try it <span className={quiet}>with your own file.</span>
+              Now try it <span className={quiet}>with your own data.</span>
             </h2>
-            <ol className="grid gap-4 md:grid-cols-3">
+            <ol className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {STEPS.map((s, i) => (
                 <li key={s.title} data-animate style={delay(i * 100)} className={`${card} flex flex-col gap-4 p-6 sm:p-8`}>
                   <span className="flex size-11 items-center justify-center rounded-xl bg-primary/15 text-highlight">

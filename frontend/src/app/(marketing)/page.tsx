@@ -1,4 +1,8 @@
-import { ArrowRight, Check, Copy, Download, Globe, Link2Off, Lock, MousePointerClick, Plus, ShieldCheck, X } from "lucide-react";
+import {
+  ArrowRight, BellRing, Check, Code2, Copy, Download, Gauge, GitBranch, Globe, LayoutDashboard, Link2Off, Lock,
+  MessageSquareText, MousePointerClick, Plus, RefreshCcwDot, ShieldCheck, Sigma, Sparkles, Workflow, X,
+  type LucideIcon,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -8,7 +12,7 @@ import { LazyFilterDemo, LazyLiveDashboard, LazyStoryFeed, LazySyncCard } from "
 import { DATABASE_LOGOS, IntegrationGrid } from "@/components/marketing/integration-grid";
 import { MessySheet } from "@/components/marketing/messy-sheet";
 import { ParticlesBackground } from "@/components/marketing/particles-background";
-import { ColumnsShot } from "@/components/marketing/product-shots";
+import { GovernanceShot, PipelineShot, WorkbenchShot } from "@/components/marketing/platform-shots";
 import { Reveal } from "@/components/marketing/reveal";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { body, container, delay, h2, quiet, sectionY } from "@/components/marketing/tokens";
@@ -17,22 +21,22 @@ import { Mark } from "@/components/ui/mark";
 
 const SITE_NAME = "Vyuham";
 const DESCRIPTION =
-  "Turn Excel, CSV, PostgreSQL or MySQL data into a small business dashboard. Ask in plain English and get a chart with a one-line answer. Free during the beta.";
+  "Analytics and data engineering in one workspace. Ask your data in plain English, build pipelines and self-refreshing tables in SQL, and control who sees what. Free during the beta.";
 
 export const metadata: Metadata = {
-  title: "Turn Spreadsheets Into Dashboards for Small Business",
+  title: "Analytics and Data Engineering in One Workspace",
   description: DESCRIPTION,
   alternates: { canonical: "/", types: RSS_ALTERNATE },
   openGraph: {
     type: "website",
     url: "/",
     siteName: SITE_NAME,
-    title: "Turn your spreadsheets into dashboards you can question",
+    title: "Ask your data, and build the pipelines that feed it",
     description: DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
-    title: "Turn your spreadsheets into dashboards you can question",
+    title: "Ask your data, and build the pipelines that feed it",
     description: DESCRIPTION,
   },
 };
@@ -51,8 +55,8 @@ function Eyebrow({ n, children, className = "" }: { n: string; children: React.R
 /** Product facts, not invented social proof. */
 const FACTS = [
   { label: "Works with", value: "Excel, CSV, PostgreSQL, MySQL" },
-  { label: "File size", value: "Up to 10 MB, 1M rows" },
-  { label: "Formulas needed", value: "None" },
+  { label: "Query engine", value: "DuckDB, read-only SQL" },
+  { label: "Builds", value: "Pipelines and refreshing tables" },
   { label: "Pricing", value: "Free in beta, then one flat price" },
 ];
 
@@ -97,8 +101,8 @@ function CtaRow({ note = "Free during the beta. No card needed.", className = ""
 
 /** Data-handling facts, each backed by a real setting or endpoint. Shown next to the final ask. */
 const TRUST = [
-  { icon: Lock, text: "Databases are read in read-only sessions" },
-  { icon: ShieldCheck, text: "Each company’s data is kept separately" },
+  { icon: Lock, text: "Databases are read in read-only sessions, and every query has a time limit" },
+  { icon: ShieldCheck, text: "Masking and access rules are applied inside the query engine" },
   { icon: Link2Off, text: "Nothing is public until you create a share link, and you can switch it off" },
   { icon: Download, text: "Download your data or delete your workspace from your profile" },
 ];
@@ -106,35 +110,40 @@ const TRUST = [
 const BETA_INCLUDES = [
   "Excel and CSV uploads, up to 10 MB and 1 million rows per file",
   "PostgreSQL and MySQL connections that refresh hourly or daily",
-  "Plain-English questions, dashboards and SQL Lab",
-  "Team invites, read-only share links and PDF export",
+  "Plain-English questions, dashboards, alerts and scheduled reports",
+  "SQL Workbench, pipelines and dynamic tables",
+  "Sensitive-data scanning, masking, access rules and the audit log",
+  "Workload and cost reports, team invites, share links and PDF export",
 ];
 
-const MOMENTS: { when: string; text: React.ReactNode }[] = [
+const MOMENTS: { when: string; who: string; text: React.ReactNode }[] = [
   {
     when: "Monday, 9:02",
+    who: "The person who needs the number",
     text: (
       <>
         Your co-founder asks if sales are up. You open four spreadsheets, copy columns into a fifth and fight a #REF!
-        error. Forty minutes later the answer is <Mark>“roughly, yes.”</Mark> Nobody is sure what “roughly” covers.
+        error. Forty minutes later the answer is <Mark>“roughly, yes.”</Mark>
+      </>
+    ),
+  },
+  {
+    when: "Monday, 9:40",
+    who: "The person who prepares it",
+    text: (
+      <>
+        The nightly script that cleans the orders export failed on Saturday. Nobody noticed, so the dashboard has shown
+        Friday’s numbers all weekend. The cron log says <Mark>“exit code 1.”</Mark>
       </>
     ),
   },
   {
     when: "Three months later",
+    who: "Both of you",
     text: (
       <>
-        A client went quiet in July. You find out in October, when an invoice doesn’t go out. The signal sat in your
-        data the whole time, and <Mark>nobody had time to look.</Mark>
-      </>
-    ),
-  },
-  {
-    when: "Day 9 of the trial",
-    text: (
-      <>
-        You tried Power BI. It wanted a data model, DAX formulas and a weekend of tutorials. By day 9 you were back in
-        Excel, and the <Mark>spreadsheet had won by default.</Mark>
+        A client asks who can see their customers’ emails. The data sits in a script, a BI tool and two shared drives,
+        and <Mark>nobody can give a straight answer.</Mark>
       </>
     ),
   },
@@ -142,31 +151,70 @@ const MOMENTS: { when: string; text: React.ReactNode }[] = [
 
 const STEPS: { title: string; text: React.ReactNode }[] = [
   {
-    title: "Bring your data",
+    title: "Connect",
     text: (
       <>
-        Drop in an Excel or CSV file, or connect PostgreSQL or MySQL. Vyuham labels every column as a number, date,
-        category or text, and <Mark>you can correct any label.</Mark>
+        Upload Excel or CSV, or connect PostgreSQL or MySQL. Every column is labelled as a number, date, category or
+        text, and <Mark>you can correct any label.</Mark>
       </>
     ),
   },
   {
-    title: "Ask in plain English",
+    title: "Build",
     text: (
       <>
-        Type “Top 5 customers by revenue” and you get <Mark>a one-line answer and the right chart.</Mark> If Vyuham
-        can’t match your words to a column, it says so and suggests questions that will work.
+        Clean and join the data with a pipeline, a SQL query or a dynamic table that <Mark>refreshes on its own.</Mark>{" "}
+        Or describe what you need and let the AI draft it.
       </>
     ),
   },
   {
-    title: "Save it and share it",
+    title: "Ask and share",
     text: (
       <>
-        Pin answers to a dashboard, or start from one Vyuham builds for you. Then invite your team, export a PDF or{" "}
-        <Mark>send a read-only link.</Mark>
+        Type “Top 5 customers by revenue” and get <Mark>a one-line answer with the chart.</Mark> Pin it to a dashboard,
+        set an alert or send a read-only link.
       </>
     ),
+  },
+  {
+    title: "Govern",
+    text: (
+      <>
+        Find columns with emails, phone numbers or IDs, mask them for the people who shouldn’t see them, and read{" "}
+        <Mark>who exported what, and when.</Mark>
+      </>
+    ),
+  },
+];
+
+type Feature = { icon: LucideIcon; name: string; text: string; href: string };
+
+/** Every major feature, split by who uses it. Each links to the section that explains it. */
+const PLATFORM: { title: string; intro: string; items: Feature[] }[] = [
+  {
+    title: "For people who need answers",
+    intro: "Owners, managers and anyone who asks “how are we doing?”",
+    items: [
+      { icon: MessageSquareText, name: "Ask in plain English", text: "Totals, rankings and trends, with a one-line answer and the chart.", href: "#analytics" },
+      { icon: LayoutDashboard, name: "Dashboards that explain themselves", text: "Every chart opens with its headline. One date filter moves them all.", href: "#dashboards" },
+      { icon: Sigma, name: "Shared metrics", text: "Define “revenue” once, test it, and every chart uses the same formula.", href: "#dashboards" },
+      { icon: BellRing, name: "Alerts and scheduled reports", text: "Hear when a number crosses a line. Get the PDF or CSV every Monday.", href: "#dashboards" },
+      { icon: Globe, name: "Share links and PDF", text: "A read-only view for investors or clients that you can switch off.", href: "#dashboards" },
+    ],
+  },
+  {
+    title: "For people who build data",
+    intro: "Analysts and engineers, or the one person who is both.",
+    items: [
+      { icon: Workflow, name: "Pipelines", text: "Read, clean, check and write Bronze, Silver and Gold tables on a canvas.", href: "#pipelines" },
+      { icon: Sparkles, name: "AI Data Engineer", text: "Describe the pipeline. It drafts the steps from your real tables and waits for approval.", href: "#pipelines" },
+      { icon: Code2, name: "SQL Workbench", text: "Tabs, autocomplete, query plans, parameters and AI help to write or fix a query.", href: "#workbench" },
+      { icon: RefreshCcwDot, name: "Dynamic tables", text: "Tables defined by SQL that refresh on schedule, in dependency order.", href: "#workbench" },
+      { icon: GitBranch, name: "Quality checks and lineage", text: "Rules on every table, and a map of what each one was built from.", href: "#pipelines" },
+      { icon: ShieldCheck, name: "Governance", text: "Sensitive-data scanning, masking, column access and an audit log.", href: "#governance" },
+      { icon: Gauge, name: "Workload and cost", text: "Which queries and pipelines use the most time, and what that costs at your rates.", href: "#governance" },
+    ],
   },
 ];
 
@@ -178,38 +226,58 @@ const OLD_WAY = [
   ["9:44", "“Roughly yes, I think?”"],
 ];
 
-const MESSY_FIXES = [
-  { label: "Column types", text: "Numbers, dates, categories and text are labelled when the file arrives." },
-  { label: "Your corrections", text: "If a customer ID gets read as a number, change it once and later charts use the fix." },
-  { label: "Files that belong together", text: "SQL Lab spots when “customer” in one table looks like “company_name” in another and suggests the join." },
+const PIPELINE_POINTS = [
+  { label: "Steps on a canvas", text: "Read a dataset, remove duplicates, run checks, transform in SQL and write a table. Each step shows its rows." },
+  { label: "Medallion layers", text: "Raw reads land in Bronze, cleaned rows in Silver, business tables in Gold." },
+  { label: "Failures you can read", text: "Every step keeps its log. Fix the step that failed and retry only that part." },
+  { label: "Replace, append or incremental", text: "Incremental writes add rows newer than a date or ID column you choose." },
 ];
 
-const DATABASE_FACTS = [
-  { label: "Read-only sessions", text: "Every connection is opened read-only, and queries have a time limit." },
+const AI_POINTS = [
+  "It reads your real table and column names. If the data you asked about isn’t there, it says so.",
+  "Every step it writes is checked against your tables before you see it.",
+  "Nothing it drafts runs until a person approves it. A later AI change needs approval again.",
+  "Debug a failed run: it reads the logs, explains the error and proposes a checked fix.",
+];
+
+const WORKBENCH_POINTS = [
+  { label: "SQL Workbench", text: "Open several queries in tabs, autocomplete tables and columns, read the query plan, add {{parameters}} and cancel a slow query. Ask the AI to write, explain, fix or optimize SQL, or turn it into pandas." },
+  { label: "Dynamic tables", text: "Save a query as a table and choose how fresh it should be. Vyuham works out what it depends on, refuses loops, refreshes upstream tables first, retries failures and keeps a history of every refresh." },
+];
+
+const GOVERNANCE_POINTS = [
+  { label: "Find sensitive data", text: "The scanner flags emails, phone numbers, names, addresses, card numbers and government IDs. It stores counts, never the values." },
+  { label: "Mask it at the source", text: "Partial, hashed, redacted or hidden, per role. The rule holds in queries, exports, dashboards, shared links and AI requests." },
+  { label: "Read the audit log", text: "Who read which dataset, who changed a permission or policy, who exported data, and when." },
+  { label: "See what work costs", text: "Rank queries and pipelines by the time they use, spot repeats and idle tables, and set a budget. Costs are estimated from rates you enter." },
+];
+
+const DATA_FACTS = [
+  { label: "Read-only sessions", text: "Every database connection is opened read-only, and queries have a time limit." },
   { label: "Encrypted password", text: "Your database password is stored encrypted and never shown again." },
-  { label: "SSL by default", text: "New connections require SSL unless you turn it off yourself." },
   { label: "Your choice of tables", text: "Only the tables you pick are copied into your workspace." },
+  { label: "Messy files are fine", text: "One header row and one record per row. Correct a column type once and later charts use the fix." },
 ];
 
 const COMPARE = [
-  { topic: "Getting started", them: "Build a data model first", us: "Start from the file you already have" },
-  { topic: "Setup time", them: "Days to weeks of setup", us: "Your first chart in minutes" },
-  { topic: "Who can use it", them: "Someone trained in the tool", us: "Anyone who can type a question" },
-  { topic: "Who maintains it", them: "Usually an analyst", us: "Whoever owns the numbers" },
-  { topic: "Calculations", them: "DAX and calculated fields", us: "Short questions in plain English" },
-  { topic: "What you get", them: "Charts you have to interpret", us: "A one-line answer with the chart" },
-  { topic: "Pricing", them: "Per person, per month", us: "One price for the whole company" },
+  { topic: "Where the work lives", them: "A BI tool, a pipeline tool and scripts", us: "One workspace for both" },
+  { topic: "Copies of the data", them: "One per tool, drifting apart", us: "One copy, every tool reads it" },
+  { topic: "Access rules", them: "Set again in each tool", us: "Set once, enforced on every query" },
+  { topic: "Getting a number", them: "Ask whoever built the report", us: "Type the question" },
+  { topic: "When a job fails", them: "A cron log someone checks later", us: "The failed step, its log and a retry button" },
+  { topic: "Pricing", them: "Several licences, often per person", us: "One price for the whole company" },
 ];
 
 /** `text` is the plain-text answer used for the FAQPage structured data. */
 const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
   {
-    q: "How do I turn a spreadsheet into a dashboard?",
-    text: "Upload your Excel or CSV file and choose to have a starter dashboard built from your columns. Edit it, ask more questions and save any answer to the dashboard.",
+    q: "Who is Vyuham for?",
+    text: "Teams where some people need answers and someone prepares the data, or one person does both. Business users ask questions and read dashboards. Analysts and engineers build pipelines, SQL and dynamic tables on the same data.",
     a: (
       <>
-        Upload your Excel or CSV file and choose to have <Mark>a starter dashboard built from your columns</Mark>. Edit
-        it, ask more questions and save any answer to the dashboard.
+        Teams where some people need answers and someone prepares the data, or one person does both. Business users ask
+        questions and read dashboards. Analysts and engineers build <Mark>pipelines, SQL and dynamic tables</Mark> on the
+        same data.
       </>
     ),
   },
@@ -234,31 +302,98 @@ const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
   },
   {
     q: "Can I try it before I sign up?",
-    text: "Yes. The Try Vyuham page has a small online shop’s sales data. Pick a question and see the answer and chart without creating an account.",
+    text: "Yes. The Try Vyuham page has a small online shop’s sales data. Pick a question and see the answer and chart without creating an account. Pipelines, SQL and governance open with a free account.",
     a: (
       <>
-        Yes. <Link href="/try" className="text-highlight underline-offset-4 hover:underline">Try Vyuham</Link> has a small online shop’s sales data. Pick a question and see the answer and chart <Mark>without creating an account.</Mark>
+        Yes. <Link href="/try" className="text-highlight underline-offset-4 hover:underline">Try Vyuham</Link> has a small online shop’s sales data. Pick a question and see the answer and chart <Mark>without creating an account.</Mark> Pipelines, SQL and governance open with a free account.
       </>
     ),
   },
   {
     q: "What kinds of questions can I ask?",
-    text: "Totals, averages, counts, rankings and breakdowns over time or by category. “Revenue by month”, “Top 5 products by revenue” and “How many orders in North” all work. Naming a column helps. Vyuham can show you what changed, but it can’t explain why.",
+    text: "Totals, averages, counts, rankings and breakdowns over time or by category. “Revenue by month”, “Top 5 products by revenue” and “How many orders in North” all work. For anything more involved, write SQL in the SQL Workbench.",
     a: (
       <>
         Totals, averages, counts, rankings and breakdowns over time or by category.{" "}
-        <Mark>“Revenue by month”, “Top 5 products by revenue” and “How many orders in North”</Mark> all work. Naming a
-        column helps. Vyuham can show you what changed, but it can’t explain why.
+        <Mark>“Revenue by month”, “Top 5 products by revenue” and “How many orders in North”</Mark> all work. For
+        anything more involved, write SQL in the SQL Workbench.
       </>
     ),
   },
   {
-    q: "My spreadsheets are a mess. Will it still work?",
-    text: "Usually, if there’s one header row and one record per row. Vyuham works out your column types, and you can correct them. Tidy labels first, because “Paid” and “PAID” count as two different values.",
+    q: "Can I build data pipelines in Vyuham?",
+    text: "Yes. A pipeline reads datasets, removes duplicates, runs quality checks, transforms rows in SQL and writes Bronze, Silver or Gold tables. It runs on demand, hourly or daily in the background, with a log for every step and a retry for the steps that failed.",
     a: (
       <>
-        Usually, if there’s <Mark>one header row and one record per row</Mark>. Vyuham works out your column types, and
-        you can correct them. Tidy labels first, because “Paid” and “PAID” count as two different values.
+        Yes. A pipeline reads datasets, removes duplicates, runs quality checks, transforms rows in SQL and writes Bronze,
+        Silver or Gold tables. It runs on demand, hourly or daily in the background, with <Mark>a log for every step</Mark>{" "}
+        and a retry for the steps that failed.
+      </>
+    ),
+  },
+  {
+    q: "What are dynamic tables?",
+    text: "Tables defined by a SQL query that Vyuham keeps up to date. You choose how fresh each one should be, or refresh it when a table it reads changes. Refreshes run in dependency order, and every one is recorded with its rows, time and any error. Incremental refresh appends newer rows and suits tables that only grow; anything else uses a full refresh.",
+    a: (
+      <>
+        Tables defined by a SQL query that Vyuham keeps up to date. You choose how fresh each one should be, or refresh it
+        when a table it reads changes. Refreshes run <Mark>in dependency order</Mark>, and every one is recorded.
+        Incremental refresh appends newer rows and suits tables that only grow; anything else uses a full refresh.
+      </>
+    ),
+  },
+  {
+    q: "Does Vyuham use AI?",
+    text: "In two places, when AI is switched on: SQL help in the SQL Workbench and the AI Data Engineer for pipelines. The AI sees table and column names, never masked or sensitive values. Its SQL is checked against your tables first, and nothing it writes runs until a person approves it. Plain-English questions on dashboards use rules and a real query, so every number comes from your data.",
+    a: (
+      <>
+        In two places, when AI is switched on: SQL help in the SQL Workbench and the AI Data Engineer for pipelines. The
+        AI sees table and column names, never masked or sensitive values, and <Mark>nothing it writes runs until a
+        person approves it.</Mark> Plain-English questions on dashboards use rules and a real query, so every number
+        comes from your data.
+      </>
+    ),
+  },
+  {
+    q: "How is sensitive data protected?",
+    text: "A scanner flags columns with emails, phone numbers, names, addresses, financial details or government IDs. Masking policies and column access then apply inside the query engine, so queries, previews, exports, dashboards, shared links and AI requests all see the masked value. Owners always see full values, and every change is in the audit log.",
+    a: (
+      <>
+        A scanner flags columns with emails, phone numbers, names, addresses, financial details or government IDs.
+        Masking and column access then apply <Mark>inside the query engine</Mark>, so queries, exports, dashboards,
+        shared links and AI requests all see the masked value. Every change is in the audit log.
+      </>
+    ),
+  },
+  {
+    q: "Can it replace dbt or Airflow?",
+    text: "For SQL pipelines on the data inside Vyuham, often yes: steps, schedules, checks, lineage and retries are built in. Python steps are generated for you to export to your own orchestrator; Vyuham runs the SQL. If you already run Airflow, Airbyte or cron, a refresh hook lets them trigger Vyuham.",
+    a: (
+      <>
+        For SQL pipelines on the data inside Vyuham, often yes: steps, schedules, checks, lineage and retries are built in.
+        Python steps are generated for export, and <Mark>Vyuham runs the SQL.</Mark> If you already run Airflow, Airbyte or
+        cron, a refresh hook lets them trigger Vyuham.
+      </>
+    ),
+  },
+  {
+    q: "How are costs calculated?",
+    text: "Vyuham measures what your work uses: query and pipeline time, data stored, data scanned and AI tokens. You enter your own rates, and it multiplies them out. It isn’t connected to a cloud bill, so it never shows one; billed cost is marked as not connected.",
+    a: (
+      <>
+        Vyuham measures what your work uses: query and pipeline time, data stored, data scanned and AI tokens. You enter
+        your own rates, and it multiplies them out. It isn’t connected to a cloud bill, so <Mark>it never shows one.</Mark>
+      </>
+    ),
+  },
+  {
+    q: "Can Vyuham change anything in my database?",
+    text: "Vyuham connects in read-only sessions and copies the tables you choose into your workspace. Pipelines and dynamic tables write to tables inside Vyuham, never to your database. Your password is stored encrypted. We still recommend a database user that can only read those tables.",
+    a: (
+      <>
+        Vyuham connects in <Mark>read-only sessions</Mark> and copies the tables you choose into your workspace.
+        Pipelines and dynamic tables write to tables inside Vyuham, never to your database. We still recommend a database
+        user that can only read those tables.
       </>
     ),
   },
@@ -268,36 +403,6 @@ const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
     a: (
       <>
         Up to <Mark>10 MB and 1 million rows</Mark> per Excel or CSV file. For larger data, connect PostgreSQL or MySQL and choose the tables you need.
-      </>
-    ),
-  },
-  {
-    q: "Who can see my data?",
-    text: "Your team. Each company’s data is kept separately, and a dashboard is only public if you create a share link for it. You can turn a link off at any time.",
-    a: (
-      <>
-        Your team. Each company’s data is kept separately, and a dashboard is only public if{" "}
-        <Mark>you create a share link</Mark> for it. You can turn a link off at any time.
-      </>
-    ),
-  },
-  {
-    q: "Can Vyuham change anything in my database?",
-    text: "Vyuham connects in read-only sessions and copies the tables you choose into your workspace for analysis. Your password is stored encrypted. We still recommend a dedicated database user that can only read those tables.",
-    a: (
-      <>
-        Vyuham connects in <Mark>read-only sessions</Mark> and copies the tables you choose into your workspace for
-        analysis. Your password is stored encrypted. We still recommend a dedicated database user that can only read
-        those tables.
-      </>
-    ),
-  },
-  {
-    q: "Can I export or delete my data?",
-    text: "Yes. From your profile you can download a copy of your data. Workspace owners can delete the workspace, which permanently removes its datasets and dashboards, and anyone can delete their own account.",
-    a: (
-      <>
-        Yes. From your profile you can <Mark>download a copy of your data.</Mark> Workspace owners can delete the workspace, which permanently removes its datasets and dashboards, and anyone can delete their own account.
       </>
     ),
   },
@@ -312,32 +417,21 @@ const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
     ),
   },
   {
-    q: "Does Vyuham use AI?",
-    text: "Not yet. Today it matches your words to your columns using rules, then runs a real query, so every number comes from your data. If a question doesn’t match, it tells you instead of guessing.",
+    q: "Can I export or delete my data?",
+    text: "Yes. From your profile you can download a copy of your data. Workspace owners can delete the workspace, which permanently removes its datasets, pipelines and dashboards, and anyone can delete their own account.",
     a: (
       <>
-        Not yet. Today it matches your words to your columns using rules, then runs a real query, so{" "}
-        <Mark>every number comes from your data.</Mark> If a question doesn’t match, it tells you instead of guessing.
+        Yes. From your profile you can <Mark>download a copy of your data.</Mark> Workspace owners can delete the workspace, which permanently removes its datasets, pipelines and dashboards, and anyone can delete their own account.
       </>
     ),
   },
   {
-    q: "Is this a Power BI or Tableau alternative?",
-    text: "For small teams without an analyst, yes. Power BI and Tableau go much deeper and suit companies with someone to build and maintain reports. Vyuham is for the founder, manager or owner who is the data team.",
+    q: "What happens to my work after the beta?",
+    text: "You keep everything you built: datasets, pipelines, dynamic tables, dashboards and share links. Nothing is deleted when the beta ends.",
     a: (
       <>
-        For small teams without an analyst, yes. Power BI and Tableau go much deeper and suit companies with someone to
-        build and maintain reports. Vyuham is for the founder, manager or owner who <Mark>is the data team.</Mark>
-      </>
-    ),
-  },
-  {
-    q: "What happens to my dashboards after the beta?",
-    text: "You keep everything you built: datasets, dashboards, saved answers and share links. Nothing is deleted when the beta ends.",
-    a: (
-      <>
-        <Mark>You keep everything you built</Mark>: datasets, dashboards, saved answers and share links. Nothing is
-        deleted when the beta ends.
+        <Mark>You keep everything you built</Mark>: datasets, pipelines, dynamic tables, dashboards and share links.
+        Nothing is deleted when the beta ends.
       </>
     ),
   },
@@ -365,6 +459,21 @@ const JSON_LD = {
     },
   ],
 };
+
+function Points({ items }: { items: { label: string; text: string }[] }) {
+  return (
+    <ul className="flex max-w-[50ch] flex-col gap-4 border-t border-white/10 pt-6">
+      {items.map((f) => (
+        <li key={f.label} className="grid grid-cols-[20px_1fr] gap-3 text-[16px] font-light leading-relaxed text-white/75">
+          <Check className="mt-1 size-4 text-accent" strokeWidth={2.4} aria-hidden />
+          <span>
+            <strong className="font-semibold text-white">{f.label}.</strong> {f.text}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 export default function LandingPage() {
   return (
@@ -399,18 +508,18 @@ export default function LandingPage() {
               <div data-animate className="flex flex-col gap-6">
                 <h2 className={h2}>
                   <Eyebrow n="01" className="mb-6 flex">The problem</Eyebrow>
-                  You have the data. <span className={`block ${quiet}`}>You just can’t see it.</span>
+                  One set of numbers. <span className={`block ${quiet}`}>Too many places to keep them.</span>
                 </h2>
                 <p className={`${body} max-w-[46ch]`}>
-                  Small businesses run on spreadsheets: sales in one file, invoices in another, the bank export in a
-                  third. Simple questions about revenue, margins or cash take hours of copying and checking. Business
-                  intelligence tools could help, but <Mark>they’re built for companies with a data team.</Mark>
+                  The people who ask the questions work in spreadsheets and a BI tool. The people who prepare the data
+                  work in scripts, cron jobs and a separate pipeline tool. Each side waits on the other, and{" "}
+                  <Mark>nobody owns the whole picture.</Mark>
                 </p>
               </div>
               <ol className="flex flex-col">
                 {MOMENTS.map((m, i) => (
                   <li key={m.when} data-animate style={delay(i * 100)} className="border-t border-white/10 py-6">
-                    <p className="font-mono text-[13px] text-accent">{m.when}</p>
+                    <p className="font-mono text-[13px] text-accent">{m.when} <span className="text-white/45">· {m.who}</span></p>
                     <p className="mt-2 text-[17px] leading-relaxed text-white/80">{m.text}</p>
                   </li>
                 ))}
@@ -422,21 +531,21 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 2 · How it works — band, three steps */}
+        {/* 2 · How it works — band, four steps */}
         <section id="how-it-works" className={`band relative isolate scroll-mt-4 ${sectionY}`}>
           <div className="glow glow--lilac left-[-5%] top-[20%] h-[380px] w-[520px]" />
           <div className={container}>
             <div data-animate className="mb-14 grid gap-6 lg:grid-cols-[5fr_6fr] lg:items-end">
               <h2 className={h2}>
                 <Eyebrow n="02" className="mb-6 flex">How it works</Eyebrow>
-                From spreadsheet to dashboard <span className={quiet}>in three steps.</span>
+                From raw tables to answers <span className={quiet}>in one workspace.</span>
               </h2>
               <p className={`${body} max-w-[46ch]`}>
-                Everything happens in your browser. If you can write an email, you can get{" "}
-                <Mark>answers from your business data.</Mark>
+                Everything happens in your browser, on one copy of your data. Builders shape it, everyone else{" "}
+                <Mark>asks it questions</Mark>, and the same access rules cover both.
               </p>
             </div>
-            <ol className="grid gap-4 md:grid-cols-3">
+            <ol className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               {STEPS.map((s, i) => (
                 <li
                   key={s.title}
@@ -450,22 +559,61 @@ export default function LandingPage() {
                 </li>
               ))}
             </ol>
-            <CtaRow className="mt-12" note="Step one needs a free account. To see steps two and three first, try the sample. No sign-up." />
+            <CtaRow className="mt-12" note="The sample shows the asking side, with no sign-up. Building starts with a free account." />
           </div>
         </section>
 
-        {/* 3 · Same question, two ways — black */}
-        <section id="product" className={`relative isolate scroll-mt-4 ${sectionY}`}>
-          <div className="glow glow--violet right-[0%] top-[55%] h-[460px] w-[620px]" />
+        {/* 3 · The platform — every feature, by who uses it */}
+        <section id="platform" className={`relative isolate scroll-mt-4 ${sectionY}`}>
+          <div className="glow glow--violet right-[0%] top-[30%] h-[460px] w-[620px]" />
+          <div className={container}>
+            <div data-animate className="mb-14 grid gap-6 lg:grid-cols-[5fr_6fr] lg:items-end">
+              <h2 className={h2}>
+                <Eyebrow n="03" className="mb-6 flex">The platform</Eyebrow>
+                Two kinds of work. <span className={quiet}>The same data.</span>
+              </h2>
+              <p className={`${body} max-w-[46ch]`}>
+                What a pipeline writes, a dashboard reads. What a policy masks stays masked in a chart, an export and an
+                AI request. <Mark>Here’s everything in the workspace.</Mark>
+              </p>
+            </div>
+            <div className="grid gap-4 lg:grid-cols-2">
+              {PLATFORM.map((col, ci) => (
+                <div key={col.title} data-animate style={delay(ci * 120)} className="flex flex-col rounded-[16px] border border-white/10 bg-black/40 p-6 sm:p-8">
+                  <h3 className="text-[22px] font-semibold tracking-[-0.02em] text-white">{col.title}</h3>
+                  <p className="mt-1 text-[15px] text-white/55">{col.intro}</p>
+                  <ul className="mt-6 flex flex-col">
+                    {col.items.map(({ icon: Icon, name, text, href }) => (
+                      <li key={name} className="border-t border-white/10">
+                        <a href={href} className="group grid grid-cols-[36px_1fr] gap-3 py-4">
+                          <span className="flex size-9 items-center justify-center rounded-[10px] border border-white/10 bg-white/[0.04]">
+                            <Icon className="size-4 text-highlight" strokeWidth={2} aria-hidden />
+                          </span>
+                          <span>
+                            <span className="block text-[16px] font-medium text-white group-hover:text-highlight">{name}</span>
+                            <span className="block text-[15px] font-light leading-relaxed text-white/65">{text}</span>
+                          </span>
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* 4 · Analytics: the same question, two ways — band */}
+        <section id="analytics" className={`band relative isolate scroll-mt-4 ${sectionY}`}>
           <div className={container}>
             <div data-animate className="flex flex-col gap-6">
-              <Eyebrow n="03">The same question, two ways</Eyebrow>
+              <Eyebrow n="04">Analytics</Eyebrow>
               <p className="max-w-[22ch] text-[clamp(40px,5.6vw,76px)] font-extralight leading-[1.04] tracking-[-0.03em] text-white">
                 “Are we selling more than last month?”
               </p>
               <p className={`${body} max-w-[56ch]`}>
-                Your co-founder’s question, answered twice. On the left, the spreadsheet routine most small teams know
-                too well. On the right, you type <Mark>“Revenue by month”</Mark> and read the result.
+                Your co-founder’s question, answered twice. On the left, the spreadsheet routine most teams know too well.
+                On the right, you type <Mark>“Revenue by month”</Mark> and read the result.
               </p>
             </div>
 
@@ -507,7 +655,7 @@ export default function LandingPage() {
 
             <div data-animate className="mt-20" style={delay(100)}>
               <LazyLiveDashboard />
-              <p className="mt-4 text-center text-[13px] text-white/40">Sample data, animated to show the layout. Your dashboards update when you replace a file or a database table syncs.</p>
+              <p className="mt-4 text-center text-[13px] text-white/40">Sample data, animated to show the layout. Your dashboards update when a file is replaced, a table syncs or a pipeline writes.</p>
               <div className="mt-8 flex justify-center">
                 <SecondaryCta>Ask the sample data a question</SecondaryCta>
               </div>
@@ -515,106 +663,36 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 4 · Messy data, handled — band, media left */}
-        <section className={`band ${sectionY}`}>
-          <div className={`${container} grid items-center gap-16 lg:grid-cols-[6fr_5fr]`}>
-            <div data-animate className="order-2 lg:order-1">
-              <ColumnsShot />
-            </div>
-            <div data-animate className="order-1 flex flex-col gap-6 lg:order-2" style={delay(120)}>
-              <Eyebrow n="04">Your data as it is</Eyebrow>
-              <h2 className={h2}>
-                Bring the file you have. <span className={quiet}>Vyuham reads the columns.</span>
-              </h2>
-              <p className={`${body} max-w-[44ch]`}>
-                Export it from your accounting tool, your CRM or the shared drive. One header row and one record per
-                row is all Vyuham needs. <Mark>Your original file stays as it is.</Mark>
-              </p>
-              <ul className="flex max-w-[46ch] flex-col gap-4 border-t border-white/10 pt-6">
-                {MESSY_FIXES.map((f) => (
-                  <li key={f.label} className="grid grid-cols-[20px_1fr] gap-3 text-[16px] font-light leading-relaxed text-white/75">
-                    <Check className="mt-1 size-4 text-accent" strokeWidth={2.4} aria-hidden />
-                    <span>
-                      <strong className="font-semibold text-white">{f.label}.</strong> {f.text}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* 5 · Databases — black, full-width breathing visual */}
-        <section id="databases" className={`scroll-mt-4 ${sectionY}`}>
+        {/* 5 · Dashboards and day to day — black */}
+        <section id="dashboards" className={`scroll-mt-4 ${sectionY}`}>
           <div className={container}>
-            <div data-animate className="mb-14 grid gap-6 lg:grid-cols-[5fr_6fr] lg:items-end">
-              <h2 className={`${h2} max-w-[18ch]`}>
-                <Eyebrow n="05" className="mb-6 flex">Databases</Eyebrow>
-                Connect your database. <span className={quiet}>Vyuham only reads.</span>
-              </h2>
-              <p className={`${body} max-w-[46ch]`}>
-                Point Vyuham at PostgreSQL or MySQL, choose the tables you care about and set them to refresh every hour
-                or every day. In SQL Lab, you can <Mark>join a synced table with an uploaded CSV.</Mark>
-              </p>
+            <div className="grid items-center gap-16 lg:grid-cols-[5fr_6fr]">
+              <div data-animate className="flex flex-col gap-6">
+                <Eyebrow n="05">Dashboards</Eyebrow>
+                <h2 className={h2}>
+                  Monday morning, <span className={quiet}>already explained.</span>
+                </h2>
+                <p className={`${body} max-w-[42ch]`}>
+                  Every chart carries its headline. Revenue up 27%. Ad spend up 36%. One client at 22% of revenue.{" "}
+                  <Mark>You read the sentence first and open the chart for the detail.</Mark>
+                </p>
+                <p className={`${body} max-w-[42ch]`}>
+                  Define a metric like “revenue” once and every chart uses it. Set an alert for when it drops, or have the
+                  dashboard sent as a PDF every Monday.
+                </p>
+              </div>
+              <div data-animate style={delay(120)}>
+                <LazyStoryFeed />
+              </div>
             </div>
-            <div data-animate style={delay(100)} className="dark mx-auto max-w-[920px]">
-              <IntegrationGrid
-                logos={DATABASE_LOGOS}
-                mark={<LogoMark />}
-                label="Vyuham connects to PostgreSQL, MySQL and MariaDB, including databases hosted on Supabase, Neon, DigitalOcean, Google Cloud, Render, Railway and Vultr."
-              />
-            </div>
-            <dl data-animate style={delay(160)} className="mt-14 grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
-              {DATABASE_FACTS.map((f) => (
-                <div key={f.label} className="flex flex-col gap-2 border-l border-white/10 pl-5">
-                  <dt className="text-[16px] font-semibold text-white">{f.label}</dt>
-                  <dd className="text-[15px] font-light leading-relaxed text-white/65">{f.text}</dd>
-                </div>
-              ))}
-            </dl>
-            <p className="mt-10 max-w-[72ch] text-[13px] leading-relaxed text-white/40">
-              PostgreSQL and MySQL are the supported connection types, and MariaDB connects through the MySQL option. The
-              other logos are examples of services that host these databases. They aren’t partners or endorsements.
-            </p>
-          </div>
-        </section>
 
-        {/* 6 · Dashboards that explain themselves — band, media right */}
-        <section id="features" className={`band scroll-mt-4 ${sectionY}`}>
-          <div className={`${container} grid items-center gap-16 lg:grid-cols-[5fr_6fr]`}>
-            <div data-animate className="flex flex-col gap-6">
-              <Eyebrow n="06">Dashboards</Eyebrow>
-              <h2 className={h2}>
-                Monday morning, <span className={quiet}>already explained.</span>
-              </h2>
-              <p className={`${body} max-w-[42ch]`}>
-                Every chart carries its headline. Revenue up 27%. Ad spend up 36%. One client at 22% of revenue.{" "}
-                <Mark>You read the sentence first and open the chart for the detail.</Mark>
-              </p>
-              <p className={`${body} max-w-[42ch]`}>
-                Set the date filter once and the whole dashboard follows it.
-              </p>
-            </div>
-            <div data-animate style={delay(120)}>
-              <LazyStoryFeed />
-            </div>
-          </div>
-        </section>
-
-        {/* 7 · Day-to-day — black, asymmetric 2 + 1 */}
-        <section className={sectionY}>
-          <div className={container}>
-            <Eyebrow n="07" className="mb-6">Day to day</Eyebrow>
-            <h2 data-animate className={`${h2} mb-14 max-w-[22ch]`}>
-              Keep the spreadsheet. <span className={quiet}>Lose the busywork.</span>
-            </h2>
-            <div className="grid gap-4 md:grid-cols-[3fr_2fr]">
+            <div className="mt-16 grid gap-4 md:grid-cols-[3fr_2fr]">
               <div data-animate className="flex min-h-[300px] flex-col gap-6 rounded-[16px] border border-white/10 bg-black/40 p-6 sm:p-8">
                 <div>
-                  <h3 className="text-[24px] font-semibold tracking-[-0.025em] text-white">Your database keeps changing. So does the dashboard.</h3>
+                  <h3 className="text-[24px] font-semibold tracking-[-0.025em] text-white">Your data keeps changing. So does the dashboard.</h3>
                   <p className="mt-2 max-w-[48ch] text-base font-light leading-relaxed text-white/65">
-                    Connected tables refresh every hour or every day. For files, upload the new export over the old one
-                    and <Mark>your charts stay in place.</Mark>
+                    Connected tables refresh every hour or every day, and pipelines write fresh tables on their schedule.
+                    Upload a new export over the old one and <Mark>your charts stay in place.</Mark>
                   </p>
                 </div>
                 <LazySyncCard />
@@ -634,8 +712,8 @@ export default function LandingPage() {
                     Send the board update as a link, <span className="font-light">not a 30-slide deck.</span>
                   </h3>
                   <p className="mt-3 max-w-[56ch] text-base leading-relaxed text-[#160f0a]/75">
-                    Investors, clients and teammates open a read-only view of the dashboard. You decide what’s shared,
-                    and you can switch a link off any time.
+                    Investors, clients and teammates open a read-only view. Masked columns stay masked for them, and you
+                    can switch a link off any time.
                   </p>
                 </div>
                 <div className="flex w-full min-w-0 max-w-[380px] items-center gap-2 rounded-full bg-[#160f0a] py-1.5 pl-4 pr-1.5 text-[13px] text-white/80">
@@ -650,33 +728,159 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 8 · Why not Power BI — band, sharp editorial table */}
+        {/* 6 · Pipelines and the AI Data Engineer — band, media left */}
+        <section id="pipelines" className={`band relative isolate scroll-mt-4 ${sectionY}`}>
+          <div className="glow glow--lilac right-[-5%] top-[10%] h-[380px] w-[520px]" />
+          <div className={container}>
+            <div className="grid items-center gap-16 lg:grid-cols-[6fr_5fr]">
+              <div data-animate className="order-2 lg:order-1">
+                <PipelineShot />
+                <p className="mt-4 text-center text-[13px] text-white/40">Sample run. Each step shows the rows it produced.</p>
+              </div>
+              <div data-animate className="order-1 flex flex-col gap-6 lg:order-2" style={delay(120)}>
+                <Eyebrow n="06">Pipelines</Eyebrow>
+                <h2 className={h2}>
+                  The nightly script, <span className={quiet}>where everyone can see it.</span>
+                </h2>
+                <p className={`${body} max-w-[44ch]`}>
+                  Build the clean-up and the joins as steps on a canvas. They run in the background on demand, every hour
+                  or every day, and <Mark>a failed step tells you why.</Mark>
+                </p>
+                <Points items={PIPELINE_POINTS} />
+              </div>
+            </div>
+
+            <div data-animate className="mt-16 grid gap-8 rounded-[16px] border border-white/10 bg-black/40 p-6 sm:p-8 lg:grid-cols-[5fr_6fr] lg:items-start">
+              <div>
+                <p className="flex items-center gap-2 font-mono text-[12px] uppercase tracking-[0.14em] text-highlight">
+                  <Sparkles className="size-4" aria-hidden /> AI Data Engineer
+                </p>
+                <h3 className="mt-3 text-[clamp(24px,2.6vw,32px)] font-semibold leading-[1.1] tracking-[-0.025em] text-white">
+                  Describe the pipeline. <span className="font-light text-white/70">Approve it before it runs.</span>
+                </h3>
+                <p className="mt-4 max-w-[46ch] rounded-[12px] border border-white/10 bg-white/[0.03] p-4 font-mono text-[13px] leading-relaxed text-white/70">
+                  “Every day, read orders, remove duplicates, check customer IDs, join customers and write revenue by region
+                  to a Gold table.”
+                </p>
+              </div>
+              <ul className="flex flex-col gap-4">
+                {AI_POINTS.map((p) => (
+                  <li key={p} className="grid grid-cols-[20px_1fr] gap-3 text-[16px] font-light leading-relaxed text-white/75">
+                    <Check className="mt-1 size-4 text-accent" strokeWidth={2.4} aria-hidden />
+                    {p}
+                  </li>
+                ))}
+                <li className="text-[13px] leading-relaxed text-white/45">
+                  AI features work when they’re switched on for your workspace. Python versions of steps are generated for
+                  export; Vyuham runs the SQL.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* 7 · SQL Workbench and dynamic tables — black, media right */}
+        <section id="workbench" className={`scroll-mt-4 ${sectionY}`}>
+          <div className={`${container} grid items-center gap-16 lg:grid-cols-[5fr_6fr]`}>
+            <div data-animate className="flex flex-col gap-6">
+              <Eyebrow n="07">SQL and dynamic tables</Eyebrow>
+              <h2 className={h2}>
+                Write the query once. <span className={quiet}>Keep the result fresh.</span>
+              </h2>
+              <p className={`${body} max-w-[44ch]`}>
+                The SQL Workbench reads every dataset in your workspace, read-only, with a time limit on each query. When a
+                query is worth keeping, <Mark>save it as a table that refreshes itself.</Mark>
+              </p>
+              <Points items={WORKBENCH_POINTS} />
+            </div>
+            <div data-animate style={delay(120)}>
+              <WorkbenchShot />
+            </div>
+          </div>
+        </section>
+
+        {/* 8 · Governance and cost — band, media left */}
+        <section id="governance" className={`band scroll-mt-4 ${sectionY}`}>
+          <div className={`${container} grid items-center gap-16 lg:grid-cols-[6fr_5fr]`}>
+            <div data-animate className="order-2 lg:order-1">
+              <GovernanceShot />
+            </div>
+            <div data-animate className="order-1 flex flex-col gap-6 lg:order-2" style={delay(120)}>
+              <Eyebrow n="08">Governance and cost</Eyebrow>
+              <h2 className={h2}>
+                Decide who sees what. <span className={quiet}>Once.</span>
+              </h2>
+              <p className={`${body} max-w-[44ch]`}>
+                The query engine applies the rules before any row leaves it, so a viewer gets the masked value in
+                a chart, an export and <Mark>every AI request.</Mark>
+              </p>
+              <Points items={GOVERNANCE_POINTS} />
+            </div>
+          </div>
+        </section>
+
+        {/* 9 · Your data — black, integration visual */}
+        <section id="databases" className={`scroll-mt-4 ${sectionY}`}>
+          <div className={container}>
+            <div data-animate className="mb-14 grid gap-6 lg:grid-cols-[5fr_6fr] lg:items-end">
+              <h2 className={`${h2} max-w-[18ch]`}>
+                <Eyebrow n="09" className="mb-6 flex">Your data</Eyebrow>
+                Bring files or a database. <span className={quiet}>Vyuham only reads.</span>
+              </h2>
+              <p className={`${body} max-w-[46ch]`}>
+                Upload the export from your accounting tool or CRM, or point Vyuham at PostgreSQL or MySQL and choose the
+                tables to refresh. In the SQL Workbench, <Mark>join a synced table with an uploaded CSV.</Mark>
+              </p>
+            </div>
+            <div data-animate style={delay(100)} className="dark mx-auto max-w-[920px]">
+              <IntegrationGrid
+                logos={DATABASE_LOGOS}
+                mark={<LogoMark />}
+                label="Vyuham connects to PostgreSQL, MySQL and MariaDB, including databases hosted on Supabase, Neon, DigitalOcean, Google Cloud, Render, Railway and Vultr."
+              />
+            </div>
+            <dl data-animate style={delay(160)} className="mt-14 grid gap-x-6 gap-y-8 sm:grid-cols-2 lg:grid-cols-4">
+              {DATA_FACTS.map((f) => (
+                <div key={f.label} className="flex flex-col gap-2 border-l border-white/10 pl-5">
+                  <dt className="text-[16px] font-semibold text-white">{f.label}</dt>
+                  <dd className="text-[15px] font-light leading-relaxed text-white/65">{f.text}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-10 max-w-[72ch] text-[13px] leading-relaxed text-white/40">
+              PostgreSQL and MySQL are the supported connection types, and MariaDB connects through the MySQL option. The
+              other logos are examples of services that host these databases. They aren’t partners or endorsements.
+            </p>
+          </div>
+        </section>
+
+        {/* 10 · Compared — band, sharp editorial table */}
         <section id="compare" className={`band scroll-mt-4 ${sectionY}`}>
           <div className={container}>
             <div data-animate className="mb-14 grid gap-6 lg:grid-cols-[5fr_6fr] lg:items-end">
               <h2 className={h2}>
-                <Eyebrow n="08" className="mb-6 flex">Compared</Eyebrow>
-                “Why not just use <span className={quiet}>Power BI?”</span>
+                <Eyebrow n="10" className="mb-6 flex">Compared</Eyebrow>
+                “We already have <span className={quiet}>a BI tool and some scripts.”</span>
               </h2>
               <div className="flex flex-col gap-4">
                 <p className={`${body} max-w-[46ch]`}>
-                  You can, and if you have an analyst you probably should. Power BI goes much deeper. It also expects
-                  someone to build the model and look after the reports.
+                  Most teams do. The trouble starts in the gaps between them: a copy of the data in each tool, access rules
+                  set three times, and a failed job nobody sees.
                 </p>
                 <p className={`${body} max-w-[46ch]`}>
-                  Vyuham is a <Mark>Power BI and Tableau alternative for small businesses</Mark> whose questions are about
-                  revenue, customers and costs, and whose data team is one busy person.
+                  Vyuham puts the building and the asking <Mark>on one copy of the data</Mark>. Tools like Power BI and
+                  Airflow go deeper on their own; Vyuham suits teams that want both in one place.
                 </p>
               </div>
             </div>
             <p className="mb-3 text-[13px] text-white/45 md:hidden">Swipe the table sideways to compare →</p>
             <div data-animate data-lenis-prevent-horizontal className="-mx-[clamp(16px,5vw,48px)] overflow-x-auto px-[clamp(16px,5vw,48px)]">
               <table className="w-full min-w-[640px] border-collapse text-left">
-                <caption className="sr-only">{SITE_NAME} compared with Power BI and Tableau</caption>
+                <caption className="sr-only">{SITE_NAME} compared with a separate BI tool, pipeline tool and scripts</caption>
                 <thead>
                   <tr className="border-b-2 border-white">
                     <th scope="col" className="w-[26%] py-4 pr-6 text-sm font-normal text-white/45"><span className="sr-only">Topic</span></th>
-                    <th scope="col" className="py-4 pr-6 text-sm font-normal text-white/45">Power BI, Tableau &amp; co.</th>
+                    <th scope="col" className="py-4 pr-6 text-sm font-normal text-white/45">BI tool + pipeline tool + scripts</th>
                     <th scope="col" className="bg-accent/10 px-6 py-4 text-sm font-semibold text-accent">{SITE_NAME}</th>
                   </tr>
                 </thead>
@@ -695,25 +899,25 @@ export default function LandingPage() {
                 </tbody>
               </table>
             </div>
-            <CtaRow className="mt-12" note="Free during the beta. Bring the spreadsheet you already have." />
+            <CtaRow className="mt-12" note="Free during the beta. Start with the file or database you already have." />
           </div>
         </section>
 
-        {/* 9 · Pricing — black, oversized number as the breathing moment */}
+        {/* 11 · Pricing — black, oversized number as the breathing moment */}
         <section id="pricing" className={`scroll-mt-4 ${sectionY}`}>
           <div className={`${container} grid items-end gap-12 md:grid-cols-[auto_1fr] md:gap-20`}>
             <p data-animate className="text-lit text-[clamp(112px,22vw,280px)] font-extralight leading-[0.8] tracking-[-0.06em]" aria-label="Zero dollars">
               $0
             </p>
             <div data-animate style={delay(120)} className="flex max-w-[44ch] flex-col items-start gap-6 pb-2">
-              <Eyebrow n="09">Pricing</Eyebrow>
+              <Eyebrow n="11">Pricing</Eyebrow>
               <h2 className="text-[clamp(28px,3.4vw,40px)] font-semibold leading-[1.08] tracking-[-0.03em] text-white">
                 Free while we’re in beta.
               </h2>
               <p className={body}>
                 We’re building this with our first users, so it’s free while we do. After that: one flat monthly price
-                for your whole company. <Mark>Never per seat</Mark>, so the whole team can ask questions without
-                anyone counting licenses.
+                for your whole company. <Mark>Never per seat</Mark>, so the people who ask and the people who build share
+                one bill.
               </p>
               <div className="w-full border-t border-white/10 pt-6">
                 <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-faint">Included in the beta</p>
@@ -729,7 +933,7 @@ export default function LandingPage() {
               <div className="w-full border-t border-white/10 pt-6">
                 <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-faint">When the beta ends</p>
                 <p className="mt-4 text-[16px] font-light leading-relaxed text-white/80">
-                  You keep every dataset, dashboard and share link you built. We don’t ask for a card during the
+                  You keep every dataset, pipeline, dashboard and share link you built. We don’t ask for a card during the
                   beta, so nothing is charged unless you choose a paid plan.
                 </p>
               </div>
@@ -738,11 +942,11 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 10 · FAQ — band */}
+        {/* 12 · FAQ — band */}
         <section id="faq" className={`band scroll-mt-4 ${sectionY}`}>
           <div className={`${container} grid gap-12 lg:grid-cols-[4fr_7fr]`}>
             <h2 data-animate className={h2}>
-              <Eyebrow n="10" className="mb-6 flex">FAQ</Eyebrow>
+              <Eyebrow n="12" className="mb-6 flex">FAQ</Eyebrow>
               Questions <span className={quiet}>people ask us.</span>
             </h2>
             <div data-animate className="border-t-2 border-white">
@@ -759,7 +963,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 11 · Final CTA — bookends the hero */}
+        {/* 13 · Final CTA — bookends the hero */}
         <section className="px-2 pb-2 sm:px-3 sm:pb-3">
           <div className="theme-dark dark hero-panel relative isolate mx-auto flex min-h-[560px] max-w-[1440px] flex-col items-center overflow-hidden rounded-[28px] border border-white/[0.06] px-5 pt-[clamp(72px,10vw,120px)] text-center sm:rounded-[36px]">
             <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
@@ -775,11 +979,11 @@ export default function LandingPage() {
             </div>
             <div className="hero-fade pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[30%]" aria-hidden />
             <h2 data-animate className="max-w-[16ch] text-[clamp(44px,7vw,88px)] font-semibold leading-[1] tracking-[-0.035em] text-white">
-              Close the spreadsheet. <span className="font-extralight tracking-[-0.02em] text-highlight">Ask the question.</span>
+              Ask the question. <span className="font-extralight tracking-[-0.02em] text-highlight">Build what answers it.</span>
             </h2>
-            <p data-animate style={delay(80)} className="mt-6 max-w-[48ch] text-[17px] font-light leading-relaxed text-white/75">
-              Create a free account, upload a file and ask what you want to know. You’ll{" "}
-              <Mark>get your first answer in minutes</Mark>. No card needed.
+            <p data-animate style={delay(80)} className="mt-6 max-w-[50ch] text-[17px] font-light leading-relaxed text-white/75">
+              Create a free account, upload a file or connect a database, and{" "}
+              <Mark>get your first answer in minutes</Mark>. Your first pipeline can run the same day. No card needed.
             </p>
             <div data-animate className="mt-10 flex flex-wrap justify-center gap-3" style={delay(160)}>
               <PrimaryCta />
@@ -806,3 +1010,4 @@ export default function LandingPage() {
     </>
   );
 }
+

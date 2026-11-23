@@ -8,7 +8,7 @@ import { SiteHeader } from "@/components/marketing/site-header";
 import { formatDate, getAllPosts } from "@/lib/blog";
 import { RSS_ALTERNATE } from "@/lib/site";
 
-const description = "Practical guides to understanding your business numbers, building dashboards and getting more from Vyuham.";
+const description = "Practical guides to understanding your business numbers, building dashboards and data pipelines, and getting more from Vyuham.";
 
 export const metadata: Metadata = {
   title: "Blog",
