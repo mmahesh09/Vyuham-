@@ -22,6 +22,9 @@ RUN npm run build
 FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
+# npm is only needed to build. The base image's npm bundles its own old dependencies (brace-expansion,
+# picomatch, pacote...) that image scans flag, so the runtime starts Next directly and drops npm.
+RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
 COPY --from=build /app ./
 EXPOSE 3000
-CMD ["npm", "start"]
+CMD ["node", "node_modules/next/dist/bin/next", "start"]
