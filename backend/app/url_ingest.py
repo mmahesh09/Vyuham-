@@ -80,7 +80,8 @@ def _get(url: str, limit: int) -> tuple[bytes, str, str]:
                 cert_reqs="CERT_REQUIRED", ca_certs=_ca_certs(), timeout=TIMEOUT, retries=False,
             )
         else:
-            pool = urllib3.HTTPConnectionPool(ip, port, timeout=TIMEOUT, retries=False)
+            # The person pasted a plain http:// link; https:// links take the verified-TLS branch above.
+            pool = urllib3.HTTPConnectionPool(ip, port, timeout=TIMEOUT, retries=False)  # nosemgrep: python.lang.security.audit.network.http-not-https-connection.http-not-https-connection
         try:
             resp = pool.urlopen(
                 "GET", path, headers={"Host": host_header, "User-Agent": "Vyuham-import/1.0", "Accept": "*/*"},

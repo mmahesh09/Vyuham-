@@ -5,7 +5,9 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends --only-upgrade zlib1g && rm -rf /var/lib/apt/lists/*
 RUN pip install --no-cache-dir --upgrade "setuptools>=78.1.1"
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# pip is only needed to build the image. It carries its own old copies of msgpack, setuptools and urllib3
+# (pip/_vendor) that image scans flag, and nothing runs it at runtime, so it is removed afterwards.
+RUN pip install --no-cache-dir -r requirements.txt && python -m pip uninstall -y pip
 COPY . .
 EXPOSE 8000
 # WEB_CONCURRENCY API processes (default 2): one Python process uses one core, so a heavy upload or

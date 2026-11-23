@@ -33,8 +33,9 @@ def join_as(client, engine, ws: str, uid: str, role: str):
     client.cookies.set("better-auth.session_token", cookie)
 
 
-def owner_again(client, engine):
-    client.cookies.set("better-auth.session_token", "tok-1.c2lnbmF0dXJl")
+def owner_again(client, engine, token: str = "tok-1"):
+    """Switch back to the first user (sign_in's default token); the cookie is "<token>.<signature>"."""
+    client.cookies.set("better-auth.session_token", f"{token}.signature")
 
 
 # ---------- governance ----------
