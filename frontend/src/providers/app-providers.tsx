@@ -5,6 +5,7 @@ import { NuqsAdapter } from "nuqs/adapters/next/app";
 import { useState } from "react";
 
 import { authKeys } from "@/features/auth/hooks";
+import { PlanLimitDialog } from "@/features/billing/plan-limit-dialog";
 import { CommandMenu } from "@/features/command/command-menu";
 import { GuidedTour } from "@/features/tour/guided-tour";
 import type { User } from "@/lib/api/client";
@@ -20,6 +21,7 @@ export function AppProviders({ user, children }: { user: User; children: React.R
       {children}
       <CommandMenu />
       <GuidedTour />
+      <PlanLimitDialog />
     </NuqsAdapter>
   );
 }

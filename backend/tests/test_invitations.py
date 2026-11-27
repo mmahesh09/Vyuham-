@@ -212,4 +212,4 @@ def test_seat_limit_counts_pending_invitations(client, engine):
         c.execute(update(Organization).values(seat_limit=2))
     invite(client, "u2@acme.co")
     r = client.post("/invitations", json={"emails": ["u3@acme.co"], "role": "viewer"})
-    assert r.status_code == 402 and "seats" in r.json()["detail"]
+    assert r.status_code == 402 and r.json()["detail"]["metric"] == "seats"

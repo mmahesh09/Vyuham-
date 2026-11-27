@@ -55,6 +55,9 @@ class Settings(BaseSettings):
     # Private and loopback addresses are refused so a connection can't reach our own services.
     # Local development and tests turn this on to reach databases on the same machine.
     connections_allow_private: bool = False
+    # Plan limits (app/plans.py) block creating new things only when this is on. Usage is metered and
+    # shown either way. Off until paid plans launch, so a deploy never cuts beta users off.
+    plan_limits_enforced: bool = False
     # Shown in the connect dialog so customers can allowlist our outbound address in their firewall.
     public_egress_ip: str = ""
     # Background jobs (alerts, automations, reports) run on a Celery worker fed by Redis.

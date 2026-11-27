@@ -9,7 +9,7 @@ import { findTopic, HELP_TOPICS, inTopic } from "@/features/help/topics";
 import { publicGet, type HelpSummary } from "@/lib/public-api";
 
 export const metadata: Metadata = {
-  title: "Help center",
+  title: "Help center: uploading data, dashboards and pipelines",
   description: "Answers to common questions about uploading data, dashboards, pipelines, dynamic tables, governance, sharing and your account.",
   alternates: { canonical: "/help" },
 };

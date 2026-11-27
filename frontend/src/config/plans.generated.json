@@ -1,0 +1,411 @@
+{
+  "version": 1,
+  "effective_date": "2026-12-01",
+  "currency": "INR",
+  "annual_discount_percent": 20,
+  "ai_credit_costs": {
+    "sql_explain": 1,
+    "sql_fix": 2,
+    "sql_write": 2,
+    "sql_optimize": 2,
+    "sql_python": 2,
+    "pipeline_debug": 5,
+    "pipeline_plan": 10
+  },
+  "ai_credit_tasks": [
+    {
+      "kind": "sql_explain",
+      "label": "Explain a query"
+    },
+    {
+      "kind": "sql_write",
+      "label": "Write SQL from a question"
+    },
+    {
+      "kind": "sql_fix",
+      "label": "Fix a failing query"
+    },
+    {
+      "kind": "sql_optimize",
+      "label": "Suggest a faster query"
+    },
+    {
+      "kind": "sql_python",
+      "label": "Translate SQL to Python"
+    },
+    {
+      "kind": "pipeline_debug",
+      "label": "Debug a failed pipeline run"
+    },
+    {
+      "kind": "pipeline_plan",
+      "label": "Generate a pipeline from a description"
+    }
+  ],
+  "features": {
+    "analytics.ai_analyst": "AI help in the SQL Workbench",
+    "engineering.database_connectors": "PostgreSQL and MySQL connections",
+    "engineering.pipeline_scheduling": "Scheduled pipelines",
+    "engineering.ai_pipeline_generation": "AI pipeline generation",
+    "engineering.pipeline_debugging": "AI pipeline debugging",
+    "engineering.data_quality_rules": "Data quality rules",
+    "analytics.alerts": "Alerts",
+    "analytics.dashboard_sharing": "Public dashboard links",
+    "governance.audit_logs": "Audit log"
+  },
+  "plans": [
+    {
+      "id": "free",
+      "name": "Free",
+      "description": "For trying Vyuham on your own data.",
+      "monthly_price": 0,
+      "seats": 1,
+      "workspaces": 1,
+      "datasets": 3,
+      "dashboards": 3,
+      "storage_bytes": 524288000,
+      "ai_credits_per_month": 100,
+      "ai_credit_scope": "org",
+      "pipeline_runs_per_day": 2,
+      "features": [
+        "analytics.ai_analyst"
+      ],
+      "support": "Help center",
+      "highlight": false,
+      "cta": {
+        "label": "Start for free",
+        "href": "/signup"
+      }
+    },
+    {
+      "id": "starter",
+      "name": "Starter",
+      "description": "For freelancers and small businesses.",
+      "monthly_price": 999,
+      "seats": 1,
+      "workspaces": 1,
+      "datasets": 5,
+      "dashboards": 10,
+      "storage_bytes": 5368709120,
+      "ai_credits_per_month": 1000,
+      "ai_credit_scope": "org",
+      "pipeline_runs_per_day": 10,
+      "features": [
+        "analytics.ai_analyst",
+        "engineering.database_connectors",
+        "engineering.pipeline_scheduling",
+        "engineering.ai_pipeline_generation"
+      ],
+      "support": "Email",
+      "highlight": false,
+      "cta": {
+        "label": "Choose Starter",
+        "href": "/signup?plan=starter"
+      }
+    },
+    {
+      "id": "pro",
+      "name": "Pro",
+      "description": "For growing teams sharing data and dashboards.",
+      "monthly_price": 2999,
+      "seats": 5,
+      "workspaces": 3,
+      "datasets": 25,
+      "dashboards": null,
+      "storage_bytes": 26843545600,
+      "ai_credits_per_month": 5000,
+      "ai_credit_scope": "workspace",
+      "pipeline_runs_per_day": 50,
+      "features": [
+        "analytics.ai_analyst",
+        "engineering.database_connectors",
+        "engineering.pipeline_scheduling",
+        "engineering.ai_pipeline_generation",
+        "engineering.pipeline_debugging",
+        "engineering.data_quality_rules",
+        "analytics.alerts",
+        "analytics.dashboard_sharing"
+      ],
+      "support": "Priority",
+      "highlight": true,
+      "cta": {
+        "label": "Start with Pro",
+        "href": "/signup?plan=pro"
+      }
+    },
+    {
+      "id": "business",
+      "name": "Business",
+      "description": "For organizations with several data teams.",
+      "monthly_price": 7999,
+      "seats": 15,
+      "workspaces": 10,
+      "datasets": 100,
+      "dashboards": null,
+      "storage_bytes": 107374182400,
+      "ai_credits_per_month": 20000,
+      "ai_credit_scope": "workspace",
+      "pipeline_runs_per_day": 200,
+      "features": [
+        "analytics.ai_analyst",
+        "engineering.database_connectors",
+        "engineering.pipeline_scheduling",
+        "engineering.ai_pipeline_generation",
+        "engineering.pipeline_debugging",
+        "engineering.data_quality_rules",
+        "analytics.alerts",
+        "analytics.dashboard_sharing",
+        "governance.audit_logs"
+      ],
+      "support": "Priority tickets",
+      "highlight": false,
+      "cta": {
+        "label": "Choose Business",
+        "href": "/signup?plan=business"
+      }
+    },
+    {
+      "id": "enterprise",
+      "name": "Enterprise",
+      "description": "Custom limits, governance and a support agreement.",
+      "monthly_price": null,
+      "seats": null,
+      "workspaces": null,
+      "datasets": null,
+      "dashboards": null,
+      "storage_bytes": null,
+      "ai_credits_per_month": null,
+      "ai_credit_scope": "org",
+      "pipeline_runs_per_day": null,
+      "features": [
+        "analytics.ai_analyst",
+        "engineering.database_connectors",
+        "engineering.pipeline_scheduling",
+        "engineering.ai_pipeline_generation",
+        "engineering.pipeline_debugging",
+        "engineering.data_quality_rules",
+        "analytics.alerts",
+        "analytics.dashboard_sharing",
+        "governance.audit_logs"
+      ],
+      "support": "Custom agreement",
+      "highlight": false,
+      "cta": {
+        "label": "Contact us",
+        "href": "/support/new?topic=billing&plan=enterprise"
+      }
+    }
+  ],
+  "comparison": [
+    {
+      "group": "Analytics",
+      "rows": [
+        {
+          "label": "Dashboards",
+          "values": [
+            "Limited",
+            "Limited",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "SQL Workbench",
+          "values": [
+            "Included",
+            "Included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "AI help in the SQL Workbench",
+          "values": [
+            "Limited",
+            "Included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "Public dashboard links",
+          "values": [
+            "Not included",
+            "Not included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "Alerts",
+          "values": [
+            "Not included",
+            "Not included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Data engineering",
+      "rows": [
+        {
+          "label": "File uploads (CSV, Excel, JSON, Parquet)",
+          "values": [
+            "Included",
+            "Included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "PostgreSQL and MySQL connections",
+          "values": [
+            "Not included",
+            "Included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "Pipelines",
+          "values": [
+            "Limited",
+            "Included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "Scheduled pipelines",
+          "values": [
+            "Not included",
+            "Included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "AI pipeline generation",
+          "values": [
+            "Not included",
+            "Included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "AI pipeline debugging",
+          "values": [
+            "Not included",
+            "Not included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "Data quality rules",
+          "values": [
+            "Not included",
+            "Not included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "Lineage",
+          "values": [
+            "Included",
+            "Included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Collaboration and governance",
+      "rows": [
+        {
+          "label": "Team members",
+          "values": [
+            "1",
+            "1",
+            "5",
+            "15",
+            "Custom"
+          ]
+        },
+        {
+          "label": "Workspace roles",
+          "values": [
+            "Not included",
+            "Not included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "Audit log",
+          "values": [
+            "Not included",
+            "Not included",
+            "Not included",
+            "Included",
+            "Included"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Support",
+      "rows": [
+        {
+          "label": "Help center",
+          "values": [
+            "Included",
+            "Included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "Email support",
+          "values": [
+            "Not included",
+            "Included",
+            "Included",
+            "Included",
+            "Included"
+          ]
+        },
+        {
+          "label": "Priority support",
+          "values": [
+            "Not included",
+            "Not included",
+            "Included",
+            "Included",
+            "Custom"
+          ]
+        }
+      ]
+    }
+  ]
+}

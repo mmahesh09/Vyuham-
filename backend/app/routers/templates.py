@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app import plans
 from app.db import get_db
 from app.models import Chart, Dashboard, WorkspaceMember
 from app.routers.dashboards import _editor, _out
@@ -36,6 +37,7 @@ def apply_template(
     template_id: str, body: TemplateApplyIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)
 ):
     _editor(member)
+    plans.check_member_quota(db, member, "dashboards")
     if template_id not in TEMPLATES:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Template not found")
     ds = owned_dataset(db, member, body.dataset_id)

@@ -6,6 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPExcepti
 from sqlalchemy import delete, func, or_, select, update
 from sqlalchemy.orm import Session
 
+from app import plans
 from app.governance import connect_as
 from app.analytics.semantic import refresh_calculated
 from app.config import get_settings
@@ -41,7 +42,7 @@ def _read_capped(file: UploadFile, limit: int) -> bytes:
 
 
 def check_quota(db: Session, workspace_id: str, new_datasets: int = 0, new_bytes: int = 0) -> None:
-    """Stop one workspace from filling the disk every customer shares."""
+    """Stop one workspace from filling the disk every customer shares, then apply the plan's limits."""
     s = get_settings()
     datasets, used = db.execute(
         select(func.count(Dataset.id), func.coalesce(func.sum(Dataset.file_size), 0)).where(Dataset.workspace_id == workspace_id)
@@ -50,6 +51,12 @@ def check_quota(db: Session, workspace_id: str, new_datasets: int = 0, new_bytes
         raise HTTPException(status.HTTP_409_CONFLICT, f"This workspace has reached its limit of {s.max_workspace_datasets} datasets. Delete one first.")
     if used + new_bytes > s.max_workspace_bytes:
         raise HTTPException(status.HTTP_409_CONFLICT, "This workspace has reached its storage limit. Delete a dataset first.")
+    # Then the organization's plan (app/plans.py), which spans all its workspaces.
+    org = plans.org_for_workspace(db, workspace_id)
+    if new_datasets:
+        plans.check_quota(db, org, "datasets", new_datasets)
+    if new_bytes:
+        plans.check_quota(db, org, "storage_bytes", new_bytes)
 
 
 def _unique_name(db: Session, workspace_id: str, base: str) -> str:

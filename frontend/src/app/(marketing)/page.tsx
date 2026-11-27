@@ -56,7 +56,7 @@ const FACTS = [
   { label: "Works with", value: "Excel, CSV, PostgreSQL, MySQL" },
   { label: "Query engine", value: "DuckDB, read-only SQL" },
   { label: "Builds", value: "Pipelines and refreshing tables" },
-  { label: "Pricing", value: "Free in beta, then one flat price" },
+  { label: "Pricing", value: "Free in beta, then plans from ₹999 a month" },
 ];
 
 /** One primary action across the page: a free account. Same words everywhere so the next step never changes. */
@@ -268,7 +268,7 @@ const COMPARE = [
   { topic: "Access rules", them: "Set again in each tool", us: "Set once, enforced on every query" },
   { topic: "Getting a number", them: "Ask whoever built the report", us: "Type the question" },
   { topic: "When a job fails", them: "A cron log someone checks later", us: "The failed step, its log and a retry button" },
-  { topic: "Pricing", them: "Several licences, often per person", us: "One price for the whole company" },
+  { topic: "Pricing", them: "A separate licence for each tool", us: "One subscription for analytics and pipelines" },
 ];
 
 /** `text` is the plain-text answer used for the FAQPage structured data. */
@@ -286,62 +286,25 @@ const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
   },
   {
     q: "How much does it cost?",
-    text: "It’s free during the beta. After that, paid plans will be one flat monthly price for your whole company, so adding a teammate never adds to the bill.",
+    text: "It’s free during the beta. When paid plans open there will be a Free plan and paid plans from ₹999 a month. Each plan includes a set number of users, storage, AI credits and pipeline runs. The pricing page lists them all. No credit card is needed to sign up.",
     a: (
       <>
-        It’s free during the beta. After that, paid plans will be one flat monthly price for your whole company, so{" "}
-        adding a teammate never adds to the bill.
+        It’s free during the beta. When paid plans open there will be a Free plan and paid plans from ₹999 a month. Each
+        plan includes a set number of users, storage, AI credits and pipeline runs.{" "}
+        <Link href="/pricing" className="underline underline-offset-4">
+          See pricing
+        </Link>
+        . No credit card is needed to sign up.
       </>
     ),
   },
   {
-    q: "Do I need a credit card?",
-    text: "No. You sign up with your name, email and a password, and there is no card field during the beta.",
+    q: "Which databases can I connect?",
+    text: "PostgreSQL and MySQL, including MariaDB through the MySQL option. Hosted databases work when they accept connections from the internet. Pick the tables you want and refresh them every hour or every day.",
     a: (
       <>
-        No. You sign up with your name, email and a password, and there is no card field during the beta.
-      </>
-    ),
-  },
-  {
-    q: "Can I try it before I sign up?",
-    text: "Yes. The Try Vyuham page has a small online shop’s sales data. Pick a question and see the answer and chart without creating an account. Pipelines, SQL and governance open with a free account.",
-    a: (
-      <>
-        Yes. <Link href="/try" className="text-highlight underline-offset-4 hover:underline">Try Vyuham</Link> has a small online shop’s sales data. Pick a question and see the answer and chart without creating an account. Pipelines, SQL and governance open with a free account.
-      </>
-    ),
-  },
-  {
-    q: "What kinds of questions can I ask?",
-    text: "Totals, averages, counts, rankings and breakdowns over time or by category. “Revenue by month”, “Top 5 products by revenue” and “How many orders in North” all work. For anything more involved, write SQL in the SQL Workbench.",
-    a: (
-      <>
-        Totals, averages, counts, rankings and breakdowns over time or by category.{" "}
-        “Revenue by month”, “Top 5 products by revenue” and “How many orders in North” all work. For
-        anything more involved, write SQL in the SQL Workbench.
-      </>
-    ),
-  },
-  {
-    q: "Can I build data pipelines in Vyuham?",
-    text: "Yes. A pipeline reads datasets, removes duplicates, runs quality checks, transforms rows in SQL and writes Bronze, Silver or Gold tables. It runs on demand, hourly or daily in the background, with a log for every step and a retry for the steps that failed.",
-    a: (
-      <>
-        Yes. A pipeline reads datasets, removes duplicates, runs quality checks, transforms rows in SQL and writes Bronze,
-        Silver or Gold tables. It runs on demand, hourly or daily in the background, with a log for every step{" "}
-        and a retry for the steps that failed.
-      </>
-    ),
-  },
-  {
-    q: "What are dynamic tables?",
-    text: "Tables defined by a SQL query that Vyuham keeps up to date. You choose how fresh each one should be, or refresh it when a table it reads changes. Refreshes run in dependency order, and every one is recorded with its rows, time and any error. Incremental refresh appends newer rows and suits tables that only grow; anything else uses a full refresh.",
-    a: (
-      <>
-        Tables defined by a SQL query that Vyuham keeps up to date. You choose how fresh each one should be, or refresh it
-        when a table it reads changes. Refreshes run in dependency order, and every one is recorded.
-        Incremental refresh appends newer rows and suits tables that only grow; anything else uses a full refresh.
+        PostgreSQL and MySQL, including MariaDB through the MySQL option. Hosted databases work when they
+        accept connections from the internet. Pick the tables you want and refresh them every hour or every day.
       </>
     ),
   },
@@ -368,76 +331,6 @@ const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
       </>
     ),
   },
-  {
-    q: "Can it replace dbt or Airflow?",
-    text: "For SQL pipelines on the data inside Vyuham, often yes: steps, schedules, checks, lineage and retries are built in. Python steps are generated for you to export to your own orchestrator; Vyuham runs the SQL. If you already run Airflow, Airbyte or cron, a refresh hook lets them trigger Vyuham.",
-    a: (
-      <>
-        For SQL pipelines on the data inside Vyuham, often yes: steps, schedules, checks, lineage and retries are built in.
-        Python steps are generated for export, and Vyuham runs the SQL. If you already run Airflow, Airbyte or
-        cron, a refresh hook lets them trigger Vyuham.
-      </>
-    ),
-  },
-  {
-    q: "How are costs calculated?",
-    text: "Vyuham measures what your work uses: query and pipeline time, data stored, data scanned and AI tokens. You enter your own rates, and it multiplies them out. It isn’t connected to a cloud bill, so it never shows one; billed cost is marked as not connected.",
-    a: (
-      <>
-        Vyuham measures what your work uses: query and pipeline time, data stored, data scanned and AI tokens. You enter
-        your own rates, and it multiplies them out. It isn’t connected to a cloud bill, so it never shows one.
-      </>
-    ),
-  },
-  {
-    q: "Can Vyuham change anything in my database?",
-    text: "Vyuham connects in read-only sessions and copies the tables you choose into your workspace. Pipelines and dynamic tables write to tables inside Vyuham, never to your database. Your password is stored encrypted. We still recommend a database user that can only read those tables.",
-    a: (
-      <>
-        Vyuham connects in read-only sessions and copies the tables you choose into your workspace.
-        Pipelines and dynamic tables write to tables inside Vyuham, never to your database. We still recommend a database
-        user that can only read those tables.
-      </>
-    ),
-  },
-  {
-    q: "How big can my files be?",
-    text: "Up to 10 MB and 1 million rows per Excel or CSV file. For larger data, connect PostgreSQL or MySQL and choose the tables you need.",
-    a: (
-      <>
-        Up to 10 MB and 1 million rows per Excel or CSV file. For larger data, connect PostgreSQL or MySQL and choose the tables you need.
-      </>
-    ),
-  },
-  {
-    q: "Which databases can I connect?",
-    text: "PostgreSQL and MySQL, including MariaDB through the MySQL option. Hosted databases work when they accept connections from the internet. Pick the tables you want and refresh them every hour or every day.",
-    a: (
-      <>
-        PostgreSQL and MySQL, including MariaDB through the MySQL option. Hosted databases work when they
-        accept connections from the internet. Pick the tables you want and refresh them every hour or every day.
-      </>
-    ),
-  },
-  {
-    q: "Can I export or delete my data?",
-    text: "Yes. From your profile you can download a copy of your data. Workspace owners can delete the workspace, which permanently removes its datasets, pipelines and dashboards, and anyone can delete their own account.",
-    a: (
-      <>
-        Yes. From your profile you can download a copy of your data. Workspace owners can delete the workspace, which permanently removes its datasets, pipelines and dashboards, and anyone can delete their own account.
-      </>
-    ),
-  },
-  {
-    q: "What happens to my work after the beta?",
-    text: "You keep everything you built: datasets, pipelines, dynamic tables, dashboards and share links. Nothing is deleted when the beta ends.",
-    a: (
-      <>
-        You keep everything you built: datasets, pipelines, dynamic tables, dashboards and share links.
-        Nothing is deleted when the beta ends.
-      </>
-    ),
-  },
 ];
 
 /** Structured data: the product and the FAQ, built from the same content as the page. */
@@ -450,7 +343,7 @@ const JSON_LD = {
       applicationCategory: "BusinessApplication",
       operatingSystem: "Web",
       description: DESCRIPTION,
-      offers: { "@type": "Offer", price: "0", priceCurrency: "USD", description: "Free during the beta" },
+      offers: { "@type": "Offer", price: "0", priceCurrency: "INR", description: "Free during the beta" },
     },
     {
       "@type": "FAQPage",
@@ -642,11 +535,11 @@ export default function LandingPage() {
               <div data-animate className="flex flex-col gap-6">
                 <Eyebrow>Vyuham · Dashboards</Eyebrow>
                 <h2 className={h2}>
-                  Monday morning, <span className={quiet}>already explained.</span>
+                  Each chart comes with a sentence <span className={quiet}>saying what changed.</span>
                 </h2>
                 <p className={`${body} max-w-[42ch]`}>
-                  Every chart carries its headline. Revenue up 27%. Ad spend up 36%. One client at 22% of revenue.{" "}
-                  <Mark>You read the sentence first and open the chart for the detail.</Mark>
+                  Above every chart, Vyuham writes what moved and by how much. In the sample dashboard that reads “Revenue up
+                  27% on last month.” <Mark>You read the line first and open the chart when you want the detail.</Mark>
                 </p>
                 <p className={`${body} max-w-[42ch]`}>
                   Define a metric like “revenue” once and every chart uses it. Set an alert for when it drops, or have the
@@ -908,8 +801,8 @@ export default function LandingPage() {
         {/* 11 · Pricing — black, oversized number as the breathing moment */}
         <section id="pricing" className={`scroll-mt-4 ${sectionY}`}>
           <div className={`${container} grid items-end gap-12 md:grid-cols-[auto_1fr] md:gap-20`}>
-            <p data-animate className="text-[clamp(112px,22vw,280px)] font-normal leading-[0.8] tracking-[-0.05em] tabular-nums text-white" aria-label="Zero dollars">
-              $0
+            <p data-animate className="text-[clamp(112px,22vw,280px)] font-normal leading-[0.8] tracking-[-0.05em] tabular-nums text-white" aria-label="Zero rupees">
+              ₹0
             </p>
             <div data-animate style={delay(120)} className="flex max-w-[44ch] flex-col items-start gap-6 pb-2">
               <Eyebrow>Pricing</Eyebrow>
@@ -917,9 +810,12 @@ export default function LandingPage() {
                 Free while we’re in beta.
               </h2>
               <p className={body}>
-                We’re building this with our first users, so it’s free while we do. After that: one flat monthly price
-                for your whole company. <Mark>Never per seat</Mark>, so the people who ask and the people who build share
-                one bill.
+                We’re building this with our first users, so it’s free while we do. After that there’s a Free plan, and
+                paid plans from ₹999 a month with a set number of users, storage and AI credits.{" "}
+                <Mark>One subscription</Mark> covers the asking and the building.{" "}
+                <Link href="/pricing" className="underline underline-offset-4">
+                  Compare plans
+                </Link>
               </p>
               <div className="w-full border-t border-white/10 pt-6">
                 <p className="font-mono text-[13px] text-faint">Included in the beta</p>

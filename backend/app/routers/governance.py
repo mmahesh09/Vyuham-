@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app import plans
 from app import governance as gov
 from app.audit import record_action
 from app.auth_tables import user_table
@@ -382,6 +383,7 @@ def audit(
 ):
     """Who accessed data, changed permissions or policies, and exported data, with when."""
     _owner(member)
+    plans.require_feature(db, member, "governance.audit_logs")
     ws = member.workspace_id
     since = datetime.now(timezone.utc) - timedelta(days=days)
     ds = _datasets(db, ws)

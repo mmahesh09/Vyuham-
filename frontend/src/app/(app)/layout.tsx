@@ -10,6 +10,7 @@ import { AppProviders } from "@/providers/app-providers";
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await getSession();
   if (session.status === "signed-out") redirect("/login");
+  if (session.status === "needs-onboarding") redirect("/onboarding");
   if (session.status === "backend-unavailable") return <BackendUnavailable detail={session.detail} />;
   const { user } = session;
 

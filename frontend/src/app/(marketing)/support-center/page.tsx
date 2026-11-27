@@ -18,7 +18,7 @@ import { publicGet, type HelpSummary, type StatusSummary } from "@/lib/public-ap
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Support center",
+  title: "Support center: help articles, status and contact",
   description:
     "Get help with Vyuham: search the help center, browse topics, check live system status or send a request to the team.",
   alternates: { canonical: "/support-center" },

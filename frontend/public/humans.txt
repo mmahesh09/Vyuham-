@@ -1,0 +1,13 @@
+/* TEAM */
+Founder and developer: Mallapu Mahesh Babu
+Company: Vyuham
+LinkedIn: https://www.linkedin.com/company/vyuhamai/
+From: India
+
+/* SITE */
+Last update: 2026/11/28
+Language: English
+Standards: HTML5, CSS3, TypeScript
+Components: Next.js, React, Tailwind CSS, TanStack Query, ECharts, React Flow
+Backend: Python, FastAPI, SQLAlchemy, DuckDB, PostgreSQL, Celery
+Hosting: Vercel (web app)

@@ -6,7 +6,7 @@ import { SiteFooter } from "@/components/marketing/site-footer";
 import { SiteHeader } from "@/components/marketing/site-header";
 
 export const metadata: Metadata = {
-  title: "About",
+  title: "About: who builds it and why",
   description:
     "Vyuham puts analytics and data engineering in one workspace: plain-English answers and dashboards, plus pipelines, SQL, dynamic tables and governance on the same data. Learn who it is for and what the name means.",
   alternates: { canonical: "/about" },

@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
+from app import plans
 from app.db import get_db
 from app.insights import chart_insight, previous_period, starter_specs
 from app.analytics.semantic import require_approved
@@ -282,6 +283,7 @@ def list_dashboards(member: WorkspaceMember = Depends(current_membership), db: S
 @router.post("/dashboards", response_model=DashboardOut, status_code=status.HTTP_201_CREATED)
 def create_dashboard(body: DashboardIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     _editor(member)
+    plans.check_member_quota(db, member, "dashboards")
     d = Dashboard(
         workspace_id=member.workspace_id, name=body.name.strip(), description=body.description, created_by=member.user_id,
         updated_by=member.user_id, visibility=body.visibility,
@@ -355,6 +357,7 @@ def delete_dashboard(dashboard_id: str, member: WorkspaceMember = Depends(curren
 @router.post("/dashboards/{dashboard_id}/duplicate", response_model=DashboardOut, status_code=status.HTTP_201_CREATED)
 def duplicate_dashboard(dashboard_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     _editor(member)
+    plans.check_member_quota(db, member, "dashboards")
     src = _dashboard(db, member, dashboard_id)
     copy = Dashboard(
         workspace_id=src.workspace_id, name=f"{src.name} (copy)"[:200], description=src.description,
@@ -524,6 +527,7 @@ def preview(body: PreviewIn, member: WorkspaceMember = Depends(current_membershi
 def starter_dashboard(dataset_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     """Build a first dashboard from the dataset's column types (rules only; AI comes later)."""
     _editor(member)
+    plans.check_member_quota(db, member, "dashboards")
     ds = owned_dataset(db, member, dataset_id)
     con = connect_as(db, member, [ds])
     try:
@@ -555,6 +559,7 @@ def _visibility(db: Session, user_id: str | None) -> str:
 @router.post("/dashboards/{dashboard_id}/share", response_model=ShareOut)
 def share(dashboard_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     _editor(member)
+    plans.require_feature(db, member, "analytics.dashboard_sharing")
     d = _dashboard(db, member, dashboard_id)
     if _visibility(db, member.user_id) != "anyone":
         raise HTTPException(

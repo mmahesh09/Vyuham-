@@ -18,6 +18,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
+from app import plans
 from app.config import get_settings
 from app.models import AiAction, Dataset, WorkspaceMember
 
@@ -69,6 +70,8 @@ def ask_json(
     started = time.perf_counter()
     action = AiAction(workspace_id=member.workspace_id, user_id=member.user_id, kind=kind, model=s.ai_model,
                       ref_kind=ref_kind, ref_id=ref_id, outcome="proposed")
+    # Holds this request's AI credits (402 when the plan's allowance is spent) before anything is sent.
+    plans.reserve_ai_credits(db, member, action)
     try:
         response = client.beta.messages.create(
             model=s.ai_model,
@@ -89,6 +92,9 @@ def ask_json(
     except anthropic.APIConnectionError as e:
         _fail(db, action, started, "error")
         raise AiError("Couldn't reach the AI service. Try again.") from e
+    except Exception:
+        _fail(db, action, started, "error")  # never leave credits held on a request that didn't finish
+        raise
 
     usage = getattr(response, "usage", None)
     action.input_tokens = getattr(usage, "input_tokens", None)
@@ -96,12 +102,12 @@ def ask_json(
     action.model = getattr(response, "model", None) or s.ai_model
     action.duration_ms = int((time.perf_counter() - started) * 1000)
     if response.stop_reason == "refusal":
-        action.status, action.outcome = "refused", None
+        action.status, action.outcome, action.credits = "refused", None, 0
         db.add(action)
         db.commit()
         raise AiError("The AI declined this request. Try rephrasing it.")
     if response.stop_reason == "max_tokens":
-        action.status, action.outcome = "error", None
+        action.status, action.outcome, action.credits = "error", None, 0
         db.add(action)
         db.commit()
         raise AiError("The answer was too long. Try a smaller request.")
@@ -109,11 +115,12 @@ def ask_json(
     try:
         data = json.loads(text)
     except json.JSONDecodeError as e:
-        action.status, action.outcome = "error", None
+        action.status, action.outcome, action.credits = "error", None, 0
         db.add(action)
         db.commit()
         raise AiError("The AI's answer couldn't be read. Try again.") from e
     action.output = data
+    action.status = "ok"  # the held credits are kept
     db.add(action)
     db.commit()
     db.refresh(action)
@@ -121,7 +128,8 @@ def ask_json(
 
 
 def _fail(db: Session, action: AiAction, started: float, status: str) -> None:
-    action.status, action.outcome = status, None
+    """The provider never produced an answer: no credits are charged."""
+    action.status, action.outcome, action.credits = status, None, 0
     action.duration_ms = int((time.perf_counter() - started) * 1000)
     db.add(action)
     db.commit()

@@ -11,7 +11,7 @@ import { RSS_ALTERNATE } from "@/lib/site";
 const description = "Practical guides to understanding your business numbers, building dashboards and data pipelines, and getting more from Vyuham.";
 
 export const metadata: Metadata = {
-  title: "Blog",
+  title: "Blog: guides to business analytics, dashboards and data pipelines",
   description,
   alternates: { canonical: "/blog", types: RSS_ALTERNATE },
   openGraph: { type: "website", url: "/blog", title: "Vyuham blog", description },

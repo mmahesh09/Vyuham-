@@ -82,3 +82,14 @@ def test_only_owners_and_admins_personalize(client, engine):
     accept(client, token)
     assert client.get("/me").json()["needs_onboarding"] is False  # joining by invite skips setup
     assert client.patch("/onboarding/personalize", json={"departments": ["x"]}).status_code == 403
+
+
+def test_one_step_web_onboarding_lands_in_a_workspace(client, engine):
+    """The web form: name only, then complete. /me must then have a workspace and no pending setup."""
+    fresh(client, engine)
+    r = client.post("/onboarding/organization", json={"creation_key": "web-key-123456", "company_name": "Solo Co", "workspace_name": None})
+    assert r.status_code == 200
+    assert client.post("/onboarding/complete").status_code == 200
+    me = client.get("/me").json()
+    assert me["workspace"]["name"] == "Solo Co workspace" and me["role"] == "owner" and me["needs_onboarding"] is False
+    assert client.get("/datasets").status_code == 200

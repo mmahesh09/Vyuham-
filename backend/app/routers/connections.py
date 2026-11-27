@@ -20,6 +20,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app import plans
 from app.audit import record_action
 from app.config import get_settings
 from app.connectors.base import ConnectorError, ConnSpec, spec_for
@@ -155,6 +156,7 @@ def list_connections(member: WorkspaceMember = Depends(current_membership), db: 
 @router.post("", response_model=ConnectionOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(connector_slot)])
 def create_connection(body: ConnectionIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     require_sources(member)
+    plans.require_feature(db, member, "engineering.database_connectors")
     try:
         spec = ConnSpec(body.kind, body.host, body.port, body.database, body.username, body.password, body.ssl_mode)
         list_tables(spec)  # only save connections that work

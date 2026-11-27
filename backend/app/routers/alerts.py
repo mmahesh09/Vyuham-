@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
+from app import plans
 from app.alerts import check_alert, run_automation
 from app.analytics.semantic import require_approved
 from app.db import get_db
@@ -145,6 +146,7 @@ def list_alerts(member: WorkspaceMember = Depends(current_membership), db: Sessi
 @router.post("/alerts", response_model=AlertOut, status_code=status.HTTP_201_CREATED)
 def create_alert(body: AlertIn, member: WorkspaceMember = Depends(current_membership), user: AuthUser = Depends(current_user), db: Session = Depends(get_db)):
     _editor(member)
+    plans.require_feature(db, member, "analytics.alerts")
     a = Alert(workspace_id=member.workspace_id, created_by=member.user_id, **_validate_alert(db, member, body, user))
     db.add(a)
     db.commit()

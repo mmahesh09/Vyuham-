@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import plans
 from app import pipelines as engine
 from app.ai import ENGINE_NOTES, AiError, AiUnavailable, ask_json, schema_context, update_output
 from app.audit import record_action
@@ -131,6 +132,8 @@ def list_pipelines(member: WorkspaceMember = Depends(current_membership), db: Se
 @router.post("", response_model=PipelineOut, status_code=status.HTTP_201_CREATED)
 def create_pipeline(body: PipelineIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     require_editor(member)
+    if body.schedule != "manual":
+        plans.require_feature(db, member, "engineering.pipeline_scheduling")
     action = _ai_action(db, member, body.ai_action_id)
     p = Pipeline(workspace_id=member.workspace_id, name=body.name.strip(), description=body.description, graph=_clean_graph(body.graph),
                  schedule=body.schedule, hour=body.hour, enabled=body.enabled, project_id=check_project(db, member, body.project_id),
@@ -153,6 +156,8 @@ def get_pipeline(pid: str, member: WorkspaceMember = Depends(current_membership)
 @router.put("/{pid}", response_model=PipelineOut)
 def update_pipeline(pid: str, body: PipelineIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     require_editor(member)
+    if body.schedule != "manual":
+        plans.require_feature(db, member, "engineering.pipeline_scheduling")
     p = _pipeline(db, member, pid)
     action = _ai_action(db, member, body.ai_action_id)
     p.name, p.description, p.graph = body.name.strip(), body.description, _clean_graph(body.graph)
@@ -415,6 +420,7 @@ def _to_graph(plan: dict, tables: list[dict]) -> tuple[dict, list[str]]:
 def ai_plan(body: PlanIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     """Draft a pipeline from a plain-English request. Nothing is saved or run: the person previews, saves and approves it."""
     require_editor(member)
+    plans.require_feature(db, member, "engineering.ai_pipeline_generation")
     datasets = _datasets(db, member)
     schema_text, tables = schema_context(db, member, datasets)
     system = f"{PLAN_SYSTEM}\n\nDataset tables in this workspace:\n{schema_text}"
@@ -478,6 +484,7 @@ def ai_debug(pid: str, rid: str, member: WorkspaceMember = Depends(current_membe
     import json
 
     require_editor(member)
+    plans.require_feature(db, member, "engineering.pipeline_debugging")
     p = _pipeline(db, member, pid)
     run = db.get(PipelineRun, rid)
     if run is None or run.pipeline_id != p.id:

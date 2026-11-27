@@ -3,13 +3,13 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 import { geistMono, outfit } from "@/lib/fonts";
-import { RSS_ALTERNATE } from "@/lib/site";
+import { SITE_URL, RSS_ALTERNATE } from "@/lib/site";
 import { RootProviders } from "@/providers/root-providers";
 
 const SITE_NAME = "Vyuham";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(SITE_URL),
   title: {
     default: `${SITE_NAME}: analytics and data engineering in one workspace`,
     template: `%s | ${SITE_NAME}`,

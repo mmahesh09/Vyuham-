@@ -11,7 +11,7 @@ type LinkList = [label: string, href: string][];
 const PRODUCT: LinkList = [
   ["Try Vyuham", "/try"],
   ["The platform", "/#platform"],
-  ["Pricing", "/#pricing"],
+  ["Pricing", "/pricing"],
   ["Compare", "/#compare"],
 ];
 

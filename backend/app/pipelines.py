@@ -275,8 +275,21 @@ class _Log:
 
 
 def start_run(db: Session, p: Pipeline, trigger: str, user_id: str | None, only_steps: list[str] | None = None, retry_of: str | None = None, options: dict | None = None) -> PipelineRun:
-    run = PipelineRun(workspace_id=p.workspace_id, pipeline_id=p.id, trigger=trigger, status="queued", created_by=user_id,
-                      only_steps=only_steps, retry_of=retry_of, graph=p.graph, options=options or None,
+    """Queue a run. Over the plan's daily run allowance, a person gets 402; a scheduled run is recorded as
+    skipped with the reason (and never executed), so the schedule's history shows what happened."""
+    from fastapi import HTTPException
+
+    from app import plans
+
+    status, error = "queued", None
+    try:
+        plans.check_quota(db, plans.org_for_workspace(db, p.workspace_id), "pipeline_runs")
+    except HTTPException as e:
+        if trigger != "schedule":
+            raise
+        status, error = "skipped", e.detail["message"][:500]
+    run = PipelineRun(workspace_id=p.workspace_id, pipeline_id=p.id, trigger=trigger, status=status, created_by=user_id,
+                      only_steps=only_steps, retry_of=retry_of, graph=p.graph, options=options or None, error=error,
                       steps={n["id"]: {"status": "pending", "logs": []} for n in nodes_of(p.graph)})
     db.add(run)
     db.commit()
@@ -286,6 +299,8 @@ def start_run(db: Session, p: Pipeline, trigger: str, user_id: str | None, only_
 
 def execute(db: Session, run: PipelineRun) -> PipelineRun:
     """Run a queued pipeline run to the end. Errors are recorded on the run and its steps, not raised."""
+    if run.status == "skipped":  # over the plan's daily allowance: recorded, not run
+        return run
     from app.audit import log_query
     from app.governance import access_for, role_for_user
 

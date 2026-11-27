@@ -179,7 +179,7 @@ def transfer_ownership(body: TransferIn, member: WorkspaceMember = Depends(curre
 def billing(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     org = _org(db, member)
     _org_perm(_actor(db, member), Perm.BILLING_VIEW)
-    return plans.summary(db, org)
+    return plans.summary(db, org, member.workspace_id)
 
 
 # ---------- members ----------

@@ -287,8 +287,10 @@ body {
 
 /* ---------- Hero: glowing panel, rays, arch ---------- */
 .hero-panel {
-  /* A small tone shift inside one warm neutral: lighter at the top, like first light. */
-  background: linear-gradient(180deg, #1a130e 0%, #0e0a07 70%, #0b0806 100%);
+  background:
+    radial-gradient(55% 50% at 34% 0%, rgba(255, 179, 122, 0.34), transparent 72%),
+    radial-gradient(70% 55% at 50% 100%, rgba(242, 84, 91, 0.2), transparent 70%),
+    radial-gradient(95% 85% at 50% 38%, #2d1f15 0%, #16100b 58%, #090705 100%);
 }
 
 .ray {
@@ -507,9 +509,12 @@ body {
   color: var(--muted);
 }
 
-/* Kept for older markup: solid text, no gradient. */
+/* Headline lit from above: off-white fading into the brand lilac. */
 .text-lit {
-  color: var(--text);
+  background: linear-gradient(180deg, var(--text) 30%, var(--highlight) 130%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* The one primary action: flat brand orange, dark text, a soft top highlight instead of a glow. */

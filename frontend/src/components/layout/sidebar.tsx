@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CreditCard,
   BellRing,
   Code2,
   Compass,
@@ -76,7 +77,13 @@ export const NAV_GROUPS: { label?: string; items: NavItem[] }[] = [
       { href: "/usage", label: "Workload & cost", icon: Gauge },
     ],
   },
-  { label: "Team", items: [{ href: "/team", label: "Team", icon: Users }] },
+  {
+    label: "Team",
+    items: [
+      { href: "/team", label: "Team", icon: Users },
+      { href: "/billing", label: "Billing & usage", icon: CreditCard },
+    ],
+  },
   { label: "Help", items: [{ href: "/support", label: "Help & support", icon: LifeBuoy }] },
 ];
 

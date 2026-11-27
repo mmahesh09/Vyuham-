@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app import plans
 from app.governance import connect_as
 from app.audit import record_action
 from app.config import get_settings
@@ -118,6 +119,7 @@ def quality_overview(dataset_id: str, member: WorkspaceMember = Depends(current_
 @router.post("/datasets/{dataset_id}/quality/rules", response_model=RuleOut, status_code=status.HTTP_201_CREATED)
 def add_rule(dataset_id: str, body: dict, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     require_editor(member)
+    plans.require_feature(db, member, "engineering.data_quality_rules")
     ds = owned_dataset(db, member, dataset_id)
     try:
         rule = RuleIn.model_validate(body)

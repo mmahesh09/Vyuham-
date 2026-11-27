@@ -38,7 +38,7 @@ class Organization(Base):
     industry: Mapped[str | None] = mapped_column(String(60))
     intended_use: Mapped[list] = mapped_column(JSON, default=list)
     # Billing is organization-level. No payment provider yet: these only drive limits (app/plans.py).
-    plan: Mapped[str] = mapped_column(String(16), default="free")  # free | starter | growth | enterprise
+    plan: Mapped[str] = mapped_column(String(16), default="free")  # free | starter | pro | business | enterprise (app/plans.json)
     plan_status: Mapped[str] = mapped_column(String(12), default="active")  # active | trialing | past_due | canceled
     trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     seat_limit: Mapped[int | None] = mapped_column(Integer)  # None = the plan's default
@@ -979,7 +979,7 @@ class PipelineRun(Base):
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
     pipeline_id: Mapped[str] = mapped_column(ForeignKey("pipelines.id", ondelete="CASCADE"), index=True)
     trigger: Mapped[str] = mapped_column(String(10))  # manual | schedule | retry
-    status: Mapped[str] = mapped_column(String(10), default="queued")  # queued | running | success | failed
+    status: Mapped[str] = mapped_column(String(10), default="queued")  # queued | running | success | failed | skipped (over plan quota)
     # {node_id: {status, rows, duration_ms, error, logs: [..]}}
     steps: Mapped[dict] = mapped_column(JSON, default=dict)
     only_steps: Mapped[list | None] = mapped_column(JSON)  # a retry of selected steps
@@ -1069,7 +1069,9 @@ class AiAction(Base):
     user_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
     kind: Mapped[str] = mapped_column(String(24))  # sql_write | sql_explain | sql_fix | sql_optimize | sql_python | pipeline_plan | pipeline_debug
     model: Mapped[str | None] = mapped_column(String(48))
-    status: Mapped[str] = mapped_column(String(12), default="ok")  # ok | error | refused
+    status: Mapped[str] = mapped_column(String(12), default="ok")  # pending | ok | error | refused
+    # AI credits charged (app/plans.py AI_CREDIT_COSTS). Held while pending, kept on ok, 0 on any failure.
+    credits: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     input_tokens: Mapped[int | None] = mapped_column(Integer)
     output_tokens: Mapped[int | None] = mapped_column(Integer)
     duration_ms: Mapped[int | None] = mapped_column(Integer)

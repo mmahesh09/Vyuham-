@@ -12,7 +12,7 @@ import { body, card, container, delay, h2, quiet, sectionY } from "@/components/
 import { TryAsk, type TryQuestion } from "@/components/marketing/try-ask";
 
 export const metadata: Metadata = {
-  title: "Try Vyuham with sample data",
+  title: "Try it with sample data, no sign-up",
   description:
     "See how Vyuham answers plain-English questions about business data. Pick a question and get a one-line answer with a chart, using sample data. No sign-up needed. Pipelines, SQL and governance open with a free account.",
   alternates: { canonical: "/try" },

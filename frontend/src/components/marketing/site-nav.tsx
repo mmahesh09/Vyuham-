@@ -35,6 +35,7 @@ const productsActive = (p: string) => p.startsWith("/try");
 
 export const NAV: NavLink[] = [
   { href: "/", label: "Home", match: (p) => p === "/" },
+  { href: "/pricing", label: "Pricing", match: (p) => p.startsWith("/pricing") },
   { href: "/about", label: "About", match: (p) => p.startsWith("/about") },
   { href: "/blog", label: "Blog", match: (p) => p.startsWith("/blog") },
   {

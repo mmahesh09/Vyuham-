@@ -1,127 +1,146 @@
-import { ArrowRight, Check, MousePointerClick, Search } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, MousePointerClick } from "lucide-react";
 import Link from "next/link";
 
+import { Announcement } from "@/components/marketing/announcement";
 import { SiteNav } from "@/components/marketing/site-nav";
+import { ParticlesBackground } from "@/components/marketing/particles-background";
+import { Typewriter } from "@/components/marketing/typewriter";
+import { Mark } from "@/components/ui/mark";
 
-/* Sample data for the answer preview: the same October figures the rest of the page quotes. */
-const MONTHS = [
-  { m: "May", v: 31.4 },
-  { m: "Jun", v: 33.0 },
-  { m: "Jul", v: 35.8 },
-  { m: "Aug", v: 34.1 },
-  { m: "Sep", v: 37.9 },
-  { m: "Oct", v: 48.2 },
-];
 
-const W = 440;
-const H = 168;
-const PAD_X = 8;
-const MIN = 28;
-const MAX = 52;
-const x = (i: number) => PAD_X + (i * (W - PAD_X * 2)) / (MONTHS.length - 1);
-const y = (v: number) => H - ((v - MIN) / (MAX - MIN)) * H;
+// The headline is "Ask your data …": the first half answers, the rest builds.
+const PHRASES = ["about revenue.", "for top customers.", "then build its pipeline.", "then keep it fresh."];
 
-/** A smooth line through the points (Catmull-Rom turned into cubic Béziers). */
-function smoothPath(points: [number, number][]) {
-  return points.reduce((d, p, i, a) => {
-    if (i === 0) return `M${p[0]},${p[1]}`;
-    const p0 = a[i - 2] ?? a[i - 1];
-    const p1 = a[i - 1];
-    const p3 = a[i + 1] ?? p;
-    const c1 = [p1[0] + (p[0] - p0[0]) / 6, p1[1] + (p[1] - p0[1]) / 6];
-    const c2 = [p[0] - (p3[0] - p1[0]) / 6, p[1] - (p3[1] - p1[1]) / 6];
-    return `${d} C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${p[0]},${p[1]}`;
-  }, "");
-}
-
-const POINTS = MONTHS.map((d, i) => [x(i), y(d.v)] as [number, number]);
-const LINE = smoothPath(POINTS);
-const AREA = `${LINE} L${x(MONTHS.length - 1)},${H} L${x(0)},${H} Z`;
-const LAST = POINTS[POINTS.length - 1];
-
-/** What the headline promises: a typed question, a one-line answer and its chart, fed by a pipeline. */
-function AnswerPreview() {
-  return (
-    <figure className="w-full rounded-[16px] border border-white/10 bg-[#120d0a] p-2 shadow-[0_24px_64px_-24px_rgba(0,0,0,0.8)]">
-      <div className="flex min-h-11 items-center gap-3 rounded-[10px] border border-white/[0.08] bg-white/[0.04] px-4 text-[15px] text-white">
-        <Search className="size-4 shrink-0 text-faint" strokeWidth={1.5} aria-hidden />
-        Revenue by month
-      </div>
-
-      <div className="px-4 pb-4 pt-6 sm:px-5">
-        <p className="text-[18px] font-medium text-white">Total revenue up 27% in October</p>
-        <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-          <span className="text-[32px] font-medium leading-none tabular-nums text-white">$48.2k</span>
-          <span className="font-mono text-[13px] tabular-nums text-faint">+27% vs September</span>
-        </div>
-
-        <svg viewBox={`0 -8 ${W} ${H + 8}`} className="mt-6 h-auto w-full overflow-visible" role="img" aria-label="Revenue rose each month from $31.4k in May to $48.2k in October, with a dip in August">
-          <defs>
-            <linearGradient id="hero-area" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f07a2b" stopOpacity="0.22" />
-              <stop offset="100%" stopColor="#f07a2b" stopOpacity="0" />
-            </linearGradient>
-          </defs>
-          {[32, 40, 48].map((v) => (
-            <line key={v} x1={0} x2={W} y1={y(v)} y2={y(v)} stroke="rgba(251,246,241,0.07)" />
-          ))}
-          <path d={AREA} fill="url(#hero-area)" />
-          <path d={LINE} fill="none" stroke="#f07a2b" strokeWidth={2} strokeLinecap="round" />
-          <circle cx={LAST[0]} cy={LAST[1]} r={4} fill="#f07a2b" stroke="#120d0a" strokeWidth={2} />
-        </svg>
-        <div className="mt-2 flex justify-between font-mono text-[12px] text-faint">
-          {MONTHS.map((d, i) => (
-            <span key={d.m} className={i === MONTHS.length - 1 ? "text-white/80" : undefined}>{d.m}</span>
-          ))}
-        </div>
-      </div>
-
-      <figcaption className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-[10px] border border-white/[0.06] bg-white/[0.02] px-4 py-3 font-mono text-[12px] text-faint">
-        <Check className="size-4 shrink-0 text-muted" strokeWidth={1.5} aria-hidden />
-        <span className="text-muted">06:00 · Daily revenue</span>
-        <span>4 steps succeeded · 4.2 s</span>
-      </figcaption>
-    </figure>
-  );
-}
+const glass =
+  "rounded-[18px] border border-white/10 bg-white/[0.045] backdrop-blur-md shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)]";
 
 export function Hero() {
   return (
-    <section id="top" className="px-2 pt-2 sm:px-3 sm:pt-3">
-      <div className="theme-dark dark hero-panel relative isolate mx-auto flex min-h-[min(100svh,920px)] max-w-[1440px] flex-col overflow-hidden rounded-[28px] border border-white/[0.06] sm:rounded-[36px]">
+    <section id="top" className="relative px-2 pt-2 sm:px-3 sm:pt-3">
+      {/* Thin orbit arcs behind the panel */}
+      <svg
+        className="pointer-events-none absolute left-1/2 top-0 h-[520px] w-[1400px] -translate-x-1/2"
+        viewBox="0 0 1400 520"
+        fill="none"
+        aria-hidden
+      >
+        <circle cx="700" cy="760" r="620" stroke="#f2545b" strokeOpacity="0.16" />
+        <circle cx="700" cy="760" r="700" stroke="#ffb37a" strokeOpacity="0.09" />
+      </svg>
+
+      <div className="theme-dark dark hero-panel relative isolate mx-auto min-h-[min(100svh,980px)] max-w-[1440px] overflow-hidden rounded-[28px] border border-white/[0.06] sm:rounded-[36px]">
+        {/* Light rays from the top left */}
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
+          <div className="ray left-[22%] w-[70px] [animation-delay:0s]" />
+          <div className="ray left-[29%] w-[120px] [animation-delay:-2s]" />
+          <div className="ray left-[37%] w-[46px] [animation-delay:-4s]" />
+          <div className="ray left-[42%] w-[90px] [animation-delay:-1s]" />
+          <div className="ray left-[50%] w-[40px] opacity-70 [animation-delay:-3s]" />
+        </div>
+
+        {/* Particles (Magic UI) */}
+        <ParticlesBackground className="absolute inset-0 -z-10" quantity={55} color="#ffffff" size={0.45} staticity={30} ease={60} />
+
+        {/* Navigation */}
         <SiteNav variant="overlay" />
 
-        <div className="mx-auto grid w-full max-w-[1200px] flex-1 items-center gap-12 px-[clamp(20px,5vw,64px)] py-[clamp(48px,7vw,96px)] lg:grid-cols-[11fr_10fr] lg:gap-16">
-          <div className="flex flex-col items-start">
-            <Link
-              href="/#platform"
-              className="group inline-flex items-center gap-2 font-mono text-[13px] text-faint transition-colors duration-150 hover:text-white"
-            >
-              <span className="text-primary">New</span>
-              Pipelines, dynamic tables and governance
-              <ArrowRight className="size-4 transition-transform duration-150 group-hover:translate-x-0.5" strokeWidth={1.5} aria-hidden />
+        {/* Headline: left-aligned, heavy/light contrast, the question in a lighter weight */}
+        <div className="relative z-10 mx-auto flex max-w-[1200px] flex-col items-start px-[clamp(20px,5vw,64px)] pt-[clamp(48px,8vw,104px)]">
+          {/* Soft scrim so the copy stays legible where the arch passes behind it */}
+          <div className="pointer-events-none absolute -inset-x-16 -inset-y-10 -z-10 bg-[radial-gradient(closest-side,rgba(7,5,4,0.6),transparent)]" aria-hidden />
+          <Announcement href="/#platform">New: pipelines, dynamic tables and governance</Announcement>
+          <h1
+            aria-label="Ask your data, and build the pipelines that feed it. Analytics and data engineering in one workspace."
+            className="mt-7 max-w-[14ch] text-[clamp(40px,6.4vw,92px)] font-semibold leading-[1] tracking-[-0.045em]"
+          >
+            <span aria-hidden>
+              <span className="text-lit">Ask your data</span>
+              <br />
+              <span className="font-extralight tracking-[-0.02em] text-highlight">
+                <Typewriter phrases={PHRASES} />
+              </span>
+            </span>
+          </h1>
+          <p className="mt-7 max-w-[50ch] text-[clamp(16px,1.5vw,19px)] font-light leading-relaxed text-white/80">
+            Vyuham is one workspace for the people who need the numbers and the people who prepare them. Ask in plain
+            English and get <Mark sweepOnLoad>a one-line answer with the right chart</Mark>. Build the pipelines, SQL
+            and self-refreshing tables behind it on the same data.{" "}
+            <span className="text-white">Every query follows the same access rules.</span>
+          </p>
+          <div className="mt-9 flex flex-wrap items-center gap-3">
+            <Link href="/signup" className="btn-primary inline-flex min-h-12 items-center gap-2 rounded-full px-7 text-[15px] font-semibold">
+              Start free
+              <ArrowRight className="size-4" strokeWidth={2.2} aria-hidden />
             </Link>
-            <h1 className="mt-6 max-w-[17ch] text-balance text-[clamp(40px,4.6vw,60px)] font-medium leading-[1.04] tracking-[-0.03em] text-white">
-              Ask your data, <span className="text-muted/70">and build the pipelines that feed it</span>
-            </h1>
-            <p className="mt-6 max-w-[36rem] text-[clamp(16px,1.4vw,18px)] leading-[1.65] text-muted">
-              Vyuham is one workspace for the people who need the numbers and the people who prepare them. Ask in plain
-              English and get a one-line answer with the right chart. Build the pipelines, SQL and self-refreshing
-              tables behind it on the same data. Every query follows the same access rules.
-            </p>
-            <div className="mt-10 flex flex-wrap items-center gap-3">
-              <Link href="/signup" className="btn-primary inline-flex min-h-12 items-center gap-2 rounded-full px-6 text-[15px] font-medium">
-                Start free
-                <ArrowRight className="size-4" strokeWidth={1.5} aria-hidden />
-              </Link>
-              <Link href="/try" className="btn-ghost inline-flex min-h-12 items-center gap-2 rounded-full px-6 text-[15px] font-medium">
-                <MousePointerClick className="size-4 text-faint" strokeWidth={1.5} aria-hidden />
-                Try it with sample data
-              </Link>
+            <Link href="/try" className="btn-ghost inline-flex min-h-12 items-center gap-2.5 rounded-full py-1 pl-2 pr-6 text-[15px] font-medium">
+              <span className="flex size-8 items-center justify-center rounded-full bg-white/10">
+                <MousePointerClick className="size-3.5" strokeWidth={2} aria-hidden />
+              </span>
+              Try it with sample data
+            </Link>
+          </div>
+          <p className="mt-4 text-[13px] text-white/55">No sign-up needed for the sample. Your own data takes a free account.</p>
+        </div>
+
+        {/* The arch */}
+        <div className="arch-wrap pointer-events-none absolute bottom-0 left-1/2 -z-10 w-[min(1180px,135%)] -translate-x-1/2 sm:w-[min(1180px,96%)]" aria-hidden>
+          <div className="arch-glow" />
+          <div className="arch-ring arch-ring--outer" />
+          <div className="arch-ring arch-ring--main" />
+          <div className="arch-ring arch-ring--inner" />
+        </div>
+        <div className="hero-fade pointer-events-none absolute inset-x-0 bottom-0 -z-10 h-[28%]" aria-hidden />
+
+        {/* Floating glass cards */}
+        <div className="pointer-events-none absolute bottom-0 left-[52%] right-0 z-10 hidden h-[56%] lg:block" aria-hidden>
+          <div className={`${glass} float absolute left-[4%] top-[4%] flex w-[250px] items-center gap-5 p-4`}>
+            <div>
+              <p className="flex items-center gap-1.5 text-[13px] text-highlight">
+                +27% <ArrowUpRight className="size-3.5" strokeWidth={2.4} />
+              </p>
+              <p className="text-[34px] font-light tracking-tight text-white/90">$48.2k</p>
+            </div>
+            <div className="flex-1 border-l border-white/10 pl-4">
+              <p className="text-[15px] text-white/85">Revenue</p>
+              <p className="mt-1.5 border-b border-white/15 pb-1 text-[13px] text-white/55">October</p>
             </div>
           </div>
 
-          <AnswerPreview />
+          <div className={`${glass} float absolute left-[22%] top-[50%] w-[190px] p-4 [animation-delay:-3s]`}>
+            <div className="flex items-start justify-between">
+              <p className="text-[12px] text-white/55">pipeline run</p>
+              <span className="flex size-6 items-center justify-center rounded-full bg-white/20">
+                <Check className="size-3.5 text-white" strokeWidth={2.4} />
+              </span>
+            </div>
+            <p className="mt-3 text-[15px] leading-tight text-white/75">Daily revenue: 4 steps succeeded</p>
+            <p className="mt-2 text-right text-[11px] text-white/45">06:00 · 4.2 s</p>
+          </div>
+
+          <div className={`${glass} float absolute right-[6%] top-[20%] w-[230px] p-4 [animation-delay:-1.5s]`}>
+            <div className="flex justify-between text-[12px] text-white/55">
+              <span>orders / week</span>
+              <span>3,184 total</span>
+            </div>
+            <svg viewBox="0 0 200 56" className="mt-2 h-14 w-full">
+              {[22, 30, 18, 34, 26, 40, 31, 46, 38, 52].map((h, i) => (
+                <rect key={i} x={i * 20 + 4} y={56 - h} width="10" height={h} rx="3" fill={i === 9 ? "#f2545b" : "#f07a2b"} fillOpacity={i === 9 ? 0.9 : 0.55} />
+              ))}
+              <polyline
+                points="9,40 29,30 49,42 69,26 89,34 109,20 129,28 149,14 169,22 189,8"
+                fill="none"
+                stroke="#ffb37a"
+                strokeWidth="1.5"
+                strokeOpacity="0.7"
+              />
+            </svg>
+          </div>
+
+          <div className={`${glass} float absolute right-[12%] top-[62%] w-[220px] p-4 opacity-40 blur-[1px] [animation-delay:-4s]`}>
+            <p className="text-[15px] text-white/80">customer_revenue</p>
+            <p className="mt-1 border-b border-white/15 pb-1 text-[13px] text-white/55">refreshed 2 min ago</p>
+          </div>
+
         </div>
       </div>
     </section>

@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "ui:tokens": "node scripts/brand-tokens.mjs",
+    "plans:sync": "node scripts/plans.mjs",
     "map:dots": "node scripts/world-dots.mjs",
     "test:unit": "node --test \"src/**/*.test.ts\""
   },

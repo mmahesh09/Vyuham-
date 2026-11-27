@@ -3,10 +3,12 @@ import { redirect } from "next/navigation";
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { Logo } from "@/components/layout/logo";
 import { AuthVisual } from "@/features/auth/auth-visual";
-import { getCurrentUser } from "@/lib/api/server";
+import { getSession } from "@/lib/api/server";
 
 export default async function AuthLayout({ children }: { children: React.ReactNode }) {
-  if (await getCurrentUser()) redirect("/home");
+  const session = await getSession();
+  if (session.status === "signed-in") redirect("/home");
+  if (session.status === "needs-onboarding") redirect("/onboarding");
   return (
     <main className="grid min-h-screen lg:grid-cols-2">
       <section className="flex flex-col px-4 py-6 sm:px-8">
