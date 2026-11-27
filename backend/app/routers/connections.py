@@ -1,6 +1,6 @@
 """Customer database connections (PostgreSQL, MySQL) and the datasets synced from them.
 
-Connections are for editors and owners: viewers see the datasets, not the database behind them. The
+Connections are managed by admins and owners (and analysts when the workspace allows); analysts can import from them: viewers see the datasets, not the database behind them. The
 password is write-only, and a saved one is only ever sent to the server it was entered for: changing
 the host, port or type, or lowering the SSL protection, needs the password again. Creating datasets
 runs their first sync straight away, so the new dataset is ready to chart when the request returns.
@@ -28,7 +28,7 @@ from app.connectors.introspect import list_tables, preview
 from app.crypto import SecretError, encrypt
 from app.db import get_db
 from app.models import Connection, Dataset, WorkspaceMember
-from app.routers.datasets import _unique_name, check_quota, parquet_path, require_editor
+from app.routers.datasets import _unique_name, check_quota, parquet_path, require_editor, require_sources
 from app.schemas import (
     ConnectionIn,
     ConnectionOut,
@@ -122,7 +122,7 @@ def connection_settings(member: WorkspaceMember = Depends(current_membership)):
 
 @router.post("/test", response_model=ConnectionTestOut, dependencies=[Depends(connector_slot)])
 def test_connection(body: ConnectionTestIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    require_editor(member)
+    require_sources(member)
     password = body.password
     if not password and not body.connection_id:
         return ConnectionTestOut(ok=False, message="Enter the password.")
@@ -154,7 +154,7 @@ def list_connections(member: WorkspaceMember = Depends(current_membership), db: 
 
 @router.post("", response_model=ConnectionOut, status_code=status.HTTP_201_CREATED, dependencies=[Depends(connector_slot)])
 def create_connection(body: ConnectionIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    require_editor(member)
+    require_sources(member)
     try:
         spec = ConnSpec(body.kind, body.host, body.port, body.database, body.username, body.password, body.ssl_mode)
         list_tables(spec)  # only save connections that work
@@ -180,7 +180,7 @@ def create_connection(body: ConnectionIn, member: WorkspaceMember = Depends(curr
 def update_connection(
     connection_id: str, body: ConnectionPatch, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)
 ):
-    require_editor(member)
+    require_sources(member)
     conn = _owned(db, member, connection_id)
     fields = body.model_dump(exclude_unset=True, exclude={"password", "name"})
     try:
@@ -214,7 +214,7 @@ def update_connection(
 @router.delete("/{connection_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_connection(connection_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     """Its datasets stay as snapshots of the last sync (they stop refreshing)."""
-    require_editor(member)
+    require_sources(member)
     conn = _owned(db, member, connection_id)
     for ds in db.scalars(select(Dataset).where(Dataset.connection_id == conn.id)).all():
         ds.connection_id, ds.refresh = None, "manual"

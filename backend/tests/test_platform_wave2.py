@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app import jobs
 from app.models import DynamicTable, Pipeline, WorkspaceMember
-from tests.conftest import add_user
+from tests.conftest import add_user, join
 from tests.test_query import sign_in, upload
 
 PEOPLE = (
@@ -26,10 +26,8 @@ ORDERS = (
 
 def join_as(client, engine, ws: str, uid: str, role: str):
     """Sign in a second person who is a member of `ws` with `role`."""
-    cookie = add_user(engine, uid, token=f"tok-{uid}", company="Acme")
-    with Session(engine) as db:
-        db.add(WorkspaceMember(user_id=uid, workspace_id=ws, role=role))
-        db.commit()
+    cookie = add_user(engine, uid, token=f"tok-{uid}", company="Acme", onboarded=False)
+    join(engine, uid, ws, role)
     client.cookies.set("better-auth.session_token", cookie)
 
 
@@ -80,10 +78,10 @@ def test_restricted_columns_and_hidden_datasets(client, engine):
     ws = sign_in(client, engine)
     ds = upload(client, PEOPLE, "people.csv")
     other = upload(client, ORDERS, "orders.csv")
-    assert client.put("/governance/access", json={"dataset_id": ds["id"], "column": "phone", "role": "editor", "access": "none"}).status_code == 200
-    assert client.put("/governance/access", json={"dataset_id": other["id"], "role": "editor", "access": "none"}).status_code == 200
+    assert client.put("/governance/access", json={"dataset_id": ds["id"], "column": "phone", "role": "analyst", "access": "none"}).status_code == 200
+    assert client.put("/governance/access", json={"dataset_id": other["id"], "role": "analyst", "access": "none"}).status_code == 200
 
-    join_as(client, engine, ws, "e1", "editor")
+    join_as(client, engine, ws, "e1", "analyst")
     r = client.post("/sql/run", json={"sql": "SELECT * FROM people"})
     assert r.status_code == 200, r.text
     assert "phone" not in r.json()["columns"]
@@ -93,7 +91,7 @@ def test_restricted_columns_and_hidden_datasets(client, engine):
     tables = {t["table"] for t in client.get("/sql/schema").json()}
     assert "orders" not in tables
     # Only owners change governance.
-    assert client.put("/governance/access", json={"dataset_id": ds["id"], "role": "editor", "access": "read"}).status_code == 403
+    assert client.put("/governance/access", json={"dataset_id": ds["id"], "role": "analyst", "access": "read"}).status_code == 403
 
     owner_again(client, engine)
     events = client.get("/governance/audit?group=permissions").json()["events"]

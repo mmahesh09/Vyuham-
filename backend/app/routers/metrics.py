@@ -1,6 +1,6 @@
 """The semantic layer: formulas, metrics with versions and tests, dimensions, calculated columns, and audit trails.
 
-Everyone in a workspace can read definitions. Owners and editors change them.
+Everyone in a workspace can read definitions. Analysts, admins and owners change them.
 """
 
 from __future__ import annotations
@@ -46,6 +46,7 @@ from app.models import (
 from app.query import QueryError, connect, quote
 from app.routers.datasets import owned_dataset, require_editor
 from app.schemas import SpecFilter, UtcDatetime
+from app.permissions import FULL_ACCESS
 from app.security import current_membership
 
 router = APIRouter(tags=["metrics"])
@@ -481,7 +482,7 @@ def run_tests(metric_id: str, member: WorkspaceMember = Depends(current_membersh
 
 @router.get("/metrics/{metric_id}/sql")
 def metric_as_sql(metric_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    """The approved definition as a query, for SQL Lab (owners and editors, like SQL Lab itself)."""
+    """The approved definition as a query, for SQL Lab (analysts and up, like SQL Lab itself)."""
     from app.query import table_names
 
     require_editor(member)
@@ -665,8 +666,8 @@ class QueryExecutionOut(BaseModel):
 
 
 def _owner(member: WorkspaceMember) -> None:
-    if member.role != "owner":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only workspace owners can see this.")
+    if member.role not in FULL_ACCESS:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only owners and admins can see this.")
 
 
 @router.get("/audit-logs", response_model=list[AuditOut])

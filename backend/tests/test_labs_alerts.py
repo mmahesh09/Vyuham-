@@ -8,6 +8,7 @@ from app.alerts import automation_due, check_alert, last_occurrence, run_automat
 from app.models import Alert, Automation, WorkspaceMember
 from app.notify import WebhookError, check_webhook_url
 from tests.test_query import sign_in, upload
+from tests.conftest import join
 
 
 # ---------- SQL Lab ----------
@@ -35,8 +36,7 @@ def test_sql_lab_viewers_blocked(client, engine):
     upload(client)
     sign_in(client, engine, uid="u2", token="tok-2", company="Other")
     assert client.get("/sql/schema").json() == []  # own empty workspace
-    with engine.begin() as c:
-        c.execute(update(WorkspaceMember).where(WorkspaceMember.user_id == "u2").values(workspace_id=ws, role="viewer"))
+    join(engine, "u2", ws, "viewer")
     assert client.post("/sql/run", json={"sql": "SELECT 1"}).status_code == 403
 
 

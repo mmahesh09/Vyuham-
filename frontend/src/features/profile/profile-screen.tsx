@@ -144,7 +144,7 @@ function ProfileEditor({ user, profile }: { user: User; profile: Profile }) {
   return (
     <TooltipProvider>
       {/* A div, not a <form>: the leave and feedback forms live inside it and forms can't nest. */}
-      <PageContainer className="gap-6 pb-24">
+      <PageContainer width="medium" className="gap-6 pb-24">
         {/* ---------- Header ---------- */}
         <section className="flex flex-col gap-6 rounded-2xl border border-line bg-surface p-6 md:flex-row md:items-center">
           <StatusMenu initials={initials(values.name || user.name)} size="lg" />
@@ -490,7 +490,7 @@ function ProfileEditor({ user, profile }: { user: User; profile: Profile }) {
 
 function ProfileSkeleton() {
   return (
-    <PageContainer className="gap-6" aria-busy>
+    <PageContainer width="medium" className="gap-6" aria-busy>
       <Skeleton className="h-36 rounded-2xl" />
       <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
         <Skeleton className="h-96 rounded-xl" />

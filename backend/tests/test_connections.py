@@ -20,7 +20,7 @@ from app.connectors.introspect import TableInfo
 from app.ingest import profile_frame
 from app.models import Connection, Dataset
 from app.routers.datasets import parquet_path
-from tests.conftest import add_user
+from tests.conftest import add_user, set_role
 
 ORDERS = pd.DataFrame(
     {
@@ -178,12 +178,7 @@ def test_create_connection_never_returns_the_password(client, engine, fake_db):
 
 def test_viewers_cannot_manage_connections(client, engine, fake_db):
     sign_in(client, engine)
-    with Session(engine) as s:
-        from app.models import WorkspaceMember
-
-        m = s.query(WorkspaceMember).first()
-        m.role = "viewer"
-        s.commit()
+    set_role(engine, "u1", "viewer")
     assert connect(client).status_code == 403
 
 

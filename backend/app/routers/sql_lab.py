@@ -1,4 +1,4 @@
-"""SQL Lab: read-only SQL over the workspace's datasets, plus saved queries (owners and editors)."""
+"""SQL Lab: read-only SQL over the workspace's datasets, plus saved queries (analysts, admins and owners)."""
 
 import threading
 import time
@@ -17,6 +17,7 @@ from app.models import Automation, Dataset, Project, SavedQuery, WorkspaceMember
 from app.query import MAX_ROWS, QueryError, connect, explain_sql, run_sql, table_names
 from app.routers.datasets import CAN_UPLOAD
 from app.schemas import ColumnOut, SqlParam, UtcDatetime
+from app.sharing import ensure_visible, set_visibility, touched, visible_clause
 from app.security import AuthUser, current_membership, current_user
 from app.sql_params import bind
 
@@ -25,7 +26,7 @@ router = APIRouter(prefix="/sql", tags=["sql"])
 
 def _editor(member: WorkspaceMember) -> None:
     if member.role not in CAN_UPLOAD:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "SQL Lab is for owners and editors.")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "SQL Lab is for analysts, admins and owners.")
 
 
 def _datasets(db: Session, member: WorkspaceMember) -> list[Dataset]:
@@ -82,6 +83,7 @@ class SavedIn(BaseModel):
     builder_state: dict[str, Any] | None = None
     project_id: str | None = Field(default=None, max_length=32)
     folder: str | None = Field(default=None, max_length=200)
+    visibility: Literal["workspace", "private"] | None = None
 
     @field_validator("builder_state")
     @classmethod
@@ -104,6 +106,9 @@ class SavedOut(BaseModel):
     folder: str | None = None
     # "Daily at 09:00 (UTC)" when the query is scheduled; None otherwise.
     schedule: str | None = None
+    visibility: str = "workspace"
+    created_by: str | None = None
+    updated_by: str | None = None
     created_at: UtcDatetime
     updated_at: UtcDatetime
 
@@ -379,7 +384,10 @@ def _saved_out(q: SavedQuery, schedule: Automation | None) -> SavedOut:
 def list_saved(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     _editor(member)
     schedules = _schedules(db, member.workspace_id)
-    queries = db.scalars(select(SavedQuery).where(SavedQuery.workspace_id == member.workspace_id).order_by(SavedQuery.updated_at.desc())).all()
+    queries = db.scalars(
+        select(SavedQuery).where(SavedQuery.workspace_id == member.workspace_id, visible_clause(SavedQuery, member))
+        .order_by(SavedQuery.updated_at.desc())
+    ).all()
     return [_saved_out(q, schedules.get(q.id)) for q in queries]
 
 
@@ -388,7 +396,8 @@ def save(body: SavedIn, member: WorkspaceMember = Depends(current_membership), d
     _editor(member)
     q = SavedQuery(
         workspace_id=member.workspace_id, name=body.name.strip(), sql=body.sql, params=_params(body),
-        builder_state=body.builder_state, created_by=member.user_id,
+        builder_state=body.builder_state, created_by=member.user_id, updated_by=member.user_id,
+        visibility=body.visibility or "workspace",
         project_id=check_project(db, member, body.project_id), folder=_folder(body.folder),
     )
     db.add(q)
@@ -417,6 +426,7 @@ def _saved(db: Session, member: WorkspaceMember, qid: str) -> SavedQuery:
     q = db.get(SavedQuery, qid)
     if q is None or q.workspace_id != member.workspace_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Query not found")
+    ensure_visible(q, member, "Query not found")
     return q
 
 
@@ -426,6 +436,8 @@ def update_saved(qid: str, body: SavedIn, member: WorkspaceMember = Depends(curr
     q = _saved(db, member, qid)
     q.name, q.sql, q.params, q.builder_state = body.name.strip(), body.sql, _params(body), body.builder_state
     q.project_id, q.folder = check_project(db, member, body.project_id), _folder(body.folder)
+    set_visibility(q, member, body.visibility)
+    touched(q, member)
     db.commit()
     db.refresh(q)
     return _saved_out(q, _schedules(db, member.workspace_id).get(q.id))

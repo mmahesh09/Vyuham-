@@ -77,7 +77,7 @@ export function LabScreen() {
           </EmptyHeader>
         </Empty>
       ) : (
-        <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {dashboards.map((d) => (
             <li key={d.id}>
               <Link

@@ -178,18 +178,27 @@ class _Deadline:
     def __init__(self, seconds: float) -> None:
         self.raw = None
         self.fired = False
+        self._lock = threading.Lock()
         self.timer = threading.Timer(seconds, self._fire)
         self.timer.daemon = True
 
     def watch(self, raw):
-        self.raw = raw
+        with self._lock:
+            self.raw = raw
+            late = self.fired
+        if late:  # time ran out while the driver was still connecting: nothing else will cut this one
+            self._cut(raw)
         return raw
 
     def _fire(self) -> None:
-        self.fired = True
-        raw = self.raw
-        if raw is None:  # still connecting: the driver's connect timeout covers that
-            return
+        with self._lock:
+            self.fired = True
+            raw = self.raw
+        if raw is not None:  # still connecting: watch() cuts it as soon as the driver hands it over
+            self._cut(raw)
+
+    @staticmethod
+    def _cut(raw) -> None:
         own = getattr(raw, "_sock", None)  # PyMySQL keeps its socket; psycopg gives a descriptor
         sock = own or socket.fromfd(raw.fileno(), socket.AF_INET, socket.SOCK_STREAM)
         try:

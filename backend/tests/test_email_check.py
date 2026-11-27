@@ -32,7 +32,7 @@ def reacher(monkeypatch):
 
 
 def invite(client, address="new@acme.co"):
-    return client.post("/workspace/invites", json={"role": "viewer", "email": address})
+    return client.post("/invitations", json={"role": "viewer", "emails": [address]})
 
 
 def test_off_without_reacher_url(client, engine, monkeypatch):
@@ -48,8 +48,8 @@ def test_invalid_address_is_refused(client, engine, reacher):
     sign_in(client, engine)
     reacher.answer = {"is_reachable": "invalid"}
     r = invite(client, "nobody@acme.co")
-    assert r.status_code == 422 and "can't receive email" in r.json()["detail"]
-    assert client.get("/workspace/invites").json() == []  # nothing created
+    assert r.status_code == 201 and r.json()[0]["result"] == "invalid" and "can't receive email" in r.json()[0]["message"]
+    assert client.get("/invitations").json() == []  # nothing created
     url, payload, headers = reacher.calls[0]
     assert url == "http://reacher.test/v0/check_email" and payload == {"to_email": "nobody@acme.co"} and headers == {"x-reacher-secret": "s3cret"}
 
@@ -58,10 +58,12 @@ def test_invalid_address_is_refused(client, engine, reacher):
 def test_anything_else_still_invites(client, engine, reacher, answer):
     sign_in(client, engine)
     reacher.answer = answer
-    assert invite(client).status_code == 201
+    r = invite(client)
+    assert r.status_code == 201 and r.json()[0]["result"] == "invited"
 
 
-def test_link_invites_skip_the_check(client, engine, reacher):
+def test_existing_members_skip_the_check(client, engine, reacher):
     sign_in(client, engine)
-    assert client.post("/workspace/invites", json={"role": "viewer"}).status_code == 201
+    r = invite(client, "u1@acme.co")  # already in the organization: no email, no lookup
+    assert r.json()[0]["result"] == "already_member"
     assert reacher.calls == []

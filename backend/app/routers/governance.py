@@ -1,6 +1,6 @@
 """Governance Center: overview, sensitive data findings, classification, policies, access control and audit.
 
-Owners manage policies, labels and permissions; editors can read the overview and findings and run a
+Owners and admins manage policies, labels and permissions; analysts can read the overview and findings and run a
 scan. Every change here is written to the audit log in the same transaction.
 """
 
@@ -21,6 +21,7 @@ from app.db import get_db
 from app.models import AccessGrant, AuditLog, ColumnClassification, Dataset, GovernancePolicy, QueryExecution, WorkspaceMember
 from app.routers.datasets import owned_dataset
 from app.schemas import UtcDatetime
+from app.permissions import FULL_ACCESS
 from app.security import current_membership
 
 router = APIRouter(prefix="/governance", tags=["governance"])
@@ -28,17 +29,17 @@ router = APIRouter(prefix="/governance", tags=["governance"])
 Label = Literal["public", "internal", "confidential", "restricted"]
 PiiType = Literal["email", "phone", "person_name", "address", "financial", "government_id", "sensitive"]
 Method = Literal["partial", "hash", "redact", "full", "hide"]
-GrantRole = Literal["editor", "viewer", "public"]
+GrantRole = Literal["analyst", "viewer", "public"]
 
 
 def _reader(member: WorkspaceMember) -> None:
-    if member.role not in ("owner", "editor"):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "The Governance Center is for owners and editors.")
+    if member.role not in ("owner", "admin", "analyst"):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "The Governance Center is for analysts, admins and owners.")
 
 
 def _owner(member: WorkspaceMember) -> None:
-    if member.role != "owner":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only workspace owners can change governance settings.")
+    if member.role not in FULL_ACCESS:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only owners and admins can change governance settings.")
 
 
 def _datasets(db: Session, ws: str) -> dict[str, Dataset]:
@@ -73,7 +74,7 @@ def overview(member: WorkspaceMember = Depends(current_membership), db: Session 
     for c in active:
         if c.label not in ("confidential", "restricted"):
             continue
-        roles_seeing = [r for r in ("editor", "viewer", "public") if not any(gov.policy_method(p.rules or {}, c.label, c.pii_type, r) for p in masking)]
+        roles_seeing = [r for r in ("analyst", "viewer", "public") if not any(gov.policy_method(p.rules or {}, c.label, c.pii_type, r) for p in masking)]
         if "viewer" in roles_seeing or "public" in roles_seeing:
             unprotected.append({"dataset_id": c.dataset_id, "dataset": ds[c.dataset_id].name, "column": c.column, "label": c.label,
                                 "pii_type": c.pii_type, "visible_to": roles_seeing})
@@ -134,7 +135,7 @@ def classifications(include_dismissed: bool = False, member: WorkspaceMember = D
     _reader(member)
     ws = member.workspace_id
     ds = _datasets(db, ws)
-    access = {r: gov.access_for(db, ws, r) for r in ("editor", "viewer", "public")}
+    access = {r: gov.access_for(db, ws, r) for r in ("analyst", "viewer", "public")}
     out = []
     for c in db.scalars(select(ColumnClassification).where(ColumnClassification.workspace_id == ws).order_by(ColumnClassification.label.desc())).all():
         if c.dataset_id not in ds or (c.status == "dismissed" and not include_dismissed):
@@ -208,7 +209,7 @@ def _check_rules(kind: str, rules: dict) -> dict:
         method = rules.get("method", "full")
         if method not in gov.METHODS:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Unknown masking method.")
-        exempt = [r for r in rules.get("exempt_roles") or [] if r in ("editor", "viewer")]
+        exempt = [r for r in rules.get("exempt_roles") or [] if r in ("analyst", "viewer")]
         return {"labels": labels, "pii_types": types, "method": method, "exempt_roles": exempt}
     if kind == "classification":
         # Column-name patterns that get a label on the next scan (applied by the scanner as manual suggestions).
@@ -297,7 +298,7 @@ def access(member: WorkspaceMember = Depends(current_membership), db: Session = 
     names = _names(db, {m.user_id for m in members})
     emails = {r.id: r.email for r in db.execute(select(user_table.c.id, user_table.c.email).where(user_table.c.id.in_([m.user_id for m in members])))} if members else {}
     grants = db.scalars(select(AccessGrant).where(AccessGrant.workspace_id == ws)).all()
-    eff = {r: gov.access_for(db, ws, r) for r in ("editor", "viewer", "public")}
+    eff = {r: gov.access_for(db, ws, r) for r in ("analyst", "viewer", "public")}
     matrix = []
     for d in ds.values():
         row = {"dataset_id": d.id, "dataset": d.name, "layer": d.layer, "roles": {"owner": {"access": "full", "masked_columns": 0, "hidden_columns": 0}}}
@@ -315,7 +316,7 @@ def access(member: WorkspaceMember = Depends(current_membership), db: Session = 
         "grants": [{"id": g.id, "dataset_id": g.dataset_id, "dataset": ds[g.dataset_id].name if g.dataset_id in ds else "(deleted)",
                     "column": g.column, "role": g.role, "access": g.access, "created_at": g.created_at} for g in grants],
         "matrix": matrix,
-        "roles": {"owner": "Full access to everything, always.", "editor": "Builds with data; can run SQL and pipelines.",
+        "roles": {"owner": "Full access to everything, always.", "admin": "Full access to data; manages members and settings.", "analyst": "Builds with data; can run SQL and pipelines.",
                   "viewer": "Reads dashboards and datasets.", "public": "Anyone with a shared dashboard link."},
     }
 

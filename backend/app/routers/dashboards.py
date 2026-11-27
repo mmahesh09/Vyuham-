@@ -16,6 +16,8 @@ from app.audit import log_query, record_action
 from app.models import Chart, Dashboard, Dataset, UserProfile, WorkspaceMember
 from app.governance import access_for, connect_as
 from app.query import Filters, QueryError, connect, distinct_values, validate_select
+from app.permissions import Perm, require
+from app.sharing import ensure_visible, set_visibility, touched, visible_clause
 from app.routers.datasets import CAN_UPLOAD, owned_dataset
 from app.sql_params import Param, bind
 from app.schemas import (
@@ -49,14 +51,14 @@ MAX_CHARTS = 40
 
 
 def _editor(member: WorkspaceMember) -> None:
-    if member.role not in CAN_UPLOAD:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Viewers can't change dashboards. Ask an owner for editor access.")
+    require(member, Perm.CONTENT_WRITE, "Viewers can't change dashboards. Ask an admin for analyst access.")
 
 
 def _dashboard(db: Session, member: WorkspaceMember, dashboard_id: str) -> Dashboard:
     d = db.get(Dashboard, dashboard_id)
     if d is None or d.workspace_id != member.workspace_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dashboard not found")
+    ensure_visible(d, member, "Dashboard not found")
     return d
 
 
@@ -64,6 +66,7 @@ def _chart(db: Session, member: WorkspaceMember, chart_id: str) -> Chart:
     c = db.get(Chart, chart_id)
     if c is None or c.dashboard.workspace_id != member.workspace_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Chart not found")
+    ensure_visible(c.dashboard, member, "Chart not found")
     return c
 
 
@@ -121,6 +124,7 @@ def _out(db: Session, d: Dashboard, member: WorkspaceMember | None) -> Dashboard
         id=d.id, name=d.name, description=d.description, date_fields=d.date_fields or {},
         filter_columns=d.filter_columns or [], kpi_layout=d.kpi_layout or [], canvas_layout=d.canvas_layout or [],
         pages=pages, share_token=d.share_token if member else None, created_at=d.created_at, updated_at=d.updated_at,
+        visibility=d.visibility or "workspace", created_by=d.created_by if member else None, updated_by=d.updated_by if member else None,
         charts=charts, datasets=refs, can_edit=bool(member and member.role in CAN_UPLOAD),
     )
 
@@ -258,7 +262,7 @@ def _check_spec_dataset(db: Session, member: WorkspaceMember, spec: dict) -> Dat
 def list_dashboards(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     dashboards = db.scalars(
         select(Dashboard)
-        .where(Dashboard.workspace_id == member.workspace_id)
+        .where(Dashboard.workspace_id == member.workspace_id, visible_clause(Dashboard, member))
         .order_by(Dashboard.updated_at.desc())
         .options(selectinload(Dashboard.charts))  # one query for every dashboard's charts, not one each
     ).all()
@@ -269,6 +273,7 @@ def list_dashboards(member: WorkspaceMember = Depends(current_membership), db: S
             chart_count=sum(1 for c in d.charts if c.kind == "card"), kpi_count=sum(1 for c in d.charts if c.kind == "kpi"),
             dataset_names=sorted({names[c.dataset_id] for c in d.charts if c.dataset_id in names}),
             shared=d.share_token is not None, updated_at=d.updated_at,
+            visibility=d.visibility or "workspace", created_by=d.created_by, updated_by=d.updated_by,
         )
         for d in dashboards
     ]
@@ -277,8 +282,13 @@ def list_dashboards(member: WorkspaceMember = Depends(current_membership), db: S
 @router.post("/dashboards", response_model=DashboardOut, status_code=status.HTTP_201_CREATED)
 def create_dashboard(body: DashboardIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     _editor(member)
-    d = Dashboard(workspace_id=member.workspace_id, name=body.name.strip(), description=body.description, created_by=member.user_id)
+    d = Dashboard(
+        workspace_id=member.workspace_id, name=body.name.strip(), description=body.description, created_by=member.user_id,
+        updated_by=member.user_id, visibility=body.visibility,
+    )
     db.add(d)
+    db.flush()
+    record_action(db, member, "dashboard.create", "dashboard", d.id, {"visibility": body.visibility})
     db.commit()
     db.refresh(d)
     return _out(db, d, member)
@@ -323,6 +333,10 @@ def update_dashboard(
             current = _page_of(old_ids, c)
             c.page_id = current if current in ids else ids[0]
         d.pages = [{"id": p["id"], "name": p["name"].strip()} for p in data["pages"]]
+    if "visibility" in data:
+        set_visibility(d, member, data["visibility"])
+    touched(d, member)
+    record_action(db, member, "dashboard.update", "dashboard", d.id, {"fields": sorted(data)})
     db.commit()
     db.refresh(d)
     return _out(db, d, member)
@@ -331,7 +345,9 @@ def update_dashboard(
 @router.delete("/dashboards/{dashboard_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_dashboard(dashboard_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     _editor(member)
-    db.delete(_dashboard(db, member, dashboard_id))
+    d = _dashboard(db, member, dashboard_id)
+    record_action(db, member, "dashboard.delete", "dashboard", d.id, {"name": d.name})
+    db.delete(d)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
@@ -490,7 +506,7 @@ def preview(body: PreviewIn, member: WorkspaceMember = Depends(current_membershi
     """Live result for the chart builder, before anything is saved."""
     spec = body.spec.model_dump(exclude_none=True)
     if spec.get("sql"):
-        _editor(member)  # SQL charts come from SQL Lab, which is for owners and editors
+        _editor(member)  # SQL charts come from SQL Lab, which is for analysts and up
     ds = _check_spec_dataset(db, member, spec)
     date_field = body.date_field or next((c["name"] for c in ds.columns if c["type"] == "date"), None)
     filters = Filters(date_field, body.date_from, body.date_to) if date_field and (body.date_from or body.date_to) else None
@@ -564,9 +580,13 @@ def unshare(dashboard_id: str, member: WorkspaceMember = Depends(current_members
 
 
 def _shared(db: Session, token: str) -> Dashboard:
+    from app import tenancy
+
+    tenancy.bypass(db)  # find the token's workspace first; everything after is bound to it
     d = db.scalar(select(Dashboard).where(Dashboard.share_token == token)) if token else None
     if d is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "This link doesn't work any more. Ask for a new one.")
+    tenancy.bind(db, d.workspace_id)
     # The creator can turn link sharing off on their profile; that disables existing links too.
     if _visibility(db, d.created_by) != "anyone":
         raise HTTPException(status.HTTP_403_FORBIDDEN, "The owner has turned off link sharing for this dashboard.")

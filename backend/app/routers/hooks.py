@@ -22,7 +22,7 @@ from starlette.concurrency import run_in_threadpool
 from app.audit import record_action
 from app.db import get_db
 from app.models import AuditLog, Dataset, RefreshHook, WorkspaceMember
-from app.routers.datasets import queue_sync, require_editor
+from app.routers.datasets import queue_sync, require_sources
 from app.schemas import RefreshHookCreatedOut, RefreshHookIn, RefreshHookOut
 from app.security import current_membership
 
@@ -47,7 +47,7 @@ def _connected_ids(db: Session, workspace_id: str, ids: list[str]) -> set[str]:
     ))
 
 
-# ---------- managing hooks (signed in, editors) ----------
+# ---------- managing hooks (signed in, admins: they act like data-source credentials) ----------
 
 
 @router.get("", response_model=list[RefreshHookOut])
@@ -59,7 +59,7 @@ def list_hooks(member: WorkspaceMember = Depends(current_membership), db: Sessio
 
 @router.post("", response_model=RefreshHookCreatedOut, status_code=status.HTTP_201_CREATED)
 def create_hook(body: RefreshHookIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    require_editor(member)
+    require_sources(member)
     active = db.scalar(select(func.count()).select_from(RefreshHook).where(
         RefreshHook.workspace_id == member.workspace_id, RefreshHook.revoked_at.is_(None)
     ))
@@ -82,7 +82,7 @@ def create_hook(body: RefreshHookIn, member: WorkspaceMember = Depends(current_m
 
 @router.delete("/{hook_id}", status_code=status.HTTP_204_NO_CONTENT)
 def revoke_hook(hook_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    require_editor(member)
+    require_sources(member)
     hook = db.get(RefreshHook, hook_id)
     if hook is None or hook.workspace_id != member.workspace_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Refresh hook not found")
@@ -117,9 +117,13 @@ async def call_hook(token: str, request: Request, background: BackgroundTasks, d
 
 
 def _refresh(db: Session, token: str, requested: set[str] | None, background: BackgroundTasks) -> None:
+    from app import tenancy
+
+    tenancy.bypass(db)  # find the hook's workspace first; everything after is bound to it
     hook = db.scalar(select(RefreshHook).where(RefreshHook.token_hash == _hash(token))) if token.startswith(TOKEN_PREFIX) else None
     if hook is None or hook.revoked_at is not None:
         return
+    tenancy.bind(db, hook.workspace_id)
     wanted = [i for i in hook.dataset_ids if requested is None or i in requested]
     datasets = db.scalars(select(Dataset).where(
         Dataset.workspace_id == hook.workspace_id, Dataset.id.in_(wanted), Dataset.connection_id.is_not(None)

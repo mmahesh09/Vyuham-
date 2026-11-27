@@ -29,10 +29,10 @@ export function AdminTicket({ id }: { id: string }) {
   const { data: errors } = useErrorGroups();
   const [internal, setInternal] = useState(false);
 
-  if (isLoading || !t) return <Skeleton className="mx-auto h-72 w-full max-w-[1120px] rounded-xl" />;
+  if (isLoading || !t) return <Skeleton className="mx-auto h-72 w-full max-w-[1240px] rounded-xl" />;
 
   return (
-    <PageContainer>
+    <PageContainer width="medium">
       <PageHeader back={{ href: "/support/admin", label: "Support inbox" }} crumb={t.subject} title={t.subject} />
       <AdminNav />
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">

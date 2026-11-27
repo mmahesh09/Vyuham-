@@ -10,7 +10,7 @@ from app.db import get_db
 from app.errors import capture
 from app.ratelimit import RateLimitMiddleware
 from app.errors import setup_error_tracking
-from app.routers import account, ai, alerts, ask, connections, dashboards, data_platform, datasets, dynamic_tables, governance, health, hooks, kb, me, metrics, pipelines, presence, profile, reports, sql_lab, status_page, support, team, templates, usage
+from app.routers import account, ai, alerts, invitations, onboarding, organizations, pilots, ask, connections, dashboards, data_platform, datasets, dynamic_tables, governance, health, hooks, kb, me, metrics, pipelines, presence, profile, reports, sql_lab, status_page, support, team, templates, usage
 from app.scheduler import Scheduler
 from app.telemetry import configure_logging, count, current_trace_id, record_error, scrub, setup_telemetry
 
@@ -23,6 +23,9 @@ configure_logging()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     settings = get_settings()
+    from app.db import check_rls_role, engine
+
+    check_rls_role(engine)
     # With Redis, the Celery worker and beat run jobs; the thread is only for local dev without it.
     scheduler = Scheduler() if settings.scheduler_enabled and not settings.redis_url else None
     if scheduler:
@@ -47,6 +50,9 @@ setup_telemetry("vyuham-api", app=app, celery=True)
 setup_error_tracking("vyuham-api")
 
 app.include_router(me.router)
+app.include_router(onboarding.router)
+app.include_router(organizations.router)
+app.include_router(invitations.router)
 app.include_router(data_platform.router)  # before datasets: /datasets/derived and /datasets/url aren't dataset ids
 app.include_router(datasets.router)
 app.include_router(connections.router)
@@ -66,6 +72,8 @@ app.include_router(pipelines.router)
 app.include_router(dynamic_tables.router)
 app.include_router(usage.router)
 app.include_router(governance.router)
+app.include_router(pilots.public)
+app.include_router(pilots.admin)
 app.include_router(alerts.router)
 app.include_router(account.router)
 app.include_router(health.router)

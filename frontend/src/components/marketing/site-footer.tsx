@@ -3,7 +3,7 @@ import Link from "next/link";
 
 import { LOGO_PIECES, LOGO_VIEW_BOX } from "@/components/layout/logo-shapes";
 import { container } from "@/components/marketing/tokens";
-import { SITE_NAME } from "@/lib/site";
+import { LINKEDIN_URL, SITE_NAME } from "@/lib/site";
 
 type LinkList = [label: string, href: string][];
 
@@ -32,6 +32,7 @@ const COLUMNS: { title: string; links: LinkList }[] = [
       ["Blog", "/blog"],
       ["Connect a database", "/#databases"],
       ["FAQ", "/#faq"],
+      ["LinkedIn", LINKEDIN_URL],
     ],
   },
   {
@@ -104,12 +105,25 @@ export function SiteFooter() {
                 <ul className="flex flex-col">
                   {col.links.map(([label, href]) => (
                     <li key={label}>
-                      <Link
-                        href={href}
-                        className={`inline-flex min-h-9 items-center text-[15px] font-light text-muted transition-colors ${ease} hover:text-text`}
-                      >
-                        {label}
-                      </Link>
+                      {href.startsWith("http") ? (
+                        <a
+                          href={href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className={`inline-flex min-h-9 items-center gap-1 text-[15px] font-light text-muted transition-colors ${ease} hover:text-text`}
+                        >
+                          {label}
+                          <ArrowUpRight className="size-3.5" aria-hidden />
+                          <span className="sr-only">(opens in a new tab)</span>
+                        </a>
+                      ) : (
+                        <Link
+                          href={href}
+                          className={`inline-flex min-h-9 items-center text-[15px] font-light text-muted transition-colors ${ease} hover:text-text`}
+                        >
+                          {label}
+                        </Link>
+                      )}
                     </li>
                   ))}
                 </ul>

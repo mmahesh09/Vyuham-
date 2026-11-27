@@ -31,6 +31,7 @@ from tests.test_connections import ORDERS, PG, connect, fake_db, sign_in  # noqa
 
 SPEC = ConnSpec("postgres", "db.example.com", 5432, "shop", "russell", "hunter2-secret")
 MY_SPEC = ConnSpec("mysql", "db.example.com", 3306, "shop", "reader", "hunter2-secret")
+from tests.conftest import set_role
 
 
 # ---------- only safe SELECTs ----------
@@ -192,9 +193,7 @@ def test_rotating_a_password_repairs_a_failing_connection(client, engine, fake_d
 def test_viewers_cannot_see_the_database_behind_a_connection(client, engine, fake_db):
     sign_in(client, engine)
     conn = connect(client).json()
-    with Session(engine) as s:
-        s.query(WorkspaceMember).first().role = "viewer"
-        s.commit()
+    set_role(engine, "u1", "viewer")
     assert client.get("/connections").status_code == 403
     assert client.get(f"/connections/{conn['id']}/tables").status_code == 403
     assert client.get(f"/connections/{conn['id']}/preview", params={"table": "public.orders"}).status_code == 403

@@ -11,18 +11,33 @@ class WorkspaceOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
     name: str
+    organization_id: str | None = None
+    logo_url: str | None = None
+
+
+class OrganizationRef(BaseModel):
+    id: str
+    name: str
+    plan: str = "free"
 
 
 class UserOut(BaseModel):
     id: str
     email: str
     name: str
-    role: str
+    # Effective role in the current workspace (owner | admin | analyst | viewer); null before onboarding.
+    role: str | None
+    org_role: str | None = None
+    # What the role allows (app/permissions.py). The web app uses it to hide controls; the API enforces it.
+    permissions: list[str] = []
     job_role: str | None = None
     email_verified: bool = False
     # Vyuham support staff: sees the support inbox, help-article editor and incident tools.
     is_staff: bool = False
-    workspace: WorkspaceOut
+    workspace: WorkspaceOut | None
+    organization: OrganizationRef | None = None
+    workspaces: list[dict] = []
+    needs_onboarding: bool = False
 
 
 class ColumnOut(BaseModel):
@@ -433,6 +448,8 @@ class KpiLayoutItem(BaseModel):
 class DashboardIn(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=500)
+    # workspace: everyone in the workspace finds it; private: only you (and owners/admins).
+    visibility: Literal["workspace", "private"] = "workspace"
 
 
 class DashboardPatch(BaseModel):
@@ -443,6 +460,7 @@ class DashboardPatch(BaseModel):
     kpi_layout: list[KpiLayoutItem] | None = Field(default=None, max_length=24)
     canvas_layout: list[KpiLayoutItem] | None = Field(default=None, max_length=60)
     pages: list[PageItem] | None = Field(default=None, min_length=1, max_length=20)
+    visibility: Literal["workspace", "private"] | None = None
 
 
 class DatasetRef(BaseModel):
@@ -463,6 +481,9 @@ class DashboardOut(BaseModel):
     share_token: str | None
     created_at: UtcDatetime
     updated_at: UtcDatetime
+    visibility: str = "workspace"
+    created_by: str | None = None
+    updated_by: str | None = None
     charts: list[ChartOut]
     datasets: list[DatasetRef]
     can_edit: bool
@@ -477,6 +498,9 @@ class DashboardSummary(BaseModel):
     dataset_names: list[str]
     shared: bool
     updated_at: UtcDatetime
+    visibility: str = "workspace"
+    created_by: str | None = None
+    updated_by: str | None = None
 
 
 class InsightOut(BaseModel):

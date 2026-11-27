@@ -13,6 +13,7 @@ from app.models import Dataset, JobRun, QualityRun
 from tests.test_query import SALES, sign_in, upload
 
 ORDERS = b"order_id,customer,status,amount,ordered\n1,Asha,paid,100,2026-11-01\n2,Ravi,paid,50,2026-11-02\n3,Asha,refunded,-20,2026-11-03\n3,Meera,paid,70,\n"
+from tests.conftest import set_role
 
 
 # ---------- profile ----------
@@ -103,9 +104,7 @@ def test_viewers_cannot_add_checks(client, engine):
 
     from app.models import WorkspaceMember
 
-    with Session(engine) as s:
-        s.execute(update(WorkspaceMember).values(role="viewer"))
-        s.commit()
+    set_role(engine, "u1", "viewer")
     assert client.post(f"/datasets/{ds['id']}/quality/rules", json={"kind": "row_count", "params": {"min": 1}}).status_code == 403
 
 

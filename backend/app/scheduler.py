@@ -10,7 +10,7 @@ import threading
 
 from app.jobs import tick
 from app.status import run_checks
-from app.db import SessionLocal
+from app.db import worker_session
 
 log = logging.getLogger("app.scheduler")
 INTERVAL_SECONDS = 60
@@ -32,7 +32,7 @@ class Scheduler:
 
     def _loop(self) -> None:
         while not self._stop.wait(INTERVAL_SECONDS):
-            db = SessionLocal()
+            db = worker_session()
             try:
                 tick(db)
                 run_checks(db)

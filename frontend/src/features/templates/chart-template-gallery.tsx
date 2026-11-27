@@ -84,7 +84,7 @@ export function ChartTemplateGallery() {
         ))}
       </div>
 
-      <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {shown.map(({ id, name, family: kind, Chart }) => (
           <li key={id} className="flex min-w-0 flex-col overflow-hidden rounded-[18px] border border-line bg-surface">
             <div className="@container h-[360px] min-w-0" style={CHART_THEME}>

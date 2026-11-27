@@ -21,7 +21,7 @@ from app import pipelines as engine
 from app.ai import ENGINE_NOTES, AiError, AiUnavailable, ask_json, schema_context, update_output
 from app.audit import record_action
 from app.db import get_db
-from app.governance import redact_text
+from app.governance import redact_error_values, redact_text
 from app.jobs import PIPELINE_RUN, Due, _second, dispatch
 from app.models import AiAction, Dataset, Pipeline, PipelineRun, WorkspaceMember
 from app.routers.datasets import require_editor
@@ -501,7 +501,7 @@ def ai_debug(pid: str, rid: str, member: WorkspaceMember = Depends(current_membe
     schema_text, _ = schema_context(db, member, datasets)
     system = ("You are Vyuham's AI Data Engineer debugging a failed pipeline run. Use only the listed tables and columns. "
               f"{ENGINE_NOTES}\n\nDataset tables:\n{schema_text}")
-    prompt = (f"Run error: {redact_text(run.error or '')}\n\nSteps and logs:\n{redact_text(chr(10).join(lines))}\n\n"
+    prompt = (f"Run error: {redact_error_values(run.error or '')}\n\nSteps and logs:\n{redact_error_values(chr(10).join(lines))}\n\n"
               f"Step definitions (JSON):\n{redact_text(json.dumps(defs)[:12000])}\n\nFailed steps: {failed}\n"
               "Explain the failure and propose a fix for one step.")
     try:

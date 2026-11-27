@@ -33,7 +33,7 @@ export function ConnectionList({ canEdit, onAddTables }: { canEdit: boolean; onA
       <h2 id="connections-heading" className="type-section flex items-baseline gap-2">
         Connected databases <span className="text-[13px] font-normal text-faint">{data.length}</span>
       </h2>
-      <ul className="grid gap-3 md:grid-cols-2">
+      <ul className="grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
         {data.map((c) => (
           <li key={c.id} className="flex flex-col gap-3 rounded-xl border border-line bg-surface p-4">
             <div className="flex items-start gap-3">

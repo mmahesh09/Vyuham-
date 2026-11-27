@@ -623,7 +623,7 @@ export function SqlWorkspace() {
   );
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-8.5rem)] min-h-[560px] w-full max-w-[1600px] flex-col gap-3">
+    <div className="flex h-[calc(100dvh-8.5rem)] min-h-[560px] w-full min-w-0 flex-col gap-3">
       {header}
 
       {desktop ? (

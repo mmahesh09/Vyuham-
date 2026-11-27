@@ -63,9 +63,10 @@ def test_invite_email_sent(client, engine, monkeypatch):
     monkeypatch.setattr(get_settings(), "app_url", "https://app.vyuham.test")
     got = []
     monkeypatch.setattr(email, "send", lambda to, subject, html, text: got.append((to, subject, text)) or 1)
-    token = client.post("/workspace/invites", json={"role": "viewer", "email": "new@acme.co"}).json()["token"]
+    r = client.post("/invitations", json={"emails": ["New@Acme.co"], "role": "viewer"})
+    url = r.json()[0]["accept_url"]
     assert got[0][0] == "new@acme.co" and "Asha Rao invited you to Acme" in got[0][1]
-    assert f"https://app.vyuham.test/invite/{token}" in got[0][2]
+    assert url.startswith("https://app.vyuham.test/invite/") and url in got[0][2]
 
 
 def test_production_requires_verified_email_for_outbound(client, engine, monkeypatch):
@@ -75,7 +76,7 @@ def test_production_requires_verified_email_for_outbound(client, engine, monkeyp
     ds = upload(client)
     assert client.get("/me").json()["email_verified"] is False
     monkeypatch.setattr(get_settings(), "environment", "production")
-    r = client.post("/workspace/invites", json={"role": "viewer"})
+    r = client.post("/invitations", json={"emails": ["v@acme.co"], "role": "viewer"})
     assert r.status_code == 403 and "Confirm your email" in r.json()["detail"]
     alert = {"name": "a", "dataset_id": ds["id"], "metric": {"field": "Amount", "agg": "sum"}, "window_days": 0,
              "condition": "above", "threshold": 1}
@@ -87,4 +88,4 @@ def test_production_requires_verified_email_for_outbound(client, engine, monkeyp
 
     with engine.begin() as c:
         c.execute(update(user_table).values(emailVerified=True))
-    assert client.post("/workspace/invites", json={"role": "viewer"}).status_code == 201
+    assert client.post("/invitations", json={"emails": ["v@acme.co"], "role": "viewer"}).status_code == 201

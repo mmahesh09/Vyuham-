@@ -17,7 +17,7 @@ export function TypeBadge({ type }: { type: ColumnType }) {
 /** What we detected about each column: type, how often it's empty, a few examples. */
 export function ColumnSummary({ columns }: { columns: ColumnProfile[] }) {
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
       {columns.map((c) => (
         <li key={c.name} className="flex flex-col gap-2 rounded-[12px] border border-line bg-surface p-4">
           <div className="flex items-center justify-between gap-3">

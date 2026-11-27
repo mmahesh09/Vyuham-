@@ -5,7 +5,7 @@ from sqlalchemy import func, select, text
 
 from app.auth_tables import session_table, user_table
 from app.models import Dataset, UserProfile, WorkspaceMember
-from tests.conftest import add_user
+from tests.conftest import accept, add_user, invite
 from tests.test_query import sign_in, upload
 
 U1 = "tok-1.c2lnbmF0dXJl"
@@ -44,14 +44,14 @@ def test_delete_solo_account_erases_everything(client, engine, data_dir):
 
 def test_last_owner_with_teammates_cannot_delete_or_leave(client, engine):
     ws = sign_in(client, engine)
-    token = client.post("/workspace/invites", json={"role": "editor"}).json()["token"]
+    token = invite(client, "u2@acme.co", "analyst")
     client.cookies.set("better-auth.session_token", add_user(engine, uid="u2", token="tok-2", name="Ravi", company="R"))
-    client.post(f"/invites/{token}/accept")
+    assert accept(client, token).status_code == 200
     client.cookies.set("better-auth.session_token", U1)
     r = client.request("DELETE", "/account", json={"confirm": "u1@acme.co"})
-    assert r.status_code == 409 and "only owner" in r.json()["detail"]
+    assert r.status_code == 409 and "owner of Acme" in r.json()["detail"]
     assert client.post("/workspace/leave").status_code == 409
-    # the editor can leave; their next visit gets a fresh workspace
+    # the analyst can leave; they're back in their own organization
     client.cookies.set("better-auth.session_token", "tok-2.c2lnbmF0dXJl")
     assert client.post("/workspace/leave").status_code == 204
     assert client.get("/me").json()["workspace"]["id"] != ws
@@ -59,9 +59,9 @@ def test_last_owner_with_teammates_cannot_delete_or_leave(client, engine):
 
 def test_member_deleting_account_keeps_shared_work(client, engine):
     sign_in(client, engine)
-    token = client.post("/workspace/invites", json={"role": "editor"}).json()["token"]
+    token = invite(client, "u2@acme.co", "analyst")
     client.cookies.set("better-auth.session_token", add_user(engine, uid="u2", token="tok-2", name="Ravi", company="R"))
-    client.post(f"/invites/{token}/accept")
+    assert accept(client, token).status_code == 200
     ds = upload(client)
     t = client.post("/tasks", json={"title": "Mine", "assignee_id": "u2"}).json()
     assert client.request("DELETE", "/account", json={"confirm": "u2@acme.co"}).status_code == 204
@@ -79,5 +79,6 @@ def test_delete_workspace(client, engine, data_dir):
     assert client.request("DELETE", "/workspace", json={"confirm": "acme"}).status_code == 422  # exact name
     assert client.request("DELETE", "/workspace", json={"confirm": "Acme"}).status_code == 204
     assert not (data_dir / ws).exists()
-    me = client.get("/me").json()  # still signed in, with a new empty workspace
-    assert me["workspace"]["id"] != ws and client.get("/datasets").json() == []
+    me = client.get("/me").json()  # still signed in; the only workspace took the organization with it
+    assert me["workspace"] is None and me["needs_onboarding"] is True
+    assert client.get("/datasets").status_code == 409  # set up an organization first

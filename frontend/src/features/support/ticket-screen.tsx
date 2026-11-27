@@ -53,7 +53,7 @@ export function TicketScreen({ id }: { id: string }) {
   const reply = useReply(id);
   const resolve = useResolve(id);
 
-  if (isLoading) return <Skeleton className="mx-auto h-64 w-full max-w-[1120px] rounded-xl" />;
+  if (isLoading) return <Skeleton className="mx-auto h-64 w-full max-w-[1240px] rounded-xl" />;
   if (error || !t)
     return (
       <PageContainer width="narrow">
@@ -73,7 +73,7 @@ export function TicketScreen({ id }: { id: string }) {
   const errorRef = t.error_event_id;
 
   return (
-    <PageContainer>
+    <PageContainer width="medium">
       <PageHeader
         back={{ href: "/support", label: "Help & support" }}
         crumb={t.subject}

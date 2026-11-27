@@ -238,9 +238,10 @@ def download_attachment(attachment_id: str, user: AuthUser = Depends(current_use
         elif a.message_id is None:
             allowed = a.uploader_id == user.id  # your own upload, not sent yet
         else:
-            member = db.scalar(select(WorkspaceMember).where(WorkspaceMember.user_id == user.id))
+            from app.tenancy import effective_role
+
             msg = db.get(TicketMessage, a.message_id)
-            allowed = bool(member and msg and not msg.internal and a.workspace_id == member.workspace_id)
+            allowed = bool(msg and not msg.internal and a.workspace_id and effective_role(db, user.id, a.workspace_id))
     if not allowed:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Attachment not found")
     disposition = "inline" if a.content_type in INLINE_TYPES else "attachment"

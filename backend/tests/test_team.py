@@ -1,6 +1,6 @@
 from datetime import date, timedelta
 
-from tests.conftest import add_user
+from tests.conftest import accept, add_user, invite
 from tests.test_query import sign_in, upload
 
 U1 = "tok-1.c2lnbmF0dXJl"
@@ -14,73 +14,16 @@ def new_user(engine, uid, token, name="Ravi"):
     return add_user(engine, uid=uid, token=token, name=name, company=f"{name} Co")
 
 
-def invite(client, role="editor"):
-    r = client.post("/workspace/invites", json={"role": role})
-    assert r.status_code == 201, r.text
-    return r.json()["token"]
-
-
-def test_invite_flow_new_user(client, engine):
-    ws = sign_in(client, engine)
-    token = invite(client, "editor")
-    assert [i["token"] for i in client.get("/workspace/invites").json()] == [token]
-
-    client.cookies.clear()
-    info = client.get(f"/invites/{token}").json()
-    assert info == {"workspace_name": "Acme", "role": "editor", "invited_by": "Asha Rao", "valid": True, "reason": None}
-
-    # brand-new user who hasn't opened the app yet (no workspace)
-    as_user(client, new_user(engine, "u2", "tok-2"))
-    assert client.post(f"/invites/{token}/accept").status_code == 200
-    me = client.get("/me").json()
-    assert me["workspace"]["id"] == ws and me["role"] == "editor"
-    assert client.post(f"/invites/{token}/accept").status_code == 410  # single use
-    assert not client.get(f"/invites/{token}").json()["valid"]
-
-
-def test_accept_replaces_only_an_empty_workspace(client, engine):
-    sign_in(client, engine)
-    token = invite(client)
-    token2 = invite(client)
-    # u2 already opened the app: an empty auto-created workspace is fine to drop
-    as_user(client, new_user(engine, "u2", "tok-2"))
-    own = client.get("/me").json()["workspace"]["id"]
-    assert client.post(f"/invites/{token}/accept").status_code == 200
-    assert client.get("/me").json()["workspace"]["id"] != own
-    # u3 has data in their own workspace: refused, nothing lost
-    as_user(client, new_user(engine, "u3", "tok-3", name="Meera"))
-    client.get("/me")
-    upload(client)
-    r = client.post(f"/invites/{token2}/accept")
-    assert r.status_code == 409 and "one workspace" in r.json()["detail"]
-    assert len(client.get("/datasets").json()) == 1
-
-
-def test_expired_and_revoked_invites(client, engine):
-    from sqlalchemy import update
-
-    from app.models import Invite
-
-    sign_in(client, engine)
-    token = invite(client)
-    with engine.begin() as c:
-        c.execute(update(Invite).values(expires_at=date.today() - timedelta(days=1)))
-    assert "expired" in client.get(f"/invites/{token}").json()["reason"]
-    t2 = invite(client)
-    assert client.delete(f"/workspace/invites/{t2}").status_code == 204
-    assert not client.get(f"/invites/{t2}").json()["valid"]
-
-
 def test_roles_and_owner_guards(client, engine):
     sign_in(client, engine)
-    token = invite(client, "viewer")
+    token = invite(client, "u2@acme.co", "viewer")
     as_user(client, new_user(engine, "u2", "tok-2"))
-    client.post(f"/invites/{token}/accept")
-    assert client.post("/workspace/invites", json={"role": "editor"}).status_code == 403  # viewers can't invite
+    assert accept(client, token).status_code == 200
+    assert client.post("/invitations", json={"emails": ["x@acme.co"], "role": "analyst"}).status_code == 403  # viewers can't invite
     as_user(client, U1)
-    assert client.patch("/workspace/members/u1", json={"role": "editor"}).status_code == 409  # last owner
+    assert client.patch("/workspace/members/u1", json={"role": "analyst"}).status_code == 409  # not your own role
     assert client.delete("/workspace/members/u1").status_code == 409
-    assert client.patch("/workspace/members/u2", json={"role": "editor"}).json()["role"] == "editor"
+    assert client.patch("/workspace/members/u2", json={"role": "analyst"}).json()["role"] == "analyst"
     assert client.delete("/workspace/members/u2").status_code == 204
     assert [m["id"] for m in client.get("/workspace/members").json()] == ["u1"]
 
@@ -88,9 +31,9 @@ def test_roles_and_owner_guards(client, engine):
 def test_tasks_crud_order_and_permissions(client, engine):
     sign_in(client, engine)
     ds = upload(client)
-    token = invite(client, "viewer")
+    token = invite(client, "u2@acme.co", "viewer")
     as_user(client, new_user(engine, "u2", "tok-2"))
-    client.post(f"/invites/{token}/accept")
+    assert accept(client, token).status_code == 200
     as_user(client, U1)
 
     t1 = client.post("/tasks", json={"title": "Update March file", "assignee_id": "u2", "dataset_id": ds["id"], "due_date": "2026-04-01"}).json()

@@ -38,7 +38,7 @@ export function VerifyEmailBanner() {
   };
 
   return (
-    <div role="status" className="mx-auto mb-6 flex w-full max-w-[1400px] flex-wrap items-center gap-3 rounded-lg border border-line-strong bg-surface px-4 py-2.5 text-sm text-muted">
+    <div role="status" className="mx-auto mb-6 flex w-full max-w-[1680px] flex-wrap items-center gap-3 rounded-lg border border-line-strong bg-surface px-4 py-2.5 text-sm text-muted">
       <MailCheck className="size-4 shrink-0 text-highlight" aria-hidden />
       <span className="flex-1">
         Confirm your email (<strong className="text-text">{me.email}</strong>) to invite teammates and get alerts by email. We sent you a link.

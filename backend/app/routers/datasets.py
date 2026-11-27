@@ -18,7 +18,8 @@ from app.security import current_membership
 
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
-CAN_UPLOAD = {"owner", "editor"}
+from app.permissions import WRITERS as CAN_UPLOAD  # noqa: E402  (kept for importers)
+from app.permissions import Perm, require  # noqa: E402
 
 
 def parquet_path(workspace_id: str, dataset_id: str) -> Path:
@@ -67,8 +68,7 @@ def upload_dataset(
     member: WorkspaceMember = Depends(current_membership),
     db: Session = Depends(get_db),
 ):
-    if member.role not in CAN_UPLOAD:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Viewers can't add data. Ask an owner for editor access.")
+    require(member, Perm.DATA_WRITE, "Viewers can't add data. Ask an admin for analyst access.")
     s = get_settings()
     check_quota(db, member.workspace_id, new_datasets=1)
     filename = Path(file.filename or "").name  # never trust a client path
@@ -101,6 +101,9 @@ def upload_dataset(
     path = parquet_path(member.workspace_id, dataset.id)
     try:
         dataset.file_size = write_parquet(result.frame, path)
+        from app.audit import record_action
+
+        record_action(db, member, "dataset.upload", "dataset", dataset.id, {"rows": dataset.row_count, "kind": dataset.source_kind})
         db.commit()
     except Exception:
         db.rollback()
@@ -149,8 +152,13 @@ def owned_dataset(db: Session, member: WorkspaceMember, dataset_id: str) -> Data
 
 
 def require_editor(member: WorkspaceMember) -> None:
-    if member.role not in CAN_UPLOAD:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Viewers can't change data. Ask an owner for editor access.")
+    """Analysts, admins and owners: changing data, metrics, pipelines (app/permissions.py)."""
+    require(member, Perm.DATA_WRITE)
+
+
+def require_sources(member: WorkspaceMember) -> None:
+    """Connecting, changing or removing a data source: admins and owners, or analysts when the workspace allows."""
+    require(member, Perm.SOURCES_MANAGE)
 
 
 @router.get("/{dataset_id}", response_model=DatasetOut)
@@ -255,6 +263,9 @@ def delete_dataset(dataset_id: str, member: WorkspaceMember = Depends(current_me
     db.execute(update(Alert).where(Alert.dataset_id == dataset.id).values(dataset_id=None, state="error"))
     # Lineage points at ids, not foreign keys: drop the edges into and out of this dataset.
     db.execute(delete(LineageEdge).where(or_(LineageEdge.from_id == dataset.id, LineageEdge.to_id == dataset.id)))
+    from app.audit import record_action
+
+    record_action(db, member, "dataset.delete", "dataset", dataset.id, {"name": dataset.name})
     db.delete(dataset)
     db.commit()
     path.unlink(missing_ok=True)
@@ -307,6 +318,7 @@ def _run_job_inline(bind, job_id: str) -> None:
     from app import jobs
 
     db = _Session(bind)
+    db.info["rls_bypass"] = True  # background job: trusted, like the worker
     try:
         jobs.run_job(db, job_id)
     except Exception as e:

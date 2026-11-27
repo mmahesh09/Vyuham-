@@ -15,7 +15,7 @@ import duckdb
 
 from app import cache
 from app.models import Dataset
-from app.query import QueryError, _parquet, _run, quote, view_name
+from app.query import QueryError, _parquet, _run, quote, view_name, view_signature
 
 TOP_VALUES = 8
 BINS = 12
@@ -129,4 +129,5 @@ def profile_dataset(con: duckdb.DuckDBPyConnection, ds: Dataset) -> dict:
             }
         ]
 
-    return cache.cached(cache.key("profile", ds.id, [c["name"] + ":" + c.get("type", "") for c in ds.columns], cache.dataset_version(ds, _parquet(ds))), compute, "profile")[0]
+    k = cache.key("profile", ds.id, [c["name"] + ":" + c.get("type", "") for c in ds.columns], cache.dataset_version(ds, _parquet(ds)), view_signature(con, ds))
+    return cache.cached(k, compute, "profile")[0]

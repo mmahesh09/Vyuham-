@@ -148,7 +148,7 @@ def test_celery_tasks_queue_and_run(client, engine, monkeypatch):
     from app import worker
 
     a = _digest(client, engine)
-    monkeypatch.setattr(worker, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(worker, "worker_session", sessionmaker(bind=engine, expire_on_commit=False, info={"rls_bypass": True}))
     monkeypatch.setattr(jobs, "datetime", _FrozenDatetime)
     worker.celery_app.conf.task_always_eager = True
     try:

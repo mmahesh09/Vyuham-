@@ -36,6 +36,7 @@ log = logging.getLogger("app.ratelimit")
 # (method or "*", path prefix, limit). The first match wins; DEFAULT applies to everything else.
 RULES: list[tuple[str, str, str]] = [
     ("*", "/health", ""),  # never limited: Docker and uptime checks
+    ("POST", "/pilot-requests", "5/hour"),  # public pilot form, no sign-in
     ("POST", "/datasets/url", "5/minute"),  # the server downloads the link
     ("POST", "/datasets", "10/minute"),  # uploads
     ("PUT", "/datasets/", "10/minute"),  # replace a dataset's file
@@ -44,7 +45,11 @@ RULES: list[tuple[str, str, str]] = [
     ("*", "/public/", "60/minute"),  # share links, no sign-in
     ("*", "/report-files/", "60/minute"),  # signed download links, no sign-in
     ("*", "/print/", "120/minute"),  # print token pages (the PDF renderer loads a few per report)
-    ("*", "/invites/", "30/minute"),
+    ("POST", "/invitations/accept", "30/minute"),
+    ("GET", "/invitations/lookup/", "30/minute"),  # public invite page, no sign-in needed
+    ("POST", "/invitations", "30/hour"),  # each invitation (and resend) sends an email
+    ("POST", "/onboarding/organization", "10/hour"),
+    ("POST", "/workspaces", "30/hour"),
     ("POST", "/sql/", "60/minute"),
     # Expensive work (from the rate-limit review in PR #4): AI answers, chart previews, new dashboards.
     ("POST", "/formulas/", "120/minute"),  # validation runs as people type
@@ -53,7 +58,6 @@ RULES: list[tuple[str, str, str]] = [
     ("POST", "/charts/preview", "120/minute"),
     ("POST", "/templates/", "30/hour"),  # applying a template builds a whole dashboard
     ("POST", "/reports/", "30/hour"),  # report runs render PDFs in the worker
-    ("POST", "/workspace/invites", "20/hour"),  # each invite sends an email
     # Database connections: each request opens a connection to the customer's database.
     ("POST", "/connections/", "20/minute"),  # test, create, first sync
     ("GET", "/connections/", "60/minute"),  # table lists and previews
@@ -67,7 +71,7 @@ RULES: list[tuple[str, str, str]] = [
     ("GET", "/status", "60/minute"),  # public status page
 ]
 DEFAULT = "300/minute"
-ANONYMOUS_ROUTES = ("/public/", "/report-files/", "/print/", "/support/errors/", "/support/webhooks/", "/hooks/", "/kb/", "/status")
+ANONYMOUS_ROUTES = ("/invitations/lookup/", "/public/", "/report-files/", "/print/", "/support/errors/", "/support/webhooks/", "/hooks/", "/kb/", "/status")
 
 
 def _rule(method: str, path: str) -> tuple[str, str] | None:

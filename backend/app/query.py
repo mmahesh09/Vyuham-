@@ -480,6 +480,23 @@ def _parquet(dataset: Dataset) -> str:
     return os.path.join(workspace_dir(dataset.workspace_id), f"{dataset.id}.parquet")
 
 
+def view_signature(con: duckdb.DuckDBPyConnection, dataset: Dataset) -> str:
+    """A fingerprint of how this connection exposes the dataset: its view's SQL, which carries the
+    role's masked and hidden columns (and the workspace's masking salt).
+
+    Cached results are keyed on it, so a result computed for an owner is never served to a viewer or a
+    share link that should see masked values, even though the compiled query text is the same.
+    """
+    import hashlib
+
+    try:
+        row = con.execute("SELECT sql FROM duckdb_views() WHERE view_name = ?", [view_name(dataset.id)]).fetchone()
+    except duckdb.Error:
+        row = None
+    body = f"{dataset.workspace_id}|{row[0] if row else 'none'}"
+    return hashlib.sha256(body.encode()).hexdigest()[:24]
+
+
 def run_spec(con: duckdb.DuckDBPyConnection, spec: dict, dataset: Dataset, dash: Filters | None = None) -> list[dict]:
     if spec.get("sql"):
         return _run_sql_chart(con, spec)  # can read any of the workspace's tables, so not cached
@@ -492,7 +509,8 @@ def run_spec(con: duckdb.DuckDBPyConnection, spec: dict, dataset: Dataset, dash:
             raise QueryError("We couldn't calculate this chart. Check the columns and filters.") from e
 
     # The compiled SQL carries the spec, filters and approved metric formulas; the version carries the data.
-    return cache.cached(cache.key("chart", sql, params, cache.dataset_version(dataset, _parquet(dataset))), compute, "chart")
+    k = cache.key("chart", sql, params, cache.dataset_version(dataset, _parquet(dataset)), view_signature(con, dataset))
+    return cache.cached(k, compute, "chart")
 
 
 # ---------- table rows (data grid) ----------
@@ -533,7 +551,7 @@ def distinct_values(con: duckdb.DuckDBPyConnection, dataset: Dataset, column: st
         f"SELECT CAST({c} AS VARCHAR) AS v, COUNT(*) AS n FROM {view_name(dataset.id)} "
         f"WHERE {c} IS NOT NULL GROUP BY 1 ORDER BY n DESC, v LIMIT {int(limit)}"
     )
-    k = cache.key("values", sql, cache.dataset_version(dataset, _parquet(dataset)))
+    k = cache.key("values", sql, cache.dataset_version(dataset, _parquet(dataset)), view_signature(con, dataset))
     return cache.cached(k, lambda: [r[0] for r in _run(con, sql, [], op="values")[1]], "values")
 
 

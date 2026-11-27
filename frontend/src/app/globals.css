@@ -42,7 +42,7 @@
   --glass-strong-to: rgba(255, 255, 255, 0.025);
   --glass-strong-border: rgba(255, 255, 255, 0.1);
   --glass-strong-inset: rgba(255, 255, 255, 0.08);
-  --glass-strong-glow: rgba(242, 84, 91, 0.45);
+  --glass-strong-glow: rgba(0, 0, 0, 0.7);
   --band-bg: rgba(25, 18, 13, 0.72);
   --band-border: rgba(255, 255, 255, 0.05);
   --glow-strength: 1;
@@ -75,7 +75,7 @@
   --glass-strong-to: rgba(255, 255, 255, 0.74);
   --glass-strong-border: rgba(30, 21, 15, 0.1);
   --glass-strong-inset: rgba(255, 255, 255, 0.7);
-  --glass-strong-glow: rgba(232, 105, 28, 0.22);
+  --glass-strong-glow: rgba(30, 21, 15, 0.14);
   --band-bg: rgba(243, 236, 228, 0.78);
   --band-border: rgba(30, 21, 15, 0.06);
   --glow-strength: 0.5;
@@ -287,10 +287,8 @@ body {
 
 /* ---------- Hero: glowing panel, rays, arch ---------- */
 .hero-panel {
-  background:
-    radial-gradient(55% 50% at 34% 0%, rgba(255, 179, 122, 0.34), transparent 72%),
-    radial-gradient(70% 55% at 50% 100%, rgba(242, 84, 91, 0.2), transparent 70%),
-    radial-gradient(95% 85% at 50% 38%, #2d1f15 0%, #16100b 58%, #090705 100%);
+  /* A small tone shift inside one warm neutral: lighter at the top, like first light. */
+  background: linear-gradient(180deg, #1a130e 0%, #0e0a07 70%, #0b0806 100%);
 }
 
 .ray {
@@ -491,64 +489,57 @@ body {
   width: fit-content;
   align-items: center;
   gap: 12px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--highlight);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.5;
+  color: var(--faint);
 }
 .eyebrow::before {
   content: "";
-  width: 28px;
+  width: 24px;
   height: 1px;
-  background: linear-gradient(90deg, var(--accent), transparent);
+  background: var(--line-strong);
 }
 .eyebrow b {
   font-weight: 500;
   color: var(--muted);
 }
 
-/* Headline lit from above: off-white fading into the brand lilac. */
+/* Kept for older markup: solid text, no gradient. */
 .text-lit {
-  background: linear-gradient(180deg, var(--text) 30%, var(--highlight) 130%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--text);
 }
 
-/* The one primary action: brand orange, dark text, lifts with an orange (not black) shadow. */
+/* The one primary action: flat brand orange, dark text, a soft top highlight instead of a glow. */
 .btn-primary {
-  background: linear-gradient(180deg, #f59a58, var(--primary));
+  background: var(--primary);
   color: var(--primary-foreground);
   box-shadow:
-    inset 0 1px 0 rgba(251, 246, 241, 0.22),
-    0 1px 2px rgba(22, 15, 10, 0.4),
-    0 8px 24px -10px rgba(240, 122, 43, 0.7);
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 1px 2px rgba(22, 15, 10, 0.4);
   transition:
-    transform 200ms var(--ease-out-quart),
-    box-shadow 200ms var(--ease-out-quart);
+    background-color 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    inset 0 1px 0 rgba(251, 246, 241, 0.22),
-    0 2px 4px rgba(22, 15, 10, 0.4),
-    0 16px 36px -12px rgba(240, 122, 43, 0.85);
+  background: #f48a42;
 }
 .btn-primary:active {
-  transform: translateY(0) scale(0.98);
-  transition-duration: 100ms;
+  transform: scale(0.98);
 }
 .btn-ghost {
-  border: 1px solid rgba(255, 179, 122, 0.22);
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
   color: var(--text);
   transition:
-    background-color 200ms var(--ease-out-quart),
-    border-color 200ms var(--ease-out-quart);
+    background-color 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 .btn-ghost:hover {
-  background: rgba(255, 179, 122, 0.06);
-  border-color: rgba(255, 179, 122, 0.4);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  border-color: color-mix(in srgb, var(--text) 18%, transparent);
 }
 @media (prefers-reduced-motion: reduce) {
   .btn-primary,
@@ -569,8 +560,8 @@ body {
 /* A translucent orange band behind the lower part of a key phrase, slightly slanted
    with soft ends. It sweeps in left to right when its [data-animate] ancestor is revealed. */
 mark.mark {
-  --mark-a: rgba(242, 84, 91, 0.5);
-  --mark-b: rgba(255, 179, 122, 0.38);
+  --mark-a: rgba(240, 122, 43, 0.3);
+  --mark-b: rgba(240, 122, 43, 0.3);
   color: inherit;
   background-color: transparent;
   background-image: linear-gradient(100deg, transparent 0.3em, var(--mark-a) 0.45em, var(--mark-b) calc(100% - 0.45em), transparent calc(100% - 0.3em));

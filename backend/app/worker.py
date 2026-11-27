@@ -18,7 +18,7 @@ from sqlalchemy.exc import DBAPIError, OperationalError
 
 from app import jobs
 from app.config import get_settings
-from app.db import SessionLocal
+from app.db import worker_session
 from app.reports import runner
 from app.reports.pdf import RenderError
 
@@ -60,7 +60,7 @@ TRANSIENT = (OperationalError, DBAPIError, ConnectionError, TimeoutError, OSErro
 
 class JobTask(Task):
     def on_failure(self, exc, task_id, args, kwargs, einfo):  # retries used up, or not retryable
-        db = SessionLocal()
+        db = worker_session()
         try:
             jobs.mark_failed(db, args[0], exc)
         finally:
@@ -80,7 +80,7 @@ def _status_checks(db) -> None:
 
 @celery_app.task(name="vyuham.tick", ignore_result=True)
 def tick() -> dict:
-    db = SessionLocal()
+    db = worker_session()
     try:
         counts = jobs.tick(db, enqueue=lambda job_id: run_job.delay(job_id))
         runner.fail_stale(db)
@@ -103,7 +103,7 @@ def tick() -> dict:
     time_limit=360,
 )
 def run_job(job_id: str) -> None:
-    db = SessionLocal()
+    db = worker_session()
     try:
         jobs.run_job(db, job_id)
     finally:
@@ -112,7 +112,7 @@ def run_job(job_id: str) -> None:
 
 @celery_app.task(name="vyuham.prune", ignore_result=True)
 def prune() -> int:
-    db = SessionLocal()
+    db = worker_session()
     try:
         return jobs.prune(db)
     finally:
@@ -122,7 +122,7 @@ def prune() -> int:
 class ReportTask(Task):
     def on_failure(self, exc, task_id, args, kwargs, einfo):
         log.error("report run %s failed: %s", args[0], exc)
-        db = SessionLocal()
+        db = worker_session()
         try:
             runner.mark_failed(db, args[0], exc)
         finally:
@@ -139,7 +139,7 @@ class ReportTask(Task):
     time_limit=660,
 )
 def run_report(run_id: str) -> None:
-    db = SessionLocal()
+    db = worker_session()
     try:
         runner.generate(db, run_id)
     finally:
@@ -148,7 +148,7 @@ def run_report(run_id: str) -> None:
 
 @celery_app.task(name="vyuham.prune_reports", ignore_result=True)
 def prune_reports() -> int:
-    db = SessionLocal()
+    db = worker_session()
     try:
         return runner.prune(db, settings.report_retention_days)
     finally:

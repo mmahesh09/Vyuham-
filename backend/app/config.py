@@ -69,6 +69,12 @@ class Settings(BaseSettings):
     # Public URL of the web app, for links in emails.
     app_url: str = "http://localhost:3000"
     # Optional: check invite addresses with a self-hosted Reacher (app/email_check.py). Off when empty.
+    # Invitations expire after this many days.
+    invite_ttl_days: int = 7
+    # Postgres row-level security is a second wall behind the app's workspace checks. It only works when
+    # the API connects as a role that isn't a superuser and lacks BYPASSRLS; in production the API refuses
+    # to start otherwise, unless this is turned off (see DEPLOY.md).
+    rls_enforce: bool = True
     reacher_url: str = ""
     reacher_secret: str = ""
 

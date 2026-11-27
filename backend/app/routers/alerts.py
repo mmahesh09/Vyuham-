@@ -14,6 +14,7 @@ from app.db import get_db
 from app.models import Alert, AlertEvent, Automation, Dashboard, Dataset, Notification, WorkspaceMember
 from app.notify import WebhookError, check_webhook_url
 from app.query import QueryError
+from app.permissions import Perm, require
 from app.routers.datasets import CAN_UPLOAD
 from app.schemas import SpecFilter, SpecMetric, UtcDatetime
 from app.security import AuthUser, current_membership, current_user, require_verified_email
@@ -23,8 +24,7 @@ EMAIL = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
 
 def _editor(member: WorkspaceMember) -> None:
-    if member.role not in CAN_UPLOAD:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Viewers can't change alerts or automations.")
+    require(member, Perm.CONTENT_WRITE, "Viewers can't change alerts or automations.")
 
 
 class Channels(BaseModel):

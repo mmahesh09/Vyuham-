@@ -24,3 +24,8 @@ coverage/
 frontend/public/decks/
 # Local database backups (contain sessions and user data)
 backend/*.db.bak*
+
+# Local non-app material (strategy notes, video projects, client reels)
+founder/
+video/
+/*.mp4

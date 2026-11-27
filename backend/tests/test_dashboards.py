@@ -5,6 +5,7 @@ from tests.test_query import sign_in, upload
 
 PROFILE = {"job_role": "Owner", "dashboard_visibility": "anyone"}
 U1_COOKIE = "tok-1.c2lnbmF0dXJl"
+from tests.conftest import join
 
 
 def spec(ds_id, **kw):
@@ -173,8 +174,7 @@ def test_isolation_and_viewers(client, engine):
     assert client.get("/dashboards").json() == []
     mine = new_dashboard(client, "Mine")  # u2 can't chart u1's dataset
     assert client.post(f"/dashboards/{mine['id']}/charts", json={"spec": spec(ds["id"])}).status_code == 404
-    with engine.begin() as conn:  # u2 becomes a viewer in u1's workspace
-        conn.execute(update(WorkspaceMember).where(WorkspaceMember.user_id == "u2").values(workspace_id=ws, role="viewer"))
+    join(engine, "u2", ws, "viewer")  # u2 becomes a viewer in u1's workspace
     assert client.get(f"/dashboards/{d['id']}").json()["can_edit"] is False
     assert client.get(f"/dashboards/{d['id']}/view").status_code == 200
     assert client.post("/dashboards", json={"name": "x"}).status_code == 403

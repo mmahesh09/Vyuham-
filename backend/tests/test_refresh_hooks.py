@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models import AuditLog, RefreshHook, WorkspaceMember
 from tests.test_connections import ORDERS, connect, fake_db, sign_in  # noqa: F401  (fake_db is a fixture)
+from tests.conftest import set_role
 
 
 def resume(client, token="tok-1"):
@@ -140,9 +141,7 @@ def test_viewers_cannot_create_or_revoke_hooks(client, engine, fake_db):
     sign_in(client, engine)
     ds = connected_dataset(client)
     hook = make_hook(client, [ds["id"]]).json()
-    with Session(engine) as s:
-        s.query(WorkspaceMember).first().role = "viewer"
-        s.commit()
+    set_role(engine, "u1", "viewer")
     assert make_hook(client, [ds["id"]]).status_code == 403
     assert client.delete(f"/refresh-hooks/{hook['id']}").status_code == 403
 

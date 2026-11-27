@@ -6,7 +6,7 @@ from sqlalchemy import update
 
 from app.models import WorkspaceMember
 from app.query import Filters, QueryError, compile_spec, connect, run_spec, run_sql
-from tests.conftest import add_user
+from tests.conftest import add_user, join
 
 SALES = (
     b"Date,Region,Product,Amount\n"
@@ -188,8 +188,7 @@ def test_other_workspace_and_viewer_rules(client, engine):
     assert client.get(f"/datasets/{ds['id']}/rows").status_code == 404
     assert client.delete(f"/datasets/{ds['id']}").status_code == 404
     # a viewer in the same workspace can read but not change
-    with engine.begin() as conn:
-        conn.execute(update(WorkspaceMember).where(WorkspaceMember.user_id == "u2").values(workspace_id=ws, role="viewer"))
+    join(engine, "u2", ws, "viewer")
     assert client.get(f"/datasets/{ds['id']}/rows").status_code == 200
     assert client.patch(f"/datasets/{ds['id']}", json={"name": "x"}).status_code == 403
     assert client.delete(f"/datasets/{ds['id']}").status_code == 403

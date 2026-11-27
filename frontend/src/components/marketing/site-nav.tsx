@@ -35,8 +35,6 @@ const productsActive = (p: string) => p.startsWith("/try");
 
 export const NAV: NavLink[] = [
   { href: "/", label: "Home", match: (p) => p === "/" },
-  // An anchor on the homepage, so it's never the "current" page.
-  { href: "/#platform", label: "Platform", match: () => false },
   { href: "/about", label: "About", match: (p) => p.startsWith("/about") },
   { href: "/blog", label: "Blog", match: (p) => p.startsWith("/blog") },
   {
@@ -95,7 +93,7 @@ function ProductsMenu({ overlay, active }: { overlay: boolean; active: boolean }
 }
 
 /**
- * The marketing navbar: Home · Platform · Products (Vyuham, Kaveri) · About · Blog · Support, plus log in and
+ * The marketing navbar: Home · Products (Vyuham, Kaveri) · About · Blog · Support, plus log in and
  * the beta CTA. `overlay` sits inside the dark hero panel; `bar` is a sticky bar for content pages.
  * Below lg the links move into a slide-in sheet, where the products are listed under their own heading.
  */
@@ -148,9 +146,9 @@ export function SiteNav({ variant = "bar" }: { variant?: "overlay" | "bar" }) {
             overlay ? "border-white/10 bg-white/[0.06]" : "border-line bg-surface/70",
           )}
         >
-          {NAV.slice(0, 2).map(link)}
+          {NAV.slice(0, 1).map(link)}
           <ProductsMenu overlay={overlay} active={productsActive(pathname)} />
-          {NAV.slice(2).map(link)}
+          {NAV.slice(1).map(link)}
         </nav>
 
         <div className="flex items-center gap-1">
@@ -203,7 +201,7 @@ export function SiteNav({ variant = "bar" }: { variant?: "overlay" | "bar" }) {
                   >
                     {l.label}
                   </Link>
-                  {i === 1 && (
+                  {i === 0 && (
                     <div className="my-1 flex flex-col gap-1 rounded-xl border border-line p-1.5" role="group" aria-label="Products">
                       <p className="px-3 pb-0.5 pt-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-faint">Products</p>
                       {PRODUCTS.map(({ href, name, kind, icon: Icon }) => (

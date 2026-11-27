@@ -107,7 +107,7 @@ function DatasetView({ dataset }: { dataset: Dataset }) {
   };
 
   return (
-    <PageContainer className="gap-7">
+    <PageContainer width="wide" className="gap-7">
       <PageHeader
         back={{ href: "/data", label: "All data" }}
         crumb={dataset.name}
@@ -379,7 +379,7 @@ function ColumnsPanel({ dataset, canEdit }: { dataset: Dataset; canEdit: boolean
         </p>
       )}
       {update.isError && <p className="text-[13px] text-accent">{update.error.message}</p>}
-      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
         {dataset.columns.map((c) => (
           <li key={c.name} className="flex flex-col gap-2.5 rounded-xl border border-line bg-surface p-4">
             <div className="flex items-center justify-between gap-3">
@@ -436,7 +436,7 @@ function ColumnsPanel({ dataset, canEdit }: { dataset: Dataset; canEdit: boolean
 
 function DatasetSkeleton() {
   return (
-    <PageContainer className="gap-6" aria-busy>
+    <PageContainer width="wide" className="gap-6" aria-busy>
       <Skeleton className="h-4 w-20" />
       <Skeleton className="h-9 w-72 rounded-lg" />
       <Skeleton className="h-5 w-full max-w-md" />

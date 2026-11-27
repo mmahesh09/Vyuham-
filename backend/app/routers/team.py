@@ -1,27 +1,24 @@
-"""Team: invite links, member roles, data tasks and the team calendar."""
+"""Team: data tasks and the team calendar (invitations: routers/invitations.py; members: routers/organizations.py)."""
 
 import logging
-import secrets
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy import exists, func, select, update
+from sqlalchemy import exists, func, select
 from sqlalchemy.orm import Session
 
-from app.audit import record_action
 from app.auth_tables import user_table
 from app.db import get_db
-from app.models import Dashboard, Dataset, Invite, LeaveRecord, Task, Workspace, WorkspaceMember
+from app.models import Dashboard, Dataset, LeaveRecord, Task, WorkspaceMember
 from app.schemas import UtcDatetime
-from app.security import AuthUser, current_membership, current_user, require_verified_email
+from app.permissions import WRITERS
+from app.security import current_membership
 
 router = APIRouter(tags=["team"])
 log = logging.getLogger("app.team")
 
-INVITE_DAYS = 7
-Role = Literal["owner", "editor", "viewer"]
 Status = Literal["todo", "in_progress", "review", "done"]
 Priority = Literal["low", "medium", "high", "urgent"]
 
@@ -30,203 +27,26 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _aware(dt: datetime) -> datetime:
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
-
-
-def _owner(member: WorkspaceMember) -> None:
-    if member.role != "owner":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only workspace owners can manage the team.")
-
-
-# ---------- invites ----------
-
-
-class InviteIn(BaseModel):
-    role: Role = "editor"
-    email: str | None = Field(default=None, max_length=320, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-
-
-class InviteOut(BaseModel):
-    token: str
-    role: str
-    email: str | None
-    created_at: UtcDatetime
-    expires_at: UtcDatetime
-
-
-class InviteInfo(BaseModel):
-    workspace_name: str
-    role: str
-    invited_by: str | None
-    valid: bool
-    reason: str | None = None
-
-
-def _invite_problem(inv: Invite | None) -> str | None:
-    if inv is None:
-        return "This invite link doesn't exist. Ask for a new one."
-    if inv.used_at:
-        return "This invite has already been used."
-    if _aware(inv.expires_at) < _now():
-        return "This invite has expired. Ask for a new one."
-    return None
-
-
-@router.post("/workspace/invites", response_model=InviteOut, status_code=status.HTTP_201_CREATED)
-def create_invite(
-    body: InviteIn,
-    member: WorkspaceMember = Depends(current_membership),
-    user: AuthUser = Depends(current_user),
-    db: Session = Depends(get_db),
-):
-    _owner(member)
-    require_verified_email(user)
-    if body.email:
-        from app.email_check import check_email
-
-        # Only a definite "invalid" stops the invite; risky or unknown addresses still get one.
-        if check_email(body.email) == "invalid":
-            raise HTTPException(
-                status.HTTP_422_UNPROCESSABLE_CONTENT,
-                f"{body.email} can't receive email. Check the address for typos, or create a link without an email.",
-            )
-    inv = Invite(
-        token=secrets.token_urlsafe(24), workspace_id=member.workspace_id, role=body.role, email=body.email,
-        created_by=member.user_id, expires_at=_now() + timedelta(days=INVITE_DAYS),
-    )
-    db.add(inv)
-    db.commit()
-    if body.email:
-        from app.email import app_link, render, send
-
-        ws = db.get(Workspace, member.workspace_id)
-        ws_name = ws.name if ws else "their workspace"
-        inviter = db.execute(select(user_table.c.name).where(user_table.c.id == member.user_id)).scalar() or "A teammate"
-        url = app_link(f"/invite/{inv.token}")
-        subject = f"{inviter} invited you to {ws_name} on Vyuham"
-        text = f"{inviter} invited you to join {ws_name} as {body.role}. The link works once and expires in {INVITE_DAYS} days."
-        send(body.email, subject, render(subject, [text], ("Accept invite", url)), f"{text}\n\n{url}")
-    return inv
-
-
-@router.get("/workspace/invites", response_model=list[InviteOut])
-def list_invites(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    _owner(member)
-    rows = db.scalars(
-        select(Invite).where(Invite.workspace_id == member.workspace_id, Invite.used_at.is_(None)).order_by(Invite.created_at.desc())
-    )
-    return [i for i in rows if _aware(i.expires_at) > _now()]
-
-
-@router.delete("/workspace/invites/{token}", status_code=status.HTTP_204_NO_CONTENT)
-def revoke_invite(token: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    _owner(member)
-    inv = db.get(Invite, token)
-    if inv is None or inv.workspace_id != member.workspace_id:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Invite not found")
-    db.delete(inv)
-    db.commit()
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.get("/invites/{token}", response_model=InviteInfo)
-def invite_info(token: str, db: Session = Depends(get_db)):
-    """Public: what the link is for, shown before signing up or in."""
-    inv = db.get(Invite, token)
-    problem = _invite_problem(inv)
-    if inv is None:
-        return InviteInfo(workspace_name="", role="", invited_by=None, valid=False, reason=problem)
-    ws = db.get(Workspace, inv.workspace_id)
-    inviter = db.execute(select(user_table.c.name).where(user_table.c.id == inv.created_by)).scalar() if inv.created_by else None
-    return InviteInfo(workspace_name=ws.name if ws else "", role=inv.role, invited_by=inviter, valid=problem is None, reason=problem)
-
-
-@router.post("/invites/{token}/accept")
-def accept_invite(token: str, user: AuthUser = Depends(current_user), db: Session = Depends(get_db)):
-    inv = db.get(Invite, token)
-    problem = _invite_problem(inv)
-    if problem:
-        raise HTTPException(status.HTTP_410_GONE, problem)
-    current = db.scalar(select(WorkspaceMember).where(WorkspaceMember.user_id == user.id))
-    if current and current.workspace_id == inv.workspace_id:
-        return {"workspace_id": inv.workspace_id}
-    if inv.email:  # sent to one person: a forwarded or leaked link doesn't work for anyone else
-        if inv.email.strip().lower() != user.email.strip().lower():
-            raise HTTPException(status.HTTP_403_FORBIDDEN, "This invite was sent to a different email address. Sign in with that address.")
-        require_verified_email(user)
-    if current:
-        # v1: one workspace per person. Only an untouched, solo workspace can be given up.
-        ws_id = current.workspace_id
-        others = db.scalar(select(func.count()).where(WorkspaceMember.workspace_id == ws_id, WorkspaceMember.user_id != user.id))
-        has_data = db.scalar(select(exists().where(Dataset.workspace_id == ws_id))) or db.scalar(
-            select(exists().where(Dashboard.workspace_id == ws_id))
-        )
-        if others or has_data:
-            raise HTTPException(
-                status.HTTP_409_CONFLICT,
-                "You already have a workspace with data or teammates. For now an account can belong to one workspace; "
-                "sign up with another email to join this one.",
-            )
-        db.delete(current)
-        db.flush()
-        old = db.get(Workspace, ws_id)
-        if old:
-            db.delete(old)
-    # Atomic, so two people racing on one link can't both get in.
-    claimed = db.execute(
-        update(Invite).where(Invite.token == token, Invite.used_at.is_(None)).values(used_at=_now(), used_by=user.id)
-    ).rowcount
-    if claimed != 1:
-        db.rollback()
-        raise HTTPException(status.HTTP_410_GONE, "This invite has already been used.")
-    db.add(WorkspaceMember(user_id=user.id, workspace_id=inv.workspace_id, role=inv.role))
-    db.commit()
-    return {"workspace_id": inv.workspace_id}
-
-
-# ---------- members ----------
+# ---------- members (kept for older clients; the organization routes are the source of truth) ----------
 
 
 class RoleIn(BaseModel):
-    role: Role
-
-
-def _target(db: Session, member: WorkspaceMember, user_id: str) -> WorkspaceMember:
-    m = db.scalar(select(WorkspaceMember).where(WorkspaceMember.user_id == user_id, WorkspaceMember.workspace_id == member.workspace_id))
-    if m is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Member not found")
-    return m
-
-
-def _owners(db: Session, workspace_id: str) -> int:
-    return db.scalar(select(func.count()).where(WorkspaceMember.workspace_id == workspace_id, WorkspaceMember.role == "owner"))
+    role: Literal["admin", "analyst", "viewer"]
 
 
 @router.patch("/workspace/members/{user_id}")
 def change_role(user_id: str, body: RoleIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    _owner(member)
-    m = _target(db, member, user_id)
-    if m.role == "owner" and body.role != "owner" and _owners(db, member.workspace_id) <= 1:
-        raise HTTPException(status.HTTP_409_CONFLICT, "A workspace needs at least one owner. Make someone else an owner first.")
-    m.role = body.role
-    record_action(db, member, "member.role", "user", user_id, {"role": body.role})
-    db.commit()
-    return {"user_id": user_id, "role": m.role}
+    from app.routers.organizations import change_member_role
+
+    target = change_member_role(db, member, user_id, body.role)
+    return {"user_id": user_id, "role": target.role}
 
 
 @router.delete("/workspace/members/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def remove_member(user_id: str, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    _owner(member)
-    m = _target(db, member, user_id)
-    if m.role == "owner" and _owners(db, member.workspace_id) <= 1:
-        raise HTTPException(status.HTTP_409_CONFLICT, "You can't remove the last owner.")
-    # Their tasks stay, unassigned, so nothing falls through the cracks silently.
-    for t in db.scalars(select(Task).where(Task.workspace_id == member.workspace_id, Task.assignee_id == user_id)):
-        t.assignee_id = None
-    record_action(db, member, "member.remove", "user", user_id)
-    db.delete(m)
-    db.commit()
+    from app.routers.organizations import remove_member as remove_org_member
+
+    remove_org_member(db, member, user_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -307,7 +127,7 @@ def _check_links(db: Session, member: WorkspaceMember, data: dict) -> None:
 
 
 def _can_edit(member: WorkspaceMember, task: Task | None, data: dict) -> None:
-    if member.role in ("owner", "editor"):
+    if member.role in WRITERS:
         return
     # Viewers may only move their own tasks along the board.
     if task is not None and task.assignee_id == member.user_id and set(data) <= {"status"}:

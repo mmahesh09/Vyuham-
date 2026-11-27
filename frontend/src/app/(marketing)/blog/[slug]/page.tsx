@@ -13,7 +13,7 @@ import { SiteHeader } from "@/components/marketing/site-header";
 import { mdxComponents } from "@/features/blog/mdx-components";
 import { PostContents } from "@/features/blog/post-contents";
 import { formatDate, getAllPosts, getPost } from "@/lib/blog";
-import { RSS_ALTERNATE, SITE_NAME, SITE_URL } from "@/lib/site";
+import { LINKEDIN_URL, RSS_ALTERNATE, SITE_NAME, SITE_URL } from "@/lib/site";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -87,7 +87,7 @@ export default async function BlogPost({ params }: Params) {
     datePublished: post.date,
     dateModified: post.updated ?? post.date,
     author: { "@type": "Organization", name: post.author },
-    publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
+    publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL, sameAs: [LINKEDIN_URL] },
     mainEntityOfPage: `${SITE_URL}/blog/${post.slug}`,
     // The generated share image has a hashed URL only Next knows; it reaches crawlers through og:image instead.
     ...(post.image && { image: `${SITE_URL}${post.image}` }),

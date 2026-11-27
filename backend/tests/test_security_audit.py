@@ -49,8 +49,10 @@ class Tenant:
 
 def join(owner, engine, uid, role):
     member = Tenant(owner.client, engine, uid)
-    token = owner.post("/workspace/invites", json={"role": role}).json()["token"]
-    assert member.post(f"/invites/{token}/accept").status_code == 200
+    r = owner.post("/invitations", json={"emails": [f"{uid}@acme.co"], "role": role})
+    token = r.json()[0]["accept_url"].rsplit("/", 1)[-1]
+    assert member.post("/invitations/accept", json={"token": token}).status_code == 200
+    member.workspace = owner.workspace
     return member
 
 
@@ -74,11 +76,13 @@ def world(client, engine):
     metric = a.post("/metrics", json={"name": "Total pay", "dataset_id": ds["id"], "formula": "SUM(salary)"}).json()
     column = a.post("/calculated-columns", json={"dataset_id": ds["id"], "name": "Double", "formula": "salary * 2"}).json()
     dimension = a.post("/dimensions", json={"name": "Client", "dataset_id": ds["id"], "column": "customer"}).json()
+    invitation = a.post("/invitations", json={"emails": ["friend@alpha.co"], "role": "analyst"}).json()[0]["invitation"]
     metric_test = a.post(f"/metrics/{metric['id']}/tests", json={"name": "t", "expected": 999}).json()
     ids = {
         "metric": metric["id"], "column": column["id"], "dimension": dimension["id"], "metric_test": metric_test["id"],
         "dataset": ds["id"], "dashboard": dash["id"], "chart": chart["id"], "query": query["id"], "task": task["id"],
-        "alert": alert["id"], "report": report["id"], "run": run["id"],
+        "alert": alert["id"], "report": report["id"], "run": run["id"], "invitation": invitation["id"],
+        "workspace": a.workspace, "user": a.uid,
     }
     assert all(ids.values())
     return a, b, ids, spec
@@ -95,10 +99,11 @@ def test_every_route_with_an_id_refuses_the_other_company(world, client):
         "task_id": ids["task"], "rid": ids["report"], "run_id": ids["run"], "connection_id": "x", "ticket_id": "x",
         "column": "salary", "template_id": "sales",
         "metric_id": ids["metric"], "column_id": ids["column"], "dimension_id": ids["dimension"], "test_id": ids["metric_test"],
+        "workspace_id": ids["workspace"], "user_id": ids["user"], "invitation_id": ids["invitation"],
     }
     seen, leaks = 0, []
     for path, methods in client.get("/openapi.json").json()["paths"].items():
-        if "{" not in path or path.startswith(("/support/admin", "/kb/admin", "/status/admin", "/public", "/print", "/report-files", "/invites")):
+        if "{" not in path or path.startswith(("/support/admin", "/kb/admin", "/status/admin", "/public", "/print", "/report-files", "/invitations/lookup")):
             continue
         for method in methods:
             url = path
@@ -106,15 +111,17 @@ def test_every_route_with_an_id_refuses_the_other_company(world, client):
                 url = url.replace("{" + name + "}", value)
             if "/alerts/{aid}" in url:
                 url = url.replace("{aid}", ids["alert"])
-            if "{" in url or url.startswith("/templates") or url.startswith("/workspace/"):
+            if "{" in url or url.startswith("/templates"):
                 continue
             seen += 1
             r = b.request(method.upper(), url, json={})
             if r.status_code < 400 or "Top Secret" in r.text:
                 leaks.append((method, url, r.status_code))
-    assert seen > 30
+    assert seen > 40
     assert leaks == []
     assert a.get(f"/datasets/{ids['dataset']}").status_code == 200  # company A still sees its own
+    assert any(i["id"] == ids["invitation"] for i in a.get("/invitations").json())  # B's revoke attempts didn't land
+    assert a.get("/me").json()["role"] == "owner"  # nor did B's role changes
 
 
 def test_foreign_ids_in_request_bodies_are_refused(world):
@@ -208,12 +215,18 @@ def test_viewer_does_not_see_where_alerts_are_sent(world, engine, monkeypatch):
 
 def test_invite_sent_to_an_address_only_works_for_that_address(client, engine):
     owner, stranger = Tenant(client, engine, "own"), Tenant(client, engine, "stranger")
-    token = owner.post("/workspace/invites", json={"role": "owner", "email": "someone.else@acme.co"}).json()["token"]
-    assert stranger.post(f"/invites/{token}/accept").status_code == 403
+    def token_for(email, role):
+        r = owner.post("/invitations", json={"emails": [email], "role": role})
+        return r.json()[0]["accept_url"].rsplit("/", 1)[-1]
+
+    assert owner.post("/invitations", json={"emails": ["x@acme.co"], "role": "owner"}).status_code == 422  # never by invite
+    token = token_for("someone.else@acme.co", "admin")
+    r = stranger.post("/invitations/accept", json={"token": token})
+    assert r.status_code == 403 and r.json()["detail"]["code"] == "wrong_email"
     assert stranger.get("/me").json()["workspace"]["id"] != owner.workspace
     invited = Tenant(client, engine, "invited")
-    token = owner.post("/workspace/invites", json={"role": "editor", "email": "INVITED@acme.co"}).json()["token"]
-    assert invited.post(f"/invites/{token}/accept").status_code == 200
+    token = token_for("INVITED@acme.co", "analyst")
+    assert invited.post("/invitations/accept", json={"token": token}).status_code == 200
 
 
 # ---------- deleting a company's data ----------
@@ -470,8 +483,8 @@ def test_a_report_lost_from_the_queue_is_marked_failed(world, engine):
         assert run.status == "failed" and run.error
 
 
-def test_membership_is_one_workspace_per_person(world, engine):
+def test_membership_stays_inside_the_company(world, engine):
     a, b, _, _ = world
     with Session(engine) as s:
-        assert len(s.scalars(select(WorkspaceMember).where(WorkspaceMember.user_id == a.uid)).all()) == 1
+        assert {m.workspace_id for m in s.scalars(select(WorkspaceMember).where(WorkspaceMember.user_id == a.uid))} == {a.workspace}
         assert s.scalar(select(Dataset.workspace_id).where(Dataset.workspace_id == b.workspace)) is None

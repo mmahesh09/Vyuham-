@@ -14,8 +14,20 @@ log = logging.getLogger("app.audit")
 
 def record_action(db: Session, member: WorkspaceMember, action: str, target_type: str, target_id: str | None = None, detail: dict | None = None) -> None:
     """Add an audit row to the current transaction, so the change and its record commit together."""
+    org_id = getattr(member, "organization_id", None)
     db.add(AuditLog(
-        workspace_id=member.workspace_id, user_id=member.user_id, action=action,
+        organization_id=org_id, workspace_id=member.workspace_id, user_id=member.user_id, action=action,
+        target_type=target_type, target_id=target_id, detail=detail or {},
+    ))
+
+
+def record_org_action(
+    db: Session, organization_id: str, user_id: str | None, action: str, target_type: str,
+    target_id: str | None = None, detail: dict | None = None, workspace_id: str | None = None,
+) -> None:
+    """An organization-level audit row (invitations, members, ownership, workspaces). Commits with the change."""
+    db.add(AuditLog(
+        organization_id=organization_id, workspace_id=workspace_id, user_id=user_id, action=action,
         target_type=target_type, target_id=target_id, detail=detail or {},
     ))
 

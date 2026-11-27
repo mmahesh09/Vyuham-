@@ -1,8 +1,8 @@
 """Reports: saved report definitions, quick exports, run history, downloads, and the print page API.
 
 Anyone in the workspace can run and download reports of what they can already see. Saving,
-editing and deleting report definitions is for owners and editors, and so is exporting a SQL Lab
-saved query (SQL Lab itself is editors-only).
+editing and deleting report definitions is for analysts and up, and so is exporting a SQL Lab
+saved query (SQL Lab itself is for analysts and up).
 """
 
 from __future__ import annotations
@@ -26,6 +26,7 @@ from app.reports import runner
 from app.reports.storage import get_storage
 from app.routers.datasets import CAN_UPLOAD
 from app.schemas import UtcDatetime
+from app.sharing import ensure_visible, set_visibility, touched, visible_clause
 from app.security import AuthUser, current_membership, current_user
 
 log = logging.getLogger("app.reports")
@@ -74,6 +75,7 @@ class ExportIn(BaseModel):
 
 class ReportIn(ExportIn):
     name: str = Field(min_length=1, max_length=200)
+    visibility: Literal["workspace", "private"] | None = None
 
 
 class ReportRunOut(BaseModel):
@@ -106,6 +108,9 @@ class ReportOut(BaseModel):
     created_at: UtcDatetime
     updated_at: UtcDatetime
     last_run: ReportRunOut | None
+    visibility: str = "workspace"
+    created_by: str | None = None
+    updated_by: str | None = None
 
 
 # ---------- helpers ----------
@@ -113,7 +118,7 @@ class ReportOut(BaseModel):
 
 def _editor(member: WorkspaceMember, what: str = "Saving reports") -> None:
     if member.role not in CAN_UPLOAD:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, f"{what} is for owners and editors.")
+        raise HTTPException(status.HTTP_403_FORBIDDEN, f"{what} is for analysts, admins and owners.")
 
 
 def _source_name(db: Session, member: WorkspaceMember, source: str, source_id: str) -> str:
@@ -122,6 +127,8 @@ def _source_name(db: Session, member: WorkspaceMember, source: str, source_id: s
     obj = db.get(model, source_id)
     if obj is None or obj.workspace_id != member.workspace_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"That {source.replace('_', ' ')} doesn't exist")
+    if hasattr(obj, "visibility"):  # someone else's private dashboard or query can't be exported either
+        ensure_visible(obj, member, f"That {source.replace('_', ' ')} doesn't exist")
     return obj.name
 
 
@@ -136,6 +143,7 @@ def _check(db: Session, member: WorkspaceMember, body: ExportIn) -> str:
 def _run_inline(bind, run_id: str) -> None:
     """No Redis (local dev): generate after the response, in this process."""
     db = Session(bind=bind, expire_on_commit=False)
+    db.info["rls_bypass"] = True  # background job: trusted, like the worker
     try:
         runner.generate(db, run_id)
     except Exception as e:
@@ -171,6 +179,7 @@ def _report(db: Session, member: WorkspaceMember, rid: str) -> Report:
     r = db.get(Report, rid)
     if r is None or r.workspace_id != member.workspace_id:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Report not found")
+    ensure_visible(r, member, "Report not found")
     return r
 
 
@@ -183,6 +192,7 @@ def _report_out(db: Session, r: Report, member: WorkspaceMember) -> ReportOut:
     return ReportOut(
         id=r.id, name=r.name, source=r.source, source_id=r.source_id, source_name=source_name, format=r.format,
         options=ReportOptions(**(r.options or {})), created_at=r.created_at, updated_at=r.updated_at,
+        visibility=r.visibility or "workspace", created_by=r.created_by, updated_by=r.updated_by,
         last_run=ReportRunOut.model_validate(last) if last else None,
     )
 
@@ -220,7 +230,9 @@ def download_link(run: ReportRun) -> str:
 
 @router.get("/reports", response_model=list[ReportOut])
 def list_reports(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    rows = db.scalars(select(Report).where(Report.workspace_id == member.workspace_id).order_by(Report.updated_at.desc()))
+    rows = db.scalars(
+        select(Report).where(Report.workspace_id == member.workspace_id, visible_clause(Report, member)).order_by(Report.updated_at.desc())
+    )
     return [_report_out(db, r, member) for r in rows]
 
 
@@ -229,7 +241,8 @@ def create_report(body: ReportIn, member: WorkspaceMember = Depends(current_memb
     _editor(member)
     _check(db, member, body)
     r = Report(workspace_id=member.workspace_id, name=body.name, source=body.source, source_id=body.source_id,
-               format=body.format, options=body.options.model_dump(mode="json"), created_by=user.id)
+               format=body.format, options=body.options.model_dump(mode="json"), created_by=user.id, updated_by=user.id,
+               visibility=body.visibility or "workspace")
     db.add(r)
     db.commit()
     return _report_out(db, r, member)
@@ -246,6 +259,8 @@ def update_report(rid: str, body: ReportIn, member: WorkspaceMember = Depends(cu
     r = _report(db, member, rid)
     _check(db, member, body)
     r.name, r.source, r.source_id, r.format, r.options = body.name, body.source, body.source_id, body.format, body.options.model_dump(mode="json")
+    set_visibility(r, member, body.visibility)
+    touched(r, member)
     db.commit()
     return _report_out(db, r, member)
 
@@ -309,9 +324,13 @@ def signed_download(token: str, db: Session = Depends(get_db)):
         data = signing.verify("download", token)
     except signing.BadToken:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "This download link has expired. Open the report in Vyuham to get the file.") from None
+    from app import tenancy
+
+    tenancy.bypass(db)  # a signed link names the run; it carries its own workspace
     run = db.get(ReportRun, data.get("r", ""))
     if run is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "This file was deleted.")
+    tenancy.bind(db, run.workspace_id)
     return _file_response(run)
 
 
@@ -323,6 +342,9 @@ def _printed(db: Session, token: str) -> tuple[Dashboard, dict]:
         data = signing.verify("print", token)
     except signing.BadToken:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "This print link has expired.") from None
+    from app import tenancy
+
+    tenancy.bind(db, data.get("w"))  # the signed token names the workspace
     d = db.get(Dashboard, data.get("d", ""))
     if d is None or d.workspace_id != data.get("w"):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Dashboard not found")

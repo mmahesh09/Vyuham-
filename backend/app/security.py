@@ -11,12 +11,11 @@ from datetime import datetime, timezone
 from urllib.parse import unquote
 
 from fastapi import Depends, HTTPException, Request, status
-from sqlalchemy import select, text
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import Workspace, WorkspaceMember
+from app.models import WorkspaceMember
 
 SESSION_COOKIES = ("__Secure-better-auth.session_token", "better-auth.session_token")
 
@@ -77,25 +76,21 @@ def require_verified_email(user: AuthUser) -> None:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Confirm your email address first. We sent you a link when you signed up.")
 
 
-def current_membership(user: AuthUser = Depends(current_user), db: Session = Depends(get_db)) -> WorkspaceMember:
-    """The user's workspace membership, creating their workspace on first use."""
-    stmt = select(WorkspaceMember).where(WorkspaceMember.user_id == user.id)
-    member = db.scalar(stmt)
-    if member:
-        from app.errors import identify
+def current_membership(request: Request, user: AuthUser = Depends(current_user), db: Session = Depends(get_db)) -> WorkspaceMember:
+    """The workspace membership this request acts as, checked against the database every time.
 
-        identify(user.id, member.workspace_id)
-        return member
-    name = (user.company or "").strip() or f"{user.name.split(' ')[0] or 'My'}'s workspace"
-    member = WorkspaceMember(user_id=user.id, role="owner", workspace=Workspace(name=name[:120]))
-    db.add(member)
-    try:
-        db.commit()
-    except IntegrityError:  # a parallel first request created it
-        db.rollback()
-        member = db.scalar(stmt)
-        if member is None:
-            raise
+    The workspace comes from the `X-Workspace-Id` header when sent, else the one the person last
+    switched to, else their first. A workspace they can't open is a 403, never a silent fallback.
+    Someone with no organization yet gets 409 `onboarding_required`. Nothing is created here:
+    onboarding (routers/onboarding.py) and invitations create memberships.
+    """
+    from app import tenancy
+
+    member = tenancy.resolve(db, user.id, request.headers.get(tenancy.WORKSPACE_HEADER))
+    tenancy.bind(db, member.workspace_id)
+    from app.errors import identify
+
+    identify(user.id, member.workspace_id)
     return member
 
 
@@ -109,8 +104,15 @@ def is_staff(user: AuthUser) -> bool:
     return user.email.lower() in s.staff_emails
 
 
-def require_staff(user: AuthUser = Depends(current_user)) -> AuthUser:
-    """Staff-only routes answer 404 to everyone else, so they don't advertise themselves."""
+def require_staff(user: AuthUser = Depends(current_user), db: Session = Depends(get_db)) -> AuthUser:
+    """Staff-only routes answer 404 to everyone else, so they don't advertise themselves.
+
+    Staff tools read across workspaces (the support inbox), so their database session skips
+    row-level security; everyone else's stays bound to their workspace.
+    """
     if not is_staff(user):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Not Found")
+    from app import tenancy
+
+    tenancy.bypass(db)
     return user

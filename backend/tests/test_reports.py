@@ -15,6 +15,7 @@ from app import signing
 from app.models import ReportRun, WorkspaceMember
 from app.reports import pdf, runner
 from tests.test_query import sign_in, upload
+from tests.conftest import join
 
 
 def _csv(content: bytes) -> list[list[str]]:
@@ -107,8 +108,7 @@ def test_saved_query_export_and_editor_rule(client, engine):
     assert _csv(client.get(f"/report-runs/{run['id']}/download").content)[1] == ["North", "325.0"]
 
     sign_in(client, engine, uid="u2", token="tok-2", company="Other")
-    with engine.begin() as c:
-        c.execute(update(WorkspaceMember).where(WorkspaceMember.user_id == "u2").values(workspace_id=ws, role="viewer"))
+    join(engine, "u2", ws, "viewer")
     assert client.post("/exports", json={"source": "saved_query", "source_id": q["id"], "format": "csv"}).status_code == 403
 
 
@@ -159,8 +159,7 @@ def test_saved_report_crud_and_run(client, engine):
 
     # viewers can run and download, not create or delete
     sign_in(client, engine, uid="u2", token="tok-2", company="Other")
-    with engine.begin() as c:
-        c.execute(update(WorkspaceMember).where(WorkspaceMember.user_id == "u2").values(workspace_id=ws, role="viewer"))
+    join(engine, "u2", ws, "viewer")
     assert client.post("/reports", json=body).status_code == 403
     assert client.delete(f"/reports/{rep['id']}").status_code == 403
     viewer_run = client.post(f"/reports/{rep['id']}/run").json()
@@ -257,7 +256,7 @@ def test_celery_report_task_eager(client, engine, monkeypatch):
 
     sign_in(client, engine)
     ds = upload(client)
-    monkeypatch.setattr(worker, "SessionLocal", sessionmaker(bind=engine, expire_on_commit=False))
+    monkeypatch.setattr(worker, "worker_session", sessionmaker(bind=engine, expire_on_commit=False, info={"rls_bypass": True}))
     monkeypatch.setattr(get_settings(), "redis_url", "redis://example.invalid:6379/0")  # dispatch goes to Celery
     worker.celery_app.conf.task_always_eager = True
     try:

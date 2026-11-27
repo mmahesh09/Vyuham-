@@ -1,5 +1,5 @@
 """Account and workspace controls behind the DPDP rights in the privacy policy:
-export my data, delete my account, leave a workspace, delete a workspace.
+export my data, delete my account, leave an organization, delete a workspace.
 
 Deletes are explicit, table by table, rather than relying on database cascades: SQLite doesn't
 enforce foreign keys by default, and an erasure has to be complete on every database.
@@ -33,7 +33,10 @@ from app.models import (
     Dashboard,
     Dataset,
     Feedback,
-    Invite,
+    Invitation,
+    Organization,
+    OrganizationMember,
+    Report,
     LeaveRecord,
     MetricVersion,
     Notification,
@@ -48,12 +51,15 @@ from app.models import (
     TicketMessage,
     UserPresence,
     UserProfile,
+    UserWorkspaceState,
     Workspace,
     WorkspaceMember,
 )
 from app.query import workspace_dir
 from app.reports.storage import get_attachment_storage, get_storage
 from app.routers.datasets import parquet_path
+from app import tenancy
+from app.permissions import Perm, require
 from app.security import AuthUser, current_membership, current_user
 
 router = APIRouter(tags=["account"])
@@ -80,6 +86,9 @@ def _json(data) -> bytes:
 @router.get("/account/export")
 def export_my_data(user: AuthUser = Depends(current_user), member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
     """A ZIP of everything we hold about you, plus the datasets you uploaded (as CSV)."""
+    # Personal records (notifications, leave, feedback) can sit in any workspace the person is in;
+    # every query below is limited to this person or to their current workspace.
+    tenancy.bypass(db)
     me = db.execute(select(user_table).where(user_table.c.id == user.id)).mappings().first()
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
@@ -144,8 +153,19 @@ def _erase_workspace(db: Session, workspace_id: str) -> None:
     for table in reversed(Base.metadata.sorted_tables):
         if "workspace_id" in table.c:
             db.execute(table.delete().where(table.c.workspace_id == workspace_id))
+    db.execute(update(UserWorkspaceState).where(UserWorkspaceState.current_workspace_id == workspace_id).values(current_workspace_id=None))
     db.execute(delete(Workspace).where(Workspace.id == workspace_id))
     shutil.rmtree(workspace_dir(workspace_id), ignore_errors=True)
+
+
+def _erase_organization(db: Session, organization_id: str) -> None:
+    """Every workspace in the organization, then its members, invitations and the organization."""
+    for ws_id in list(db.scalars(select(Workspace.id).where(Workspace.organization_id == organization_id))):
+        _erase_workspace(db, ws_id)
+    db.execute(delete(AuditLog).where(AuditLog.organization_id == organization_id))
+    db.execute(delete(Invitation).where(Invitation.organization_id == organization_id))
+    db.execute(delete(OrganizationMember).where(OrganizationMember.organization_id == organization_id))
+    db.execute(delete(Organization).where(Organization.id == organization_id))
 
 
 class ConfirmIn(BaseModel):
@@ -154,12 +174,20 @@ class ConfirmIn(BaseModel):
 
 @router.delete("/workspace", status_code=status.HTTP_204_NO_CONTENT)
 def delete_workspace(body: ConfirmIn, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    if member.role != "owner":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only owners can delete the workspace.")
+    """Erase the current workspace and everything in it (not a soft delete: the right to erasure).
+
+    The organization's last workspace takes the organization with it.
+    """
+    require(member, Perm.WORKSPACE_DELETE)
     if body.confirm.strip() != member.workspace.name:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Type the workspace name exactly to confirm.")
-    ws_id = member.workspace_id
-    _erase_workspace(db, ws_id)
+    ws_id, org_id = member.workspace_id, member.organization_id
+    others = db.scalar(select(func.count()).where(Workspace.organization_id == org_id, Workspace.id != ws_id)) if org_id else 0
+    tenancy.bypass(db)  # erasure spans tables and, for the last workspace, the whole organization
+    if others:
+        _erase_workspace(db, ws_id)
+    else:
+        _erase_organization(db, org_id) if org_id else _erase_workspace(db, ws_id)
     db.commit()
     log.warning("[erasure] workspace %s deleted by user %s", hashlib.sha256(ws_id.encode()).hexdigest()[:16], hashlib.sha256(member.user_id.encode()).hexdigest()[:16])
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -167,18 +195,10 @@ def delete_workspace(body: ConfirmIn, member: WorkspaceMember = Depends(current_
 
 @router.post("/workspace/leave", status_code=status.HTTP_204_NO_CONTENT)
 def leave_workspace(member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    others = db.scalar(select(func.count()).where(WorkspaceMember.workspace_id == member.workspace_id, WorkspaceMember.user_id != member.user_id))
-    if not others:
-        raise HTTPException(status.HTTP_409_CONFLICT, "You're the only person here. Delete the workspace instead.")
-    owners = db.scalar(select(func.count()).where(WorkspaceMember.workspace_id == member.workspace_id, WorkspaceMember.role == "owner"))
-    if member.role == "owner" and owners <= 1:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Make someone else an owner before you leave.")
-    db.execute(update(Task).where(Task.workspace_id == member.workspace_id, Task.assignee_id == member.user_id).values(assignee_id=None))
-    db.execute(delete(Notification).where(Notification.user_id == member.user_id))
-    db.delete(member)
-    db.commit()
-    # Their next visit creates a fresh, empty workspace of their own (security.current_membership).
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
+    """Leave the organization the current workspace belongs to (kept for older clients)."""
+    from app.routers.organizations import leave_organization
+
+    return leave_organization(member, db)
 
 
 # ---------- account deletion (right to erasure) ----------
@@ -188,20 +208,31 @@ def leave_workspace(member: WorkspaceMember = Depends(current_membership), db: S
 def delete_account(body: ConfirmIn, user: AuthUser = Depends(current_user), db: Session = Depends(get_db)):
     if body.confirm.strip().lower() != user.email.lower():
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "Type your email address exactly to confirm.")
-    member = db.scalar(select(WorkspaceMember).where(WorkspaceMember.user_id == user.id))
-    if member:
-        others = db.scalar(select(func.count()).where(WorkspaceMember.workspace_id == member.workspace_id, WorkspaceMember.user_id != user.id))
-        owners = db.scalar(select(func.count()).where(WorkspaceMember.workspace_id == member.workspace_id, WorkspaceMember.role == "owner"))
-        if others and member.role == "owner" and owners <= 1:
+    tenancy.bypass(db)  # the person's records sit in every workspace they belong to
+    oms = db.scalars(select(OrganizationMember).where(OrganizationMember.user_id == user.id, OrganizationMember.status == "active")).all()
+    for om in oms:
+        others = db.scalar(select(func.count()).where(
+            OrganizationMember.organization_id == om.organization_id, OrganizationMember.user_id != user.id,
+            OrganizationMember.status == "active",
+        ))
+        if om.role == "owner" and others:
+            org = db.get(Organization, om.organization_id)
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
-                "You're the only owner of a workspace with other people in it. Make someone else an owner, or delete the workspace, first.",
+                f"You're the owner of {org.name if org else 'an organization'}, which has other people in it. "
+                "Transfer ownership to an admin, or delete the organization, first.",
             )
+    for om in oms:
+        others = db.scalar(select(func.count()).where(
+            OrganizationMember.organization_id == om.organization_id, OrganizationMember.user_id != user.id,
+            OrganizationMember.status == "active",
+        ))
         if not others:
-            _erase_workspace(db, member.workspace_id)  # nobody else uses it
-        else:
-            db.execute(update(Task).where(Task.workspace_id == member.workspace_id, Task.assignee_id == user.id).values(assignee_id=None))
-            db.execute(delete(WorkspaceMember).where(WorkspaceMember.user_id == user.id))
+            _erase_organization(db, om.organization_id)  # nobody else uses it
+    db.execute(update(Task).where(Task.assignee_id == user.id).values(assignee_id=None))
+    db.execute(delete(WorkspaceMember).where(WorkspaceMember.user_id == user.id))
+    db.execute(delete(OrganizationMember).where(OrganizationMember.user_id == user.id))
+    db.execute(delete(UserWorkspaceState).where(UserWorkspaceState.user_id == user.id))
 
     uid = user.id
     # Personal records go; shared work stays but no longer points at them.
@@ -211,12 +242,15 @@ def delete_account(body: ConfirmIn, user: AuthUser = Depends(current_user), db: 
     db.execute(delete(UserProfile).where(UserProfile.user_id == uid))
     db.execute(update(LeaveRecord).where(LeaveRecord.backup_user_id == uid).values(backup_user_id=None))
     db.execute(update(Task).where(Task.assignee_id == uid).values(assignee_id=None))
-    for model in (Task, Dashboard, Dataset, Alert, Automation, SavedQuery, Invite, SemanticMetric, MetricVersion, SemanticDimension, CalculatedColumn):
+    for model in (Task, Dashboard, Dataset, Alert, Automation, SavedQuery, Report, SemanticMetric, MetricVersion, SemanticDimension, CalculatedColumn, Workspace, Organization):
         db.execute(update(model).where(model.created_by == uid).values(created_by=None))
+    for model in (Dashboard, SavedQuery, Report):
+        db.execute(update(model).where(model.updated_by == uid).values(updated_by=None))
     db.execute(update(SemanticMetric).where(SemanticMetric.owner_id == uid).values(owner_id=None))
     for model in (AuditLog, QueryExecution):
         db.execute(update(model).where(model.user_id == uid).values(user_id=None))
-    db.execute(update(Invite).where(Invite.used_by == uid).values(used_by=None))
+    for col in ("invited_by", "accepted_by", "revoked_by"):
+        db.execute(update(Invitation).where(getattr(Invitation, col) == uid).values({col: None}))
     db.execute(delete(session_table).where(session_table.c.userId == uid))
     db.execute(delete(account_table).where(account_table.c.userId == uid))
     db.execute(delete(verification_table).where(verification_table.c.identifier == user.email))

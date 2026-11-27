@@ -29,6 +29,8 @@ from app.models import (
 from app.schemas import UtcDatetime
 from app.security import current_membership
 
+from app.permissions import FULL_ACCESS, WRITERS as CAN_SEE_USAGE  # noqa: E402
+
 router = APIRouter(prefix="/usage", tags=["usage"])
 
 GB = 1024 ** 3
@@ -65,8 +67,8 @@ def get_settings_(member: WorkspaceMember = Depends(current_membership), db: Ses
 
 @router.put("/settings", response_model=SettingsOut)
 def put_settings(body: SettingsIO, member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    if member.role != "owner":
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only owners can change cost rates and budgets.")
+    if member.role not in FULL_ACCESS:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Only owners and admins can change cost rates and budgets.")
     s = db.get(CostSettings, member.workspace_id)
     if s is None:
         s = CostSettings(workspace_id=member.workspace_id)
@@ -92,8 +94,8 @@ def _cost(s: CostSettings, compute_ms: float = 0, scanned: float = 0, storage_by
 
 @router.get("/summary")
 def summary(days: int = Query(30, ge=1, le=365), member: WorkspaceMember = Depends(current_membership), db: Session = Depends(get_db)):
-    if member.role not in ("owner", "editor"):
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Usage is for owners and editors.")
+    if member.role not in CAN_SEE_USAGE:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Usage is for analysts, admins and owners.")
     ws = member.workspace_id
     now = datetime.now(timezone.utc)
     since = now - timedelta(days=days)

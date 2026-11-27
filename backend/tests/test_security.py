@@ -16,11 +16,13 @@ from tests.test_reports import _csv, _export
 U2_COOKIE = "tok-2.c2lnbmF0dXJl"
 
 
-def _join_as(client, engine, role="editor"):
+def _join_as(client, engine, role="analyst"):
     """u2 joins u1's workspace through an invite; leaves the client signed in as u2."""
-    token = client.post("/workspace/invites", json={"role": role}).json()["token"]
+    from tests.conftest import accept, invite
+
+    token = invite(client, "u2@acme.co", role)
     client.cookies.set("better-auth.session_token", add_user(engine, uid="u2", token="tok-2", name="Ravi", company="R"))
-    assert client.post(f"/invites/{token}/accept").status_code == 200
+    assert accept(client, token).status_code == 200
 
 
 # ---------- 1. a removed member can't export the old workspace's data ----------

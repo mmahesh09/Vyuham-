@@ -1,4 +1,4 @@
-import { Check, Clock, Database, Eye, Lock, RefreshCcw, ShieldCheck, Sparkles } from "lucide-react";
+import { Check, Clock, Database, Eye, Lock, PenLine, RefreshCcw, ShieldCheck } from "lucide-react";
 
 /*
  * Static product illustrations for the engineering half of the homepage. Plain HTML in the same
@@ -38,7 +38,7 @@ export function PipelineShot() {
         ))}
       </ol>
       <div className="m-2 flex items-start gap-2 rounded-[16px] border border-accent/30 bg-accent/10 px-4 py-3 text-sm text-white">
-        <Sparkles className="mt-0.5 size-4 shrink-0 text-highlight" strokeWidth={2} aria-hidden />
+        <PenLine className="mt-0.5 size-4 shrink-0 text-faint" strokeWidth={1.5} aria-hidden />
         <span>
           <span className="font-semibold text-highlight">Drafted by the AI Data Engineer.</span> Approved by Asha before its first run.
         </span>

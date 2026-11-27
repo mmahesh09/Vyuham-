@@ -8,7 +8,7 @@ reads them, so they have no ORM models here — see app/security.py.
 import uuid
 from datetime import date, datetime, timezone
 
-from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app import auth_tables  # noqa: F401  (Better Auth tables referenced below)
@@ -23,29 +23,109 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+ROLES = ("owner", "admin", "analyst", "viewer")  # highest first; see app/permissions.py
+
+
+class Organization(Base):
+    """A company. Owns workspaces, members, invitations and (later) the subscription."""
+
+    __tablename__ = "organizations"
+    __table_args__ = (UniqueConstraint("created_by", "creation_key", name="uq_organizations_creation_key"),)
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(120))
+    company_size: Mapped[str | None] = mapped_column(String(16))
+    industry: Mapped[str | None] = mapped_column(String(60))
+    intended_use: Mapped[list] = mapped_column(JSON, default=list)
+    # Billing is organization-level. No payment provider yet: these only drive limits (app/plans.py).
+    plan: Mapped[str] = mapped_column(String(16), default="free")  # free | starter | growth | enterprise
+    plan_status: Mapped[str] = mapped_column(String(12), default="active")  # active | trialing | past_due | canceled
+    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    seat_limit: Mapped[int | None] = mapped_column(Integer)  # None = the plan's default
+    onboarding_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Set by onboarding so a retried "create" returns the same organization instead of a second one.
+    creation_key: Mapped[str | None] = mapped_column(String(64))
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    workspaces: Mapped[list["Workspace"]] = relationship(back_populates="organization")
+
+
+class OrganizationMember(Base):
+    """A person's place in an organization. Owners and admins get every workspace in it."""
+
+    __tablename__ = "organization_members"
+    __table_args__ = (
+        # One owner per organization; ownership moves with a transfer.
+        Index(
+            "uq_organization_owner", "organization_id", unique=True,
+            postgresql_where=text("role = 'owner' AND status = 'active'"),
+            sqlite_where=text("role = 'owner' AND status = 'active'"),
+        ),
+    )
+
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("user.id", ondelete="CASCADE"), primary_key=True, index=True)
+    role: Mapped[str] = mapped_column(String(16))  # owner | admin | analyst | viewer
+    status: Mapped[str] = mapped_column(String(10), default="active")  # active | removed
+    joined_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
 class Workspace(Base):
     __tablename__ = "workspaces"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    organization_id: Mapped[str | None] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
     name: Mapped[str] = mapped_column(String(120))
+    description: Mapped[str | None] = mapped_column(String(500))
+    logo_url: Mapped[str | None] = mapped_column(String(500))
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Onboarding answers and workspace switches: departments, data_sources, use_cases, workflows,
+    # analysts_can_connect_sources.
+    preferences: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    organization: Mapped[Organization | None] = relationship(back_populates="workspaces")
     members: Mapped[list["WorkspaceMember"]] = relationship(back_populates="workspace", cascade="all, delete-orphan")
 
 
 class WorkspaceMember(Base):
-    """Links a Better Auth user to a workspace. v1: one workspace per user (unique user_id)."""
+    """Links a Better Auth user to a workspace. A person can be in several workspaces.
+
+    `role` is the effective role in this workspace. Organization owners and admins have a row in every
+    workspace of their organization with that role (kept in sync by app/tenancy.py).
+    """
 
     __tablename__ = "workspace_members"
 
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), primary_key=True)
-    user_id: Mapped[str] = mapped_column(
-        String(64), ForeignKey("user.id", ondelete="CASCADE"), primary_key=True, unique=True
-    )
-    role: Mapped[str] = mapped_column(String(16), default="owner")  # owner | editor | viewer
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("user.id", ondelete="CASCADE"), primary_key=True, index=True)
+    role: Mapped[str] = mapped_column(String(16), default="viewer")  # owner | admin | analyst | viewer
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
     workspace: Mapped[Workspace] = relationship(back_populates="members")
+
+    @property
+    def organization_id(self) -> str | None:
+        return self.workspace.organization_id if self.workspace else None
+
+
+class UserWorkspaceState(Base):
+    """The workspace someone last switched to. Only a preference: access is re-checked on every request."""
+
+    __tablename__ = "user_workspace_state"
+
+    user_id: Mapped[str] = mapped_column(String(64), ForeignKey("user.id", ondelete="CASCADE"), primary_key=True)
+    current_workspace_id: Mapped[str | None] = mapped_column(ForeignKey("workspaces.id", ondelete="SET NULL"))
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
 
 class Connection(Base):
@@ -249,6 +329,9 @@ class Dashboard(Base):
     pages: Mapped[list | None] = mapped_column(JSON, default=list)
     share_token: Mapped[str | None] = mapped_column(String(64), unique=True)
     created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    updated_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    # workspace = everyone in the workspace can find it; private = only its creator (and owners/admins).
+    visibility: Mapped[str] = mapped_column(String(10), default="workspace", server_default="workspace")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
@@ -264,6 +347,7 @@ class Chart(Base):
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
     dashboard_id: Mapped[str] = mapped_column(ForeignKey("dashboards.id", ondelete="CASCADE"), index=True)
+    workspace_id: Mapped[str | None] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
     dataset_id: Mapped[str | None] = mapped_column(ForeignKey("datasets.id", ondelete="SET NULL"))
     spec: Mapped[dict] = mapped_column(JSON)
     kind: Mapped[str] = mapped_column(String(8), default="card")  # card | kpi
@@ -276,20 +360,38 @@ class Chart(Base):
     dashboard: Mapped[Dashboard] = relationship(back_populates="charts")
 
 
-class Invite(Base):
-    """A link that adds someone to a workspace with a role. Single use, expires after 7 days."""
+class Invitation(Base):
+    """An email invitation to an organization (and one of its workspaces) with a role.
 
-    __tablename__ = "invites"
+    Only a SHA-256 of the token is stored; the token itself is in the emailed link and shown once.
+    """
 
-    token: Mapped[str] = mapped_column(String(64), primary_key=True)
-    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
-    role: Mapped[str] = mapped_column(String(16))  # editor | viewer | owner
-    email: Mapped[str | None] = mapped_column(String(320))
-    created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    __tablename__ = "invitations"
+    __table_args__ = (
+        # One open invitation per person per organization.
+        Index(
+            "uq_invitations_pending_email", "organization_id", "email", unique=True,
+            postgresql_where=text("status = 'pending'"), sqlite_where=text("status = 'pending'"),
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    organization_id: Mapped[str] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    workspace_id: Mapped[str | None] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    email: Mapped[str] = mapped_column(String(320))  # lowercased
+    role: Mapped[str] = mapped_column(String(16))  # admin | analyst | viewer (never owner)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    status: Mapped[str] = mapped_column(String(10), default="pending")  # pending | accepted | revoked | expired
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    used_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    invited_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    accepted_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    accepted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    send_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
 
 class Task(Base):
@@ -333,6 +435,9 @@ class SavedQuery(Base):
     project_id: Mapped[str | None] = mapped_column(ForeignKey("projects.id", ondelete="SET NULL"), index=True)
     folder: Mapped[str | None] = mapped_column(String(200))
     created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    updated_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    # workspace = everyone in the workspace can find it; private = only its creator (and owners/admins).
+    visibility: Mapped[str] = mapped_column(String(10), default="workspace", server_default="workspace")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
@@ -462,6 +567,9 @@ class Report(Base):
     # {period_days, filters: {col: value}, orientation: portrait|landscape, page_size: A4|Letter}
     options: Mapped[dict] = mapped_column(JSON, default=dict)
     created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    updated_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
+    # workspace = everyone in the workspace can find it; private = only its creator (and owners/admins).
+    visibility: Mapped[str] = mapped_column(String(10), default="workspace", server_default="workspace")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
@@ -785,7 +893,8 @@ class AuditLog(Base):
     __tablename__ = "audit_logs"
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
-    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
+    organization_id: Mapped[str | None] = mapped_column(ForeignKey("organizations.id", ondelete="CASCADE"), index=True)
+    workspace_id: Mapped[str | None] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
     user_id: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
     action: Mapped[str] = mapped_column(String(40))
     target_type: Mapped[str] = mapped_column(String(24))
@@ -1031,6 +1140,24 @@ class GovernancePolicy(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
 
 
+class PilotRequest(Base):
+    """Someone asked to join the guided pilot from the website (no account needed). Staff work these by status."""
+
+    __tablename__ = "pilot_requests"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(120))
+    email: Mapped[str] = mapped_column(String(254), index=True)
+    company: Mapped[str] = mapped_column(String(160))
+    database: Mapped[str] = mapped_column(String(10))  # postgres | mysql | other
+    team_size: Mapped[str] = mapped_column(String(10))  # 1-10 | 11-50 | 51-200 | 200+
+    need: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(10), default="new", index=True)  # new | contacted | active | declined
+    note: Mapped[str | None] = mapped_column(String(1000))  # staff only
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now, onupdate=_now)
+
+
 class AccessGrant(Base):
     """Dataset- or column-level access for a role. No row means the role's default (read)."""
 
@@ -1041,7 +1168,24 @@ class AccessGrant(Base):
     workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id", ondelete="CASCADE"), index=True)
     dataset_id: Mapped[str] = mapped_column(ForeignKey("datasets.id", ondelete="CASCADE"), index=True)
     column: Mapped[str] = mapped_column(String(200), default="")  # "" = the whole dataset
-    role: Mapped[str] = mapped_column(String(10))  # editor | viewer | public (shared links)
+    role: Mapped[str] = mapped_column(String(10))  # analyst | viewer | public (shared links)
     access: Mapped[str] = mapped_column(String(8))  # none | masked | read
     created_by: Mapped[str | None] = mapped_column(String(64), ForeignKey("user.id", ondelete="SET NULL"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+# ---------- keep denormalised tenant columns filled ----------
+
+from sqlalchemy import event as _event  # noqa: E402
+
+
+@_event.listens_for(Chart, "before_insert")
+def _chart_workspace(mapper, connection, target: Chart) -> None:
+    """Charts carry their dashboard's workspace_id (for row-level security); callers needn't set it."""
+    if target.workspace_id is None:
+        if target.dashboard is not None and target.dashboard.workspace_id:
+            target.workspace_id = target.dashboard.workspace_id
+        elif target.dashboard_id:
+            target.workspace_id = connection.execute(
+                text("SELECT workspace_id FROM dashboards WHERE id = :id"), {"id": target.dashboard_id}
+            ).scalar()

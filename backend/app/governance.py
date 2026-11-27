@@ -19,11 +19,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models import AccessGrant, ColumnClassification, Dataset, GovernancePolicy, WorkspaceMember
+from app.permissions import FULL_ACCESS
 
 LABELS = ("public", "internal", "confidential", "restricted")
 PII_TYPES = ("email", "phone", "person_name", "address", "financial", "government_id", "sensitive")
 METHODS = ("partial", "hash", "redact", "full", "hide")  # least to most restrictive
-ROLES = ("owner", "editor", "viewer", "public")
+ROLES = ("owner", "admin", "analyst", "viewer", "public")
 _STRENGTH = {m: i for i, m in enumerate(METHODS)}
 
 
@@ -49,8 +50,8 @@ def role_of(member: WorkspaceMember | None) -> str:
 
 
 def access_for(db: Session, workspace_id: str, role: str) -> Access:
-    """What `role` may see of each dataset in the workspace. Empty for owners."""
-    if role == "owner":
+    """What `role` may see of each dataset in the workspace. Empty (everything) for owners and admins."""
+    if role in FULL_ACCESS:
         return {}
     out: Access = {}
     grants = db.scalars(select(AccessGrant).where(AccessGrant.workspace_id == workspace_id, AccessGrant.role == role)).all()
@@ -89,7 +90,7 @@ def access_for(db: Session, workspace_id: str, role: str) -> Access:
 
 def policy_method(rules: dict, label: str, pii_type: str | None, role: str) -> str | None:
     """The method a masking policy applies to a column with this label/type for this role, or None."""
-    if role in (rules.get("exempt_roles") or []) or role == "owner":
+    if role in (rules.get("exempt_roles") or []) or role in FULL_ACCESS:
         return None
     labels = rules.get("labels") or []
     types = rules.get("pii_types") or []
@@ -115,8 +116,9 @@ def role_for_user(db: Session, workspace_id: str, user_id: str | None) -> str:
     """The workspace role of whoever asked for something to run later (reports); viewer when unknown."""
     if not user_id:
         return "viewer"
-    role = db.scalar(select(WorkspaceMember.role).where(WorkspaceMember.workspace_id == workspace_id, WorkspaceMember.user_id == user_id))
-    return role or "viewer"
+    from app.tenancy import effective_role
+
+    return effective_role(db, user_id, workspace_id) or "viewer"
 
 
 def visible_datasets(db: Session, member: WorkspaceMember | None, datasets: list[Dataset], access: Access | None = None) -> list[Dataset]:
@@ -270,7 +272,7 @@ def scan_dataset(con: duckdb.DuckDBPyConnection, ds: Dataset, sample: int = 200)
 
 DEFAULT_POLICIES = [
     {"name": "Restricted data: hidden values for everyone but owners", "rules": {"labels": ["restricted"], "method": "full", "exempt_roles": []}},
-    {"name": "Confidential data: partial values for viewers and shared links", "rules": {"labels": ["confidential"], "method": "partial", "exempt_roles": ["editor"]}},
+    {"name": "Confidential data: partial values for viewers and shared links", "rules": {"labels": ["confidential"], "method": "partial", "exempt_roles": ["analyst"]}},
 ]
 
 
@@ -353,3 +355,13 @@ def redact_text(text: str) -> str:
     for rx in _REDACT:
         text = rx.sub("[redacted]", text)
     return text
+
+
+# DuckDB quotes the offending cell value in single quotes ("Could not convert string 'Jane Doe' to INT32");
+# identifiers are double-quoted and stay, so the error still says which column failed.
+_QUOTED_VALUE = re.compile(r"'(?:[^'\n]|'')*'")
+
+
+def redact_error_values(text: str) -> str:
+    """For engine errors and run logs sent to the AI: drop quoted cell values as well as personal data."""
+    return _QUOTED_VALUE.sub("'[value]'", redact_text(text))
